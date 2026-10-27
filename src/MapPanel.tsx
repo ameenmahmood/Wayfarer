@@ -172,7 +172,7 @@ export default function MapPanel({
             <div className="notice">Loading live Google map…</div>
           )}
         </>
-      ) : (
+      ) : !tripId.startsWith('demo') ? <div className="empty"><MapPin size={28}/><h3>Your places, ready to connect</h3><p>Configure Google Maps for a live view. Keep adding addresses and coordinates to your itinerary offline.</p></div> : (
         <div className="sketch">
           <svg
             viewBox="0 0 440 310"

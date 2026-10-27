@@ -1,5 +1,6 @@
 -- PostgreSQL / Supabase. All client writes pass through versioned, authorized RPCs.
-create extension if not exists pgcrypto;
+create schema if not exists extensions;
+create extension if not exists pgcrypto with schema extensions;
 create table public.memberships(trip_id uuid not null,user_id uuid not null references auth.users(id),email text not null,role text not null check(role in ('owner','editor','viewer')),primary key(trip_id,user_id));
 create table public.entities(id uuid primary key,trip_id uuid not null,kind text not null check(kind in ('trip','entry','expense','repayment','packing','template')),data jsonb not null,version bigint not null default 1,updated_at timestamptz not null default now(),updated_by uuid not null references auth.users(id),deleted boolean not null default false);
 create index on public.entities(trip_id);
@@ -11,13 +12,13 @@ alter table public.entities enable row level security;
 alter table public.invitations enable row level security;
 alter table public.operation_receipts enable row level security;
 alter table public.service_limits enable row level security;
-create function public.trip_role(t uuid) returns text language sql stable security definer set search_path=public as $$ select role from memberships where trip_id=t and user_id=auth.uid() $$;
+create function public.trip_role(t uuid) returns text language sql stable security definer set search_path=public,extensions as $$ select role from memberships where trip_id=t and user_id=auth.uid() $$;
 create policy member_read on public.memberships for select to authenticated using(public.trip_role(trip_id) is not null);
 create policy entity_read on public.entities for select to authenticated using(public.trip_role(trip_id) is not null and (kind not in ('packing','template') or coalesce((data->>'personal')::boolean,false)=false or data->>'assigned'=auth.uid()::text));
 create policy invite_read on public.invitations for select to authenticated using(public.trip_role(trip_id)='owner');
 -- No INSERT/UPDATE/DELETE policies: raw REST writes cannot bypass RPC checks.
 create function public.assert_money(n numeric) returns void language plpgsql as $$ begin if n is null or n<0 or n>9007199254740991 or n<>trunc(n) then raise exception 'Invalid minor-unit amount'; end if; end $$;
-create function public.validate_payload(k text,p jsonb,t uuid) returns void language plpgsql security definer set search_path=public as $$
+create function public.validate_payload(k text,p jsonb,t uuid) returns void language plpgsql security definer set search_path=public,extensions as $$
 declare n numeric; subtotal numeric; extras numeric; item jsonb; participant text; split_sum numeric; cnt int; field_name text;
 begin
  if jsonb_typeof(p)<>'object' or octet_length(p::text)>65536 then raise exception 'Invalid or oversized record'; end if;
@@ -85,7 +86,7 @@ begin
  if k='packing' and ((p->>'quantity')::int<1 or (coalesce((p->>'personal')::boolean,false) and p->>'assigned' is distinct from auth.uid()::text)) then raise exception 'Invalid personal checklist assignment'; end if;
  if k='template' and coalesce((p->>'personal')::boolean,false) and p->>'assigned' is distinct from auth.uid()::text then raise exception 'Invalid personal template assignment'; end if;
 end $$;
-create function public.apply_change(op_id uuid,entity_id uuid,trip_id uuid,entity_kind text,base_version bigint,payload jsonb,is_deleted boolean default false) returns jsonb language plpgsql security definer set search_path=public as $$
+create function public.apply_change(op_id uuid,entity_id uuid,trip_id uuid,entity_kind text,base_version bigint,payload jsonb,is_deleted boolean default false) returns jsonb language plpgsql security definer set search_path=public,extensions as $$
 declare actor uuid=auth.uid(); actor_role text; old entities; fresh entities; receipt operation_receipts; result jsonb;
 begin
  if actor is null then raise exception 'Authentication required'; end if;
@@ -119,7 +120,7 @@ begin
  insert into operation_receipts values(op_id,actor,entity_id,result);
  return result;
 end $$;
-create function public.create_invitation(target_trip uuid,target_email text,invite_role text) returns jsonb language plpgsql security definer set search_path=public as $$
+create function public.create_invitation(target_trip uuid,target_email text,invite_role text) returns jsonb language plpgsql security definer set search_path=public,extensions as $$
 declare token text=encode(gen_random_bytes(32),'hex');
 begin
  if public.trip_role(target_trip)<>'owner' or public.trip_role(target_trip) is null then raise exception 'Owner access required'; end if;
@@ -128,7 +129,7 @@ begin
  insert into invitations(trip_id,email,role,token_hash,created_by) values(target_trip,lower(trim(target_email)),invite_role,encode(digest(token,'sha256'),'hex'),auth.uid());
  return jsonb_build_object('token',token);
 end $$;
-create function public.accept_invitation(invite_token text) returns uuid language plpgsql security definer set search_path=public as $$
+create function public.accept_invitation(invite_token text) returns uuid language plpgsql security definer set search_path=public,extensions as $$
 declare inv invitations; e entities;
 begin
  if auth.uid() is null then raise exception 'Sign in first'; end if;
@@ -143,10 +144,10 @@ begin
  end if;
  return inv.trip_id;
 end $$;
-create function public.revoke_invitation(invitation_id uuid) returns void language plpgsql security definer set search_path=public as $$
+create function public.revoke_invitation(invitation_id uuid) returns void language plpgsql security definer set search_path=public,extensions as $$
 declare t uuid;
 begin select trip_id into t from invitations where id=invitation_id; if public.trip_role(t) is distinct from 'owner' then raise exception 'Owner access required'; end if; update invitations set revoked=true where id=invitation_id; end $$;
-create function public.manage_member(target_trip uuid,target_user uuid,new_role text) returns void language plpgsql security definer set search_path=public as $$
+create function public.manage_member(target_trip uuid,target_user uuid,new_role text) returns void language plpgsql security definer set search_path=public,extensions as $$
 begin
  if public.trip_role(target_trip) is distinct from 'owner' then raise exception 'Owner access required'; end if;
  perform pg_advisory_xact_lock(hashtextextended(target_trip::text,0));
@@ -156,15 +157,15 @@ begin
  else raise exception 'Invalid role'; end if;
  -- Retain the participant ID in financial history after revocation.
 end $$;
-create function public.consume_limit(bucket_name text,max_hits int default 30) returns boolean language plpgsql security definer set search_path=public as $$
+create function public.consume_limit(bucket_name text,max_hits int default 30) returns boolean language plpgsql security definer set search_path=public,extensions as $$
 declare n int;
 begin
  if auth.uid() is null then raise exception 'Sign in first'; end if;
  insert into service_limits values(auth.uid(),bucket_name,date_trunc('minute',now()),1) on conflict(user_id,bucket) do update set window_start=date_trunc('minute',now()),hits=case when service_limits.window_start=date_trunc('minute',now()) then service_limits.hits+1 else 1 end returning hits into n;
  return n<=least(max_hits,30);
 end $$;
-revoke all on all tables in schema public from anon,authenticated;
+revoke all on public.entities,public.memberships,public.invitations,public.operation_receipts,public.service_limits from anon,authenticated;
 grant select on entities,memberships,invitations to authenticated;
-revoke execute on all functions in schema public from public,anon;
+revoke execute on function trip_role(uuid),assert_money(numeric),validate_payload(text,jsonb,uuid),apply_change(uuid,uuid,uuid,text,bigint,jsonb,boolean),create_invitation(uuid,text,text),accept_invitation(text),revoke_invitation(uuid),manage_member(uuid,uuid,text),consume_limit(text,int) from public,anon;
 grant execute on function trip_role(uuid),apply_change(uuid,uuid,uuid,text,bigint,jsonb,boolean),create_invitation(uuid,text,text),accept_invitation(text),revoke_invitation(uuid),manage_member(uuid,uuid,text),consume_limit(text,int) to authenticated;
 alter publication supabase_realtime add table public.entities;

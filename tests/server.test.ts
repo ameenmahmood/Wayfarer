@@ -49,7 +49,7 @@ beforeAll(async () => {
   const sql = readFileSync(
     new URL("../supabase/migrations/001_private_trips.sql", import.meta.url),
     "utf8",
-  ).replace("create extension if not exists pgcrypto;", "");
+  ).replace("create extension if not exists pgcrypto with schema extensions;", "");
   await db.exec(sql);
   await actor(owner);
   await change("trip", tripId, {
