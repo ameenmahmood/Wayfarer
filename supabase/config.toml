@@ -1,0 +1,3 @@
+project_id = "wayfarer"
+[functions.travel-services]
+verify_jwt = true
