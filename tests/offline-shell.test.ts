@@ -6,6 +6,7 @@ it.each(["/", "/Wayfarer/"])(
   async (base) => {
     const listeners: Record<string, any> = {},
       saved = new Map<string, any>();
+    const removedCaches: string[] = [];
     let online = true;
     const source = readFileSync(
       new URL("../public/sw.js", import.meta.url),
@@ -38,9 +39,12 @@ it.each(["/", "/Wayfarer/"])(
       },
       caches: {
         open: async () => cache,
-        keys: async () => [],
+        keys: async () => ["another-app-cache", `wayfarer:${base}:old`],
         match: cache.match,
-        delete: async () => true,
+        delete: async (name: string) => {
+          removedCaches.push(name);
+          return true;
+        },
       },
       fetch: async () => {
         if (!online) throw Error("offline");
@@ -58,6 +62,9 @@ it.each(["/", "/Wayfarer/"])(
     await work;
     expect(saved.has(base + "assets/app-test.js")).toBe(true);
     expect(saved.has(base + "assets/app-test.css")).toBe(true);
+    listeners.activate({ waitUntil: (p: Promise<any>) => (work = p) });
+    await work;
+    expect(removedCaches).toEqual([`wayfarer:${base}:old`]);
     online = false;
     let response: Promise<any> = Promise.resolve();
     listeners.fetch({

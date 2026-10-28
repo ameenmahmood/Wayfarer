@@ -1,7 +1,8 @@
 const PRECACHE = /*PRECACHE*/ [];
 const BASE = new URL(self.registration.scope).pathname;
+const CACHE_PREFIX = "wayfarer:" + BASE + ":";
 const CACHE =
-  "wayfarer-v2-" + PRECACHE.filter((p) => p.endsWith(".js")).join("|");
+  CACHE_PREFIX + PRECACHE.filter((p) => p.endsWith(".js")).join("|");
 self.addEventListener("install", (e) => {
   e.waitUntil(
     caches
@@ -20,7 +21,9 @@ self.addEventListener("activate", (e) =>
       .keys()
       .then((keys) =>
         Promise.all(
-          keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)),
+          keys
+            .filter((k) => k.startsWith(CACHE_PREFIX) && k !== CACHE)
+            .map((k) => caches.delete(k)),
         ),
       )
       .then(() => self.clients.claim()),
