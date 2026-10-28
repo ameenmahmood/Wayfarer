@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { appBaseUrl, legalUrl } from "./urls";
 import { Monitor, Sun, Moon, Cloud, HardDrive, LogIn } from "lucide-react";
 import {
   demo,
@@ -82,7 +83,7 @@ export default function Settings({
                 a.run(async () => {
                   const { error } = await supabase!.auth.signInWithOtp({
                     email,
-                    options: { emailRedirectTo: location.origin },
+                    options: { emailRedirectTo: appBaseUrl },
                   });
                   if (error) throw error;
                   setMessage("Check your email for your sign-in link.");
@@ -173,7 +174,7 @@ export default function Settings({
       {a.error && <Notice tone="error">{a.error}</Notice>}
       <div className="legal">
         <a
-          href={import.meta.env.VITE_PRIVACY_URL || "/privacy.html"}
+          href={legalUrl(import.meta.env.VITE_PRIVACY_URL, "privacy.html")}
           target="_blank"
           rel="noreferrer"
         >
@@ -181,7 +182,7 @@ export default function Settings({
         </a>{" "}
         ·{" "}
         <a
-          href={import.meta.env.VITE_TERMS_URL || "/terms.html"}
+          href={legalUrl(import.meta.env.VITE_TERMS_URL, "terms.html")}
           target="_blank"
           rel="noreferrer"
         >

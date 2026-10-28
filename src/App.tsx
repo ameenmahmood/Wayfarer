@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { appBasePath } from "./urls";
 import {
   Compass,
   Plus,
@@ -374,7 +375,7 @@ export default function App() {
                         );
                         if (error) throw error;
                         setInvite("");
-                        history.replaceState(null, "", "/");
+                        history.replaceState(null, "", appBasePath);
                         await synchronize();
                       })
                     }

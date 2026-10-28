@@ -2,6 +2,12 @@
 
 A working private trip planner with a React + TypeScript interface, IndexedDB persistence, and an optional Supabase backend. The default installation is a clearly labeled **local demo**. It never simulates successful sign-in, invitations, cloud synchronization, live maps, or AI.
 
+**Current hosting:** [ameenmahmood.github.io/Wayfarer](https://ameenmahmood.github.io/Wayfarer/). The login page is publicly reachable; trip records require Supabase email login and membership. No ChatGPT account is required.
+
+The GitHub Pages workflow builds and tests every push to `main`. Public browser configuration comes from repository variables `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`; optional `VITE_GOOGLE_MAPS_BROWSER_KEY` is also supported. Server secrets remain in Supabase. Run `node scripts/configure-github-pages.mjs` to copy only these public values from your ignored local environment into repository variables. The workflow requires connected-mode settings and will not silently publish a demo build.
+
+GitHub Pages uses `/Wayfarer/` as the application base. For a matching local production build, set `$env:VITE_BASE_PATH='/Wayfarer/'` before `npm run build`, then visit `/Wayfarer/` on the preview server. Auth callbacks, invitation URLs, legal pages, the manifest, and offline cache paths respect this base.
+
 ## Run locally
 
 Requires Node.js 22.12+ (verified here with Node 24).
@@ -30,7 +36,7 @@ Visit http://127.0.0.1:4173 once while online. The production service worker pre
 - **Temporal polyfill:** explicit IANA zones, cross-zone flights, and rejection of ambiguous/nonexistent daylight-saving times.
 - **Integer minor units + BigInt intermediate arithmetic:** exact deterministic reconciliation across currency precisions.
 
-The source includes the complete migration and Edge Function. **No Supabase, Google, AI or exchange-rate credentials were available in this build session**, so those external services have not been deployed or live-tested. The private hosted version is consequently the local demo.
+The source includes the migration and Edge Function. Supabase is now configured on the hosted build. The installed migration, Auth endpoint, CORS, and rejection of anonymous data/function requests were verified live. The owner also confirmed successful email sign-in. Google Maps, AI, and automatic exchange rates remain unconfigured; manual planning and manual rate snapshots remain available.
 
 ## Connect the backend
 
@@ -41,15 +47,17 @@ The source includes the complete migration and Edge Function. **No Supabase, Goo
    ```text
    supabase login
    supabase link --project-ref YOUR_PROJECT_REF
-   supabase db push
+   supabase db push --linked
    supabase functions deploy travel-services
    ```
 
-4. Configure Edge Function secrets through the Supabase dashboard. `SUPABASE_URL` and `SUPABASE_ANON_KEY` are supplied by Supabase. Set `ALLOWED_ORIGIN` to the precise client origin, e.g. `http://127.0.0.1:5174` locally or the production HTTPS origin. The example default in the function is port 5173; explicitly set it for another port.
+4. Configure Edge Function secrets through the Supabase dashboard. `SUPABASE_URL` and `SUPABASE_ANON_KEY` are supplied by Supabase. Set `ALLOWED_ORIGIN` to exact allowed origins separated by commas. The current Pages origin is `https://ameenmahmood.github.io` (no path). The default for an unconfigured development deployment is `http://127.0.0.1:5173`. Redirect URLs, by contrast, include the application path: `https://ameenmahmood.github.io/Wayfarer/`. The checked-in Auth config contains this production Site URL and callback allowlist.
 5. Sign in from **Settings & account**. Create a new trip. The local sample trip is not uploaded into connected mode. Keep demo data in a separate browser profile if switching modes; there is no automatic conversion of fake sample members into real accounts.
 6. Under **Members**, the owner creates an email-bound editor/viewer invitation and copies its link. Share that link yourself. The recipient signs in with the matching email, then accepts it. Invitation creation does **not** email the friend. The link expires after seven days, is single-use, and can be revoked by the owner.
 
-The hosted demo's owner-private Sites gate is separate from Supabase trip membership. Before friends can use connected mode at that URL, grant them access through the hosting service's sharing controls, or deploy `dist/` to a frontend host reachable by them. Supabase still independently enforces each trip's invitation and role. No friend was granted hosting access during this session.
+The earlier Sites host remains available during migration, but its ChatGPT gate was removed at the owner's request. The primary GitHub Pages deployment uses Supabase email login only. Public frontend access does not grant trip access; Supabase independently checks membership and role.
+
+If you apply the initial SQL through the dashboard before using the CLI, inspect the complete schema first, then mark that existing migration with `supabase migration repair 001 --status applied --linked`. This updates tracking only. Verify with `supabase migration list --linked` and `supabase db push --linked --dry-run`. Do not reset the database to solve an already-existing-table error.
 
 The migration enables RLS on every application table. Direct REST writes are denied. `apply_change` checks membership, role, personal-list ownership, immutable record identity, money/split validity and record version. Trip settings/budgets/base currency are owner-managed. Editors change plans, expenses, repayments and shared lists; viewers read. Memberships are authoritative; archived participant IDs remain in financial history after revocation.
 

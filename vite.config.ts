@@ -1,6 +1,14 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 export default defineConfig({
+  base: process.env.VITE_BASE_PATH || "/",
   plugins: [react()],
-  test: { environment: "node", env: { VITE_SUPABASE_URL: "", VITE_SUPABASE_ANON_KEY: "", VITE_GOOGLE_MAPS_BROWSER_KEY: "" } },
+  test: {
+    environment: "node",
+    env: {
+      VITE_SUPABASE_URL: "",
+      VITE_SUPABASE_ANON_KEY: "",
+      VITE_GOOGLE_MAPS_BROWSER_KEY: "",
+    },
+  },
 } as any);

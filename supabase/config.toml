@@ -1,3 +1,6 @@
 project_id = "wayfarer"
+[auth]
+site_url = "https://ameenmahmood.github.io/Wayfarer/"
+additional_redirect_urls = ["https://ameenmahmood.github.io/Wayfarer/**", "https://wayfarer-private-travel-ameen.ameeb.chatgpt.site/**"]
 [functions.travel-services]
 verify_jwt = true

@@ -1,4 +1,5 @@
 const PRECACHE = /*PRECACHE*/ [];
+const BASE = new URL(self.registration.scope).pathname;
 const CACHE =
   "wayfarer-v2-" + PRECACHE.filter((p) => p.endsWith(".js")).join("|");
 self.addEventListener("install", (e) => {
@@ -6,7 +7,9 @@ self.addEventListener("install", (e) => {
     caches
       .open(CACHE)
       .then((c) =>
-        c.addAll(PRECACHE.length ? PRECACHE : ["/", "/manifest.webmanifest"]),
+        c.addAll(
+          PRECACHE.length ? PRECACHE : [BASE, BASE + "manifest.webmanifest"],
+        ),
       ),
   );
   self.skipWaiting();
@@ -35,14 +38,14 @@ self.addEventListener("fetch", (e) => {
     e.respondWith(
       fetch(e.request)
         .then((r) => {
-          if (r.ok) caches.open(CACHE).then((c) => c.put("/", r.clone()));
+          if (r.ok) caches.open(CACHE).then((c) => c.put(BASE, r.clone()));
           return r;
         })
-        .catch(() => caches.match("/")),
+        .catch(() => caches.match(BASE)),
     );
     return;
   }
-  if (u.pathname.startsWith("/assets/"))
+  if (u.pathname.startsWith(BASE + "assets/"))
     e.respondWith(
       caches.match(e.request).then(
         (r) =>

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { appBaseUrl, appBasePath } from "./urls";
 import { Mail, UserPlus, ShieldCheck, Copy, Trash2 } from "lucide-react";
 import type { Trip, Entity, Role } from "./model";
 import { demo, save, supabase, userId, userEmail, synchronize } from "./store";
@@ -156,7 +157,7 @@ export default function Members({
                   );
                   if (error) throw error;
                   setLink(
-                    `${location.origin}/?invite=${encodeURIComponent(data.token)}`,
+                    `${appBaseUrl}?invite=${encodeURIComponent(data.token)}`,
                   );
                   await refresh();
                 });
@@ -273,7 +274,7 @@ export default function Members({
                   await synchronize();
                   await refresh();
                   setMessage("You joined the trip.");
-                  history.replaceState(null, "", "/");
+                  history.replaceState(null, "", appBasePath);
                 })
               }
             >

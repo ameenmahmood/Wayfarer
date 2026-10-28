@@ -1,8 +1,13 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { z } from "npm:zod@4";
-const origin = Deno.env.get("ALLOWED_ORIGIN") || "http://127.0.0.1:5173";
-const headers = {
-  "Access-Control-Allow-Origin": origin,
+const allowedOrigins = (
+  Deno.env.get("ALLOWED_ORIGIN") || "http://127.0.0.1:5173"
+)
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
+const baseHeaders = {
+  Vary: "Origin",
   "Access-Control-Allow-Headers":
     "authorization,x-client-info,apikey,content-type",
   "Access-Control-Allow-Methods": "POST,OPTIONS",
@@ -49,6 +54,17 @@ async function google(url: string, body: any, mask: string) {
   return data;
 }
 Deno.serve(async (req: Request) => {
+  const requestOrigin = req.headers.get("origin");
+  const origin =
+    requestOrigin && allowedOrigins.includes(requestOrigin)
+      ? requestOrigin
+      : allowedOrigins[0];
+  const headers = { ...baseHeaders, "Access-Control-Allow-Origin": origin };
+  if (requestOrigin && !allowedOrigins.includes(requestOrigin))
+    return new Response(JSON.stringify({ error: "Origin not permitted" }), {
+      status: 403,
+      headers,
+    });
   if (req.method === "OPTIONS") return new Response("ok", { headers });
   try {
     if (req.method !== "POST")
@@ -56,13 +72,12 @@ Deno.serve(async (req: Request) => {
         status: 405,
         headers,
       });
-    if (req.headers.get("origin") && req.headers.get("origin") !== origin)
-      return new Response(JSON.stringify({ error: "Origin not permitted" }), {
-        status: 403,
-        headers,
-      });
     const auth = req.headers.get("Authorization");
-    if (!auth) return new Response(JSON.stringify({error:"Authentication required"}),{status:401,headers});
+    if (!auth)
+      return new Response(
+        JSON.stringify({ error: "Authentication required" }),
+        { status: 401, headers },
+      );
     const sb = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_ANON_KEY")!,
