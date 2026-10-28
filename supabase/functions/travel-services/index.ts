@@ -62,7 +62,7 @@ Deno.serve(async (req: Request) => {
         headers,
       });
     const auth = req.headers.get("Authorization");
-    if (!auth) throw Error("Authentication required");
+    if (!auth) return new Response(JSON.stringify({error:"Authentication required"}),{status:401,headers});
     const sb = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_ANON_KEY")!,

@@ -5,3 +5,5 @@ dist/
 .sites-local/
 *.zip
 test-results/
+supabase/.temp/
+*.tsbuildinfo
