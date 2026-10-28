@@ -1,6 +1,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { serviceCors } from "../_shared/cors.ts";
+import { googleFailure } from "../_shared/google-error.ts";
 import { z } from "npm:zod@4";
 const allowedOrigins = (
   Deno.env.get("ALLOWED_ORIGIN") || "http://127.0.0.1:5173"
@@ -41,10 +42,7 @@ async function google(url: string, body: any, mask: string) {
     signal: AbortSignal.timeout(15000),
   });
   const data = await r.json();
-  if (!r.ok)
-    throw Error(
-      `Google request failed (${r.status}). Check quota, billing, API enablement, and key restrictions.`,
-    );
+  if (!r.ok) throw Error(googleFailure(r.status, data, key));
   return data;
 }
 Deno.serve(async (req: Request) => {
@@ -145,11 +143,8 @@ Deno.serve(async (req: Request) => {
           signal: AbortSignal.timeout(15000),
         },
       );
-      if (!r.ok)
-        throw Error(
-          "Place details unavailable. Check Google billing and configuration.",
-        );
       result = await r.json();
+      if (!r.ok) throw Error(googleFailure(r.status, result, key));
     }
     if (body.action === "route") {
       const input = z

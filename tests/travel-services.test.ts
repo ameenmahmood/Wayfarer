@@ -5,6 +5,7 @@ import { z } from "zod";
 import { corsHeaders } from "@supabase/supabase-js/cors";
 import { it, expect, vi } from "vitest";
 import { serviceCors } from "../supabase/functions/_shared/cors";
+import { googleFailure } from "../supabase/functions/_shared/google-error";
 const local = "http://localhost:5173",
   production = "https://ameenmahmood.github.io";
 function handler({
@@ -41,6 +42,7 @@ function handler({
     z,
     corsHeaders,
     serviceCors,
+    googleFailure,
     createClient,
     fetch: google,
     Request,
@@ -154,3 +156,20 @@ it.each([
     expect(service.google).not.toHaveBeenCalled();
   },
 );
+
+it("Google rejection details remain actionable while key values are redacted", () => {
+  const key = "AIzaFakeServerSecretThatMustNeverBeShown";
+  const error = googleFailure(
+    403,
+    {
+      error: {
+        message: `Website-restricted key ${key} cannot call this API.`,
+        details: [{ reason: "API_KEY_HTTP_REFERRER_BLOCKED" }],
+      },
+    },
+    key,
+  );
+  expect(error).toContain("Website-restricted");
+  expect(error).toContain("API_KEY_HTTP_REFERRER_BLOCKED");
+  expect(error).not.toContain(key);
+});
