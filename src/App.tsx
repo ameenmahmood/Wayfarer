@@ -165,7 +165,7 @@ export default function App() {
       <aside className={"sidebar " + (sidebar ? "open" : "")}>
         <a
           className="brand"
-          href="/"
+          href={appBasePath}
           onClick={(e) => {
             e.preventDefault();
             setTab("itinerary");

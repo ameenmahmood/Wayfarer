@@ -118,7 +118,7 @@ Personal packing records and personal templates are filtered by owner at the dat
 
 ## Verification
 
-`npm test`: **33 tests passing** across six files as of this delivery. `npm run build`: TypeScript + production build pass. `npm audit`: zero known dependency vulnerabilities after upgrading the test runner.
+`npm test`: **34 tests passing** across six files. GitHub Actions runs these tests and the production build before deployment. See [the live backend verification report](docs/backend-verification.md) for the production checks and their limits.
 
 - Money: deterministic rounding, randomized allocations, JPY/KWD precision, item assignments, equal/exact/percentage/weighted splits, invalid splits, rate snapshots/conversion, balance reconciliation, editing/deletion, repayments, CSV safety.
 - Time: cross-zone instants and flights, DST gaps/ambiguity, multi-day lodging, overlap/unavailable-route/opening-hour checks, fixed appointments, infeasible proposals, endpoint legs and 10-stop bounds.
@@ -140,7 +140,7 @@ For the full connected owner/friend/offline workflow, configure services above, 
 5. Enter a two-item expense with different participants and extras, choose a rate snapshot if needed, review reconciled shares, then record suggested repayments. Actual spending remains unchanged.
 6. Fetch a live route matrix, review savings/conflicts, and accept the proposal. Revoke the friend's access and verify future API access fails. Already downloaded copies can still exist.
 
-These scenarios are exercised at the domain/transport/Postgres level in the tests; **a live hosted two-account demonstration awaits credentials**.
+These scenarios are exercised at the domain/transport/Postgres level in the tests. Production SQL smoke tests also passed in a rolled-back transaction. A live two-account browser demonstration still requires a second invited traveler; it has not been claimed as verified.
 
 ## Likely billable services
 
