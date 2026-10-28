@@ -167,3 +167,25 @@ it("retrying a failed map rebuilds its markers even when the map SDK was already
   await waitFor(() => expect(markers).toHaveLength(2));
   expect(service.api).toHaveBeenCalledTimes(2);
 });
+
+it("draws each leg with its saved transport method", async () => {
+  const a = entry("A", "place-a"),
+    b = entry("B", "place-b");
+  b.data.arrival = { fromId: a.id, mode: "DRIVE", manualMinutes: 20 };
+  render(
+    <MapPanel
+      entries={[a, b]}
+      selected=""
+      onSelect={() => {}}
+      tripId="trip"
+      mode="WALK"
+    />,
+  );
+  await waitFor(() =>
+    expect(service.api).toHaveBeenCalledWith(
+      "route",
+      "trip",
+      expect.objectContaining({ mode: "DRIVE" }),
+    ),
+  );
+});

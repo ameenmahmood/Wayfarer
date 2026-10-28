@@ -1,8 +1,9 @@
+import TimeInput from "./TimeInput";
 import { useState } from "react";
 import { ArrowRight, Route, Check } from "lucide-react";
 import type { Entity, Entry, Trip } from "./model";
 import { api, demo, save } from "./store";
-import { optimize, instant, type Matrix } from "./schedule";
+import { optimize, instant, formatTime, type Matrix } from "./schedule";
 import { Field, Button, Notice, useAsyncAction } from "./ui";
 export default function RoutePlanner({
   entries,
@@ -120,12 +121,13 @@ export default function RoutePlanner({
       </p>
       <div className="form-grid">
         <Field label="Departure time">
-          <input
-            type="time"
+          <TimeInput
+            label="Departure time"
+
             required
             value={departure}
-            onChange={(e) => {
-              setDeparture(e.target.value);
+            onChange={(value) => {
+              setDeparture(value);
               setProposal(undefined);
             }}
           />
@@ -211,7 +213,7 @@ export default function RoutePlanner({
           {proposal.entries.map((e, i) => (
             <div className="proposal-stop" key={e.title}>
               <span>{i + 1}</span>
-              <b>{e.start}</b>
+              <b>{formatTime(e.start)}</b>
               <ArrowRight size={14} />
               {e.title}
               {e.fixed && <small>Fixed</small>}

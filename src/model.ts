@@ -36,6 +36,7 @@ export type Entry = {
   fixed: boolean;
   order: number;
   opening?: { open: number; close: number };
+  arrival?: { fromId: string; mode: string; manualMinutes?: number };
 };
 export type SplitMode = "equal" | "exact" | "percentage" | "weighted";
 export type Expense = {

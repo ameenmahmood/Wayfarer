@@ -1,3 +1,4 @@
+import TimeInput from "./TimeInput";
 import SignIn from "./SignIn";
 import { useEffect, useState, useRef } from "react";
 import { Search, Plus, X } from "lucide-react";
@@ -239,11 +240,6 @@ export function EntryForm({
         });
       }}
     >
-      <div className="notice">
-        Your own notes and coordinates are available offline. Google place
-        results are fetched live and are not saved; only the place ID is
-        retained.
-      </div>
       <div className="search-row">
         <input
           aria-label="Find a Google place"
@@ -359,10 +355,11 @@ export function EntryForm({
           />
         </Field>
         <Field label="Start time">
-          <input
-            type="time"
+          <TimeInput
+            label="Start time"
+
             value={v.start}
-            onChange={(e) => change("start", e.target.value)}
+            onChange={(value) => change("start", value)}
           />
         </Field>
         <Field label="Duration · minutes">
@@ -375,136 +372,6 @@ export function EntryForm({
             onChange={(e) => change("duration", Number(e.target.value))}
           />
         </Field>
-        <Field label="End date">
-          <input
-            type="date"
-            value={v.endDate}
-            onChange={(e) => change("endDate", e.target.value)}
-          />
-        </Field>
-        <Field label="End time (optional)">
-          <input
-            type="time"
-            value={v.end}
-            onChange={(e) => change("end", e.target.value)}
-          />
-        </Field>
-      </div>
-      <Field label="Destination time zone (IANA)">
-        <input
-          required
-          value={v.zone}
-          onChange={(e) => change("zone", e.target.value)}
-        />
-      </Field>
-      <Field label="End / arrival time zone (optional)">
-        <input
-          placeholder={v.zone}
-          value={v.endZone || ""}
-          onChange={(e) => change("endZone", e.target.value || undefined)}
-        />
-      </Field>
-      <label className="check">
-        <input
-          type="checkbox"
-          checked={v.fixed}
-          onChange={(e) => change("fixed", e.target.checked)}
-        />
-        Fixed reservation · keep its time when optimizing
-      </label>
-      <Field label="Your address / meeting point">
-        <input
-          value={v.address}
-          onChange={(e) => change("address", e.target.value)}
-        />
-      </Field>
-      <div className="form-grid">
-        <Field label="Your latitude">
-          <input
-            type="number"
-            step="any"
-            min="-90"
-            max="90"
-            value={v.lat ?? ""}
-            onChange={(e) =>
-              change(
-                "lat",
-                e.target.value === "" ? undefined : Number(e.target.value),
-              )
-            }
-          />
-        </Field>
-        <Field label="Your longitude">
-          <input
-            type="number"
-            step="any"
-            min="-180"
-            max="180"
-            value={v.lng ?? ""}
-            onChange={(e) =>
-              change(
-                "lng",
-                e.target.value === "" ? undefined : Number(e.target.value),
-              )
-            }
-          />
-        </Field>
-        <Field label="Estimated cost">
-          <input
-            required
-            inputMode="decimal"
-            value={cost}
-            onChange={(e) => setCost(e.target.value)}
-          />
-        </Field>
-        <Field label="Currency">
-          <select
-            value={v.currency}
-            onChange={(e) => change("currency", e.target.value)}
-          >
-            {currencies.map((c) => (
-              <option key={c}>{c}</option>
-            ))}
-          </select>
-        </Field>
-        <Field label="Known opens (your research)">
-          <input
-            type="time"
-            value={
-              v.opening
-                ? `${String(Math.floor(v.opening.open / 60)).padStart(2, "0")}:${String(v.opening.open % 60).padStart(2, "0")}`
-                : ""
-            }
-            onChange={(e) => {
-              const [h, m] = e.target.value.split(":").map(Number);
-              change(
-                "opening",
-                e.target.value
-                  ? { open: h * 60 + m, close: v.opening?.close ?? 1080 }
-                  : undefined,
-              );
-            }}
-          />
-        </Field>
-        <Field label="Known closes">
-          <input
-            type="time"
-            value={
-              v.opening
-                ? `${String(Math.floor(v.opening.close / 60)).padStart(2, "0")}:${String(v.opening.close % 60).padStart(2, "0")}`
-                : ""
-            }
-            onChange={(e) => {
-              const [h, m] = e.target.value.split(":").map(Number);
-              change(
-                "opening",
-                e.target.value
-                  ? { open: v.opening?.open ?? 540, close: h * 60 + m }
-                  : undefined,
-              );
-            }}
-          />
-        </Field>
       </div>
       <Field label="Notes">
         <textarea
@@ -512,21 +379,165 @@ export function EntryForm({
           onChange={(e) => change("notes", e.target.value)}
         />
       </Field>
-      <div className="form-grid">
-        <Field label="Link">
+      <details className="optional-details">
+        <summary>
+          More details · reservation, cost, time zones &amp; coordinates
+        </summary>
+        <p className="muted">
+          Optional. Your trip time zone is used by default. Google place details
+          are fetched live; only the place ID is saved.
+        </p>
+        <div className="form-grid">
+          <Field label="End date">
+            <input
+              type="date"
+              value={v.endDate}
+              onChange={(e) => change("endDate", e.target.value)}
+            />
+          </Field>
+          <Field label="End time (optional)">
+            <TimeInput
+              label="End time (optional)"
+
+              value={v.end}
+              onChange={(value) => change("end", value)}
+            />
+          </Field>
+        </div>
+        <Field label="Destination time zone (IANA)">
           <input
-            type="url"
-            value={v.link}
-            onChange={(e) => change("link", e.target.value)}
+            required
+            value={v.zone}
+            onChange={(e) => change("zone", e.target.value)}
           />
         </Field>
-        <Field label="Reservation reference">
+        <Field label="End / arrival time zone (optional)">
           <input
-            value={v.reservation}
-            onChange={(e) => change("reservation", e.target.value)}
+            placeholder={v.zone}
+            value={v.endZone || ""}
+            onChange={(e) => change("endZone", e.target.value || undefined)}
           />
         </Field>
-      </div>
+        <label className="check">
+          <input
+            type="checkbox"
+            checked={v.fixed}
+            onChange={(e) => change("fixed", e.target.checked)}
+          />
+          Fixed reservation · keep its time when optimizing
+        </label>
+        <Field label="Your address / meeting point">
+          <input
+            value={v.address}
+            onChange={(e) => change("address", e.target.value)}
+          />
+        </Field>
+        <div className="form-grid">
+          <Field label="Your latitude">
+            <input
+              type="number"
+              step="any"
+              min="-90"
+              max="90"
+              value={v.lat ?? ""}
+              onChange={(e) =>
+                change(
+                  "lat",
+                  e.target.value === "" ? undefined : Number(e.target.value),
+                )
+              }
+            />
+          </Field>
+          <Field label="Your longitude">
+            <input
+              type="number"
+              step="any"
+              min="-180"
+              max="180"
+              value={v.lng ?? ""}
+              onChange={(e) =>
+                change(
+                  "lng",
+                  e.target.value === "" ? undefined : Number(e.target.value),
+                )
+              }
+            />
+          </Field>
+          <Field label="Estimated cost">
+            <input
+              required
+              inputMode="decimal"
+              value={cost}
+              onChange={(e) => setCost(e.target.value)}
+            />
+          </Field>
+          <Field label="Currency">
+            <select
+              value={v.currency}
+              onChange={(e) => change("currency", e.target.value)}
+            >
+              {currencies.map((c) => (
+                <option key={c}>{c}</option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Known opens (your research)">
+            <TimeInput
+              label="Known opens (your research)"
+
+              value={
+                v.opening
+                  ? `${String(Math.floor(v.opening.open / 60)).padStart(2, "0")}:${String(v.opening.open % 60).padStart(2, "0")}`
+                  : ""
+              }
+              onChange={(value) => {
+                const [h, m] = value.split(":").map(Number);
+                change(
+                  "opening",
+                  value
+                    ? { open: h * 60 + m, close: v.opening?.close ?? 1080 }
+                    : undefined,
+                );
+              }}
+            />
+          </Field>
+          <Field label="Known closes">
+            <TimeInput
+              label="Known closes"
+
+              value={
+                v.opening
+                  ? `${String(Math.floor(v.opening.close / 60)).padStart(2, "0")}:${String(v.opening.close % 60).padStart(2, "0")}`
+                  : ""
+              }
+              onChange={(value) => {
+                const [h, m] = value.split(":").map(Number);
+                change(
+                  "opening",
+                  value
+                    ? { open: v.opening?.open ?? 540, close: h * 60 + m }
+                    : undefined,
+                );
+              }}
+            />
+          </Field>
+        </div>
+        <div className="form-grid">
+          <Field label="Link">
+            <input
+              type="url"
+              value={v.link}
+              onChange={(e) => change("link", e.target.value)}
+            />
+          </Field>
+          <Field label="Reservation reference">
+            <input
+              value={v.reservation}
+              onChange={(e) => change("reservation", e.target.value)}
+            />
+          </Field>
+        </div>
+      </details>
       {a.error && <Notice tone="error">{a.error}</Notice>}
       <div className="dialog-actions">
         <Button type="submit" className="primary" disabled={a.busy}>

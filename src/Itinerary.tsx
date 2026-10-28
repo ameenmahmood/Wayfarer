@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 import { days, makeEntity, type Entity, type Trip, type Entry } from "./model";
 import { save, remove, api, demo } from "./store";
-import { travel, warnings, entryBounds } from "./schedule";
+import { travel, warnings, entryBounds, formatTime } from "./schedule";
 import { money } from "./money";
 import { EntryForm } from "./Forms";
 import {
@@ -35,6 +35,7 @@ import {
   ScrollRail,
 } from "./ui";
 import MapPanel from "./MapPanel";
+import TravelLeg from "./TravelLeg";
 import RoutePlanner from "./RoutePlanner";
 export default function Itinerary({
   trip,
@@ -87,6 +88,13 @@ export default function Itinerary({
       return warnings(
         dayEntries.map((e) => e.data),
         mode,
+        undefined,
+        (from, to) => {
+          const fromEntity = dayEntries.find((e) => e.data === from);
+          const leg =
+            to.arrival?.fromId === fromEntity?.id ? to.arrival : undefined;
+          return leg?.manualMinutes ?? travel(from, to, leg?.mode || mode);
+        },
       );
     } catch {
       return [
@@ -277,8 +285,9 @@ export default function Itinerary({
                 <Notice key={i}>{msg}</Notice>
               ))}
               <small>
-                Travel checks use rough straight-line estimates. Review the
-                route proposal for live estimates when configured.
+                Travel checks use saved manual times where available, otherwise
+                rough straight-line estimates for each travel method. Live leg
+                estimates appear beside their activities.
               </small>
             </div>
           )}
@@ -298,23 +307,20 @@ export default function Itinerary({
           <div className="timeline">
             {filtered.map((e, i) => {
               const EIcon = Icon(e.data.type),
-                previous = filtered[i - 1],
-                duration = previous
-                  ? travel(previous.data, e.data, mode)
-                  : null;
+                previous = filtered[i - 1];
               return (
                 <div key={e.id} className="timeline-wrap">
-                  {i > 0 && view !== "saved" && (
-                    <div className="travel-gap">
-                      <span />
-                      <Footprints size={13} />
-                      <small>
-                        {Number.isFinite(duration)
-                          ? `${duration} min · rough ${mode.toLowerCase()} estimate`
-                          : "Travel estimate unavailable"}
-                      </small>
-                    </div>
-                  )}
+                  {previous &&
+                    view !== "saved" &&
+                    previous.data.date === e.data.date && (
+                      <TravelLeg
+                        key={`${previous.id}:${e.id}`}
+                        previous={previous}
+                        entry={e}
+                        mode={mode}
+                        canEdit={canEdit}
+                      />
+                    )}
                   <article
                     id={e.id}
                     draggable={canEdit && view === "day"}
@@ -355,7 +361,7 @@ export default function Itinerary({
                         {e.data.fixed && <span className="pill">Fixed</span>}
                         <span className="grow" />
                         <span className="plan-time">
-                          {e.data.start || "Any time"}
+                          {formatTime(e.data.start)}
                         </span>
                       </div>
                       <h3>{e.data.title}</h3>
@@ -387,7 +393,8 @@ export default function Itinerary({
                         )}
                         {e.data.endDate > e.data.date && (
                           <span>
-                            Until {e.data.endDate} {e.data.end}
+                            Until {e.data.endDate}{" "}
+                            {e.data.end ? formatTime(e.data.end) : ""}
                           </span>
                         )}
                         {e.data.reservation && (

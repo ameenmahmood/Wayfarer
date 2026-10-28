@@ -2820,3 +2820,60 @@ button.profile {
   padding: 24px;
   color: var(--muted);
 }
+
+.optional-details {
+  margin: 20px 0;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+}
+.optional-details summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.optional-details[open] summary {
+  margin-bottom: 18px;
+}
+.travel-leg {
+  padding: 14px 0 14px 24px;
+  display: grid;
+  gap: 8px;
+}
+.travel-controls,
+.travel-manual {
+  display: flex;
+  gap: 12px;
+  align-items: end;
+  flex-wrap: wrap;
+}
+.travel-controls label {
+  display: grid;
+  gap: 6px;
+  font-size: 12px;
+}
+.travel-controls .check {
+  display: flex;
+  align-self: center;
+}
+.travel-manual input {
+  max-width: 100px;
+}
+.time-input {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  min-width: 0;
+}
+.time-input select {
+  min-width: 0;
+  padding-inline: 8px;
+  flex: 1;
+}
+@media (max-width: 600px) {
+  .travel-leg {
+    padding-left: 8px;
+  }
+  .travel-controls {
+    align-items: stretch;
+  }
+}

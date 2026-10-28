@@ -45,7 +45,12 @@ export function travel(a: Entry, b: Entry, mode: string, matrix?: Matrix) {
           3,
       );
 }
-export function warnings(entries: Entry[], mode = "WALK", matrix?: Matrix) {
+export function warnings(
+  entries: Entry[],
+  mode = "WALK",
+  matrix?: Matrix,
+  legTime?: (a: Entry, b: Entry) => number,
+) {
   const out: string[] = [];
   const list = entries
     .filter((e) => e.date && e.start)
@@ -65,7 +70,7 @@ export function warnings(entries: Entry[], mode = "WALK", matrix?: Matrix) {
         gap = (entryBounds(e).start - entryBounds(prev).end) / 60000;
       if (gap < 0) out.push(`${prev.title} overlaps ${e.title}.`);
       else {
-        const t = travel(prev, e, mode, matrix);
+        const t = legTime ? legTime(prev, e) : travel(prev, e, mode, matrix);
         if (t === Infinity)
           out.push(`Route unavailable: ${prev.title} → ${e.title}.`);
         else if (gap < t)
@@ -169,4 +174,10 @@ export function optimize(
     savings: Number.isFinite(originalCost) ? originalCost - proposed.travel : 0,
     conflicts: [],
   };
+}
+
+export function formatTime(value: string) {
+  if (!value) return "Any time";
+  const [h, m] = value.split(":").map(Number);
+  return `${h % 12 || 12}:${String(m).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`;
 }

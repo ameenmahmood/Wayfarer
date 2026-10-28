@@ -65,7 +65,14 @@ export default function MapPanel({
   const onSelectRef = useRef(onSelect);
   onSelectRef.current = onSelect;
   const locationKey = JSON.stringify(
-    entries.map((e) => [e.id, e.data.placeId, e.data.lat, e.data.lng]),
+    entries.map((e) => [
+      e.id,
+      e.data.placeId,
+      e.data.lat,
+      e.data.lng,
+      e.data.arrival?.fromId,
+      e.data.arrival?.mode,
+    ]),
   );
   const [mapVersion, setMapVersion] = useState(0);
   const [routeWarnings, setRouteWarnings] = useState<string[]>([]);
@@ -157,7 +164,11 @@ export default function MapPanel({
             const route = await api("route", tripId, {
               origin: points[i - 1].position,
               destination: points[i].position,
-              mode,
+              mode: (() => {
+                const leg = entries.find((e) => e.id === points[i].id)?.data
+                  .arrival;
+                return leg && leg.fromId === points[i - 1].id ? leg.mode : mode;
+              })(),
             });
             if (!active) return;
             setRouteWarnings((w) => [
