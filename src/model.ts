@@ -3,6 +3,7 @@ export type Kind =
   "trip" | "entry" | "expense" | "repayment" | "packing" | "template";
 export type Person = { id: string; name: string; email?: string; role: Role };
 export type Trip = {
+  cover?: { id: string; position: number };
   title: string;
   destinations: string;
   start: string;

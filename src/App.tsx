@@ -1,3 +1,5 @@
+import CoverPhoto from "./CoverPhoto";
+import { getCover } from "./covers";
 import { useEffect, useState, useRef, lazy } from "react";
 import { appBasePath } from "./urls";
 import {
@@ -52,6 +54,7 @@ const Itinerary = lazy(() => import("./Itinerary"));
 const Budget = lazy(() => import("./Budget"));
 const Packing = lazy(() => import("./Packing"));
 const Members = lazy(() => import("./Members"));
+const CoverPicker = lazy(() => import("./CoverPicker"));
 const Settings = lazy(() => import("./Settings"));
 const TripForm = lazy(() =>
   import("./Forms").then((m) => ({ default: m.TripForm })),
@@ -78,6 +81,7 @@ export default function App() {
     [queue, setQueue] = useState<Mutation[]>([]),
     [tripId, setTripId] = useState(localStorage.getItem("wayfarer-trip") || ""),
     [tab, setTab] = useState("itinerary"),
+    [choosingCover, setChoosingCover] = useState(false),
     [overview, setOverview] = useState(false),
     [loading, setLoading] = useState(true),
     [error, setError] = useState(""),
@@ -555,7 +559,12 @@ export default function App() {
           ) : (
             <>
               <section className="trip-hero">
-                <div className="hero-photo" />
+                <CoverPhoto
+                  key={trip.cover?.id || "tokyo"}
+                  cover={getCover(trip.cover?.id)}
+                  position={trip.cover?.position ?? 50}
+                  className="hero-photo"
+                />
                 <div className="hero-overlay" />
                 <div className="hero-content">
                   <span className="hero-tag">
@@ -589,6 +598,11 @@ export default function App() {
                   </div>
                 </div>
                 <div className="hero-buttons">
+                  {role === "owner" && (
+                    <button onClick={() => setChoosingCover(true)}>
+                      Change cover
+                    </button>
+                  )}
                   {role === "owner" && (
                     <button onClick={() => setEditingTrip(tripEntity)}>
                       Edit trip <MoreHorizontal size={16} />
@@ -736,6 +750,20 @@ export default function App() {
               theme={theme}
               setTheme={setThemeState}
               queue={queue}
+            />
+          </LazyPanel>
+        </Modal>
+      )}
+      {choosingCover && tripEntity && (
+        <Modal
+          title="Choose your trip cover"
+          onClose={() => setChoosingCover(false)}
+          wide
+        >
+          <LazyPanel>
+            <CoverPicker
+              entity={tripEntity}
+              onDone={() => setChoosingCover(false)}
             />
           </LazyPanel>
         </Modal>

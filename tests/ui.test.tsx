@@ -296,3 +296,42 @@ it("opening settings from mobile navigation keeps background scrolling locked un
   await u.click(dialog().getByRole("button", { name: "Close dialog" }));
   expect(document.body.style.overflow).toBe("");
 });
+
+it("previews, cancels and saves a suggested trip cover with persistent framing", async () => {
+  localStorage.setItem("wayfarer-trip", "demo-japan");
+  const u = await openApp();
+  await u.click(screen.getByRole("button", { name: "Change cover" }));
+  await dialog().findByText("Suggested for your trip");
+  await u.clear(dialog().getByLabelText("Find a cover"));
+  await u.type(dialog().getByLabelText("Find a cover"), "NYC");
+  await u.click(
+    dialog().getByRole("button", { name: "Choose New York skyline" }),
+  );
+  expect(
+    dialog().getByLabelText("Cover preview: New York skyline"),
+  ).toBeTruthy();
+  await u.click(dialog().getByRole("button", { name: "Cancel" }));
+  const { all } = await import("../src/store");
+  let trip = (await all()).find((e) => e.id === "demo-japan")!;
+  expect(trip.data.cover).toBeUndefined();
+  await u.click(screen.getByRole("button", { name: "Change cover" }));
+  await u.click(
+    await dialog().findByRole("button", { name: "Choose Mountain peaks" }),
+  );
+  const { fireEvent } = await import("@testing-library/react");
+  fireEvent.change(dialog().getByLabelText("Photo framing"), {
+    target: { value: "72" },
+  });
+  await u.click(dialog().getByRole("button", { name: "Save cover" }));
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  trip = (await all()).find((e) => e.id === "demo-japan")!;
+  expect(trip.data.cover).toEqual({ id: "peaks", position: 72 });
+  await u.click(screen.getByRole("button", { name: "Change cover" }));
+  expect(
+    await dialog().findByLabelText("Cover preview: Mountain peaks"),
+  ).toBeTruthy();
+  expect(
+    (dialog().getByLabelText("Photo framing") as HTMLInputElement).value,
+  ).toBe("72");
+  await u.click(dialog().getByRole("button", { name: "Cancel" }));
+});

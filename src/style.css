@@ -556,7 +556,6 @@ main {
 .hero-photo {
   position: absolute;
   inset: 0;
-  background-image: url("https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?auto=format&fit=crop&w=1800&q=85");
   background-size: cover;
   background-position: center 49%;
   filter: saturate(0.65);
@@ -3046,5 +3045,119 @@ button.profile {
   .travel-controls select,
   .travel-controls input[type="number"] {
     min-height: 36px;
+  }
+}
+
+.hero-photo img,
+.cover-preview-image img,
+.cover-thumbnail img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.cover-preview {
+  position: relative;
+  height: 190px;
+  overflow: hidden;
+  border-radius: 12px;
+  color: white;
+  margin-bottom: 16px;
+}
+.cover-preview-image {
+  position: absolute;
+  inset: 0;
+}
+.cover-preview-title {
+  position: absolute;
+  left: 22px;
+  bottom: 22px;
+  right: 22px;
+}
+.cover-preview-title small {
+  letter-spacing: 1.5px;
+  font-size: 10px;
+}
+.cover-preview-title h3 {
+  color: white;
+  font-size: 26px;
+  line-height: 1.2;
+  margin: 8px 0;
+}
+.cover-preview-title span {
+  font-size: 12px;
+}
+.cover-picker .cover-hint {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+  margin: 8px 0 18px;
+}
+.cover-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 12px 0 20px;
+}
+.cover-option {
+  padding: 0;
+  border: 2px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--surface);
+  text-align: left;
+  color: var(--text);
+}
+.cover-option[aria-pressed="true"] {
+  border-color: var(--green);
+  box-shadow: 0 0 0 1px var(--green);
+}
+.cover-option > span {
+  display: block;
+  padding: 9px 10px;
+  font-size: 12px;
+}
+.cover-option b {
+  color: var(--green);
+}
+.cover-thumbnail {
+  position: relative;
+  height: 95px;
+}
+.cover-photo-fallback {
+  display: block;
+  padding: 12px;
+  font-size: 11px;
+  color: white;
+}
+.cover-categories {
+  width: fit-content;
+}
+.cover-picker input[type="range"] {
+  padding: 4px 0;
+  width: 100%;
+  accent-color: var(--green);
+}
+.cover-picker .dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+.hero-buttons {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  max-width: calc(100% - 30px);
+}
+@media (max-width: 650px) {
+  .cover-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .cover-preview {
+    height: 160px;
+  }
+  .hero-buttons {
+    gap: 6px;
   }
 }
