@@ -1,4 +1,5 @@
-import { useState } from "react";
+import SignIn from "./SignIn";
+import { useEffect, useState } from "react";
 import { Search, Plus, X } from "lucide-react";
 import {
   currencies,
@@ -8,7 +9,7 @@ import {
   type Entry,
   type Expense,
 } from "./model";
-import { save, api, demo } from "./store";
+import { save, api, demo, supabase } from "./store";
 import { minor, precision, money, splitExpense } from "./money";
 import { entryBounds } from "./schedule";
 import { Field, Button, Notice, useAsyncAction } from "./ui";
@@ -21,6 +22,28 @@ export function TripForm({
 }) {
   const [t, setT] = useState(entity.data),
     a = useAsyncAction();
+  const [signedIn, setSignedIn] = useState(demo);
+  useEffect(() => {
+    if (!supabase) return;
+    let active = true;
+    void supabase.auth.getSession().then(({ data }) => {
+      if (active) setSignedIn(!!data.session);
+    });
+    const { data } = supabase.auth.onAuthStateChange((_event, session) =>
+      setSignedIn(!!session),
+    );
+    return () => {
+      active = false;
+      data.subscription.unsubscribe();
+    };
+  }, []);
+  useEffect(() => {
+    if (!entity.version)
+      sessionStorage.setItem(
+        "wayfarer-trip-draft",
+        JSON.stringify({ ...entity, data: t }),
+      );
+  }, [t, entity.id]);
   return (
     <form
       onSubmit={(e) => {
@@ -35,7 +58,23 @@ export function TripForm({
             t.zone !== "UTC"
           )
             throw Error("Choose a valid IANA time zone.");
-          await save({ ...entity, data: t });
+          let next = t;
+          if (supabase) {
+            const {
+              data: { session },
+            } = await supabase.auth.getSession();
+            if (!session)
+              throw Error(
+                "Sign in below to save this private trip. Your draft stays in this tab.",
+              );
+            if (!entity.version)
+              next = {
+                ...t,
+                people: [{ id: session.user.id, name: "You", role: "owner" }],
+              };
+          }
+          await save({ ...entity, data: next });
+          sessionStorage.removeItem("wayfarer-trip-draft");
           onDone();
         });
       }}
@@ -113,8 +152,15 @@ export function TripForm({
         />
       </Field>
       {a.error && <Notice tone="error">{a.error}</Notice>}
+      {!signedIn && (
+        <SignIn purpose="Sign in to save this private trip. Your draft is kept in this tab while you sign in; nothing is shared until you save." />
+      )}
       <div className="dialog-actions">
-        <Button type="submit" className="primary" disabled={a.busy}>
+        <Button
+          type="submit"
+          className="primary"
+          disabled={a.busy || !signedIn}
+        >
           Save trip
         </Button>
       </div>
@@ -138,8 +184,20 @@ export function EntryForm({
   const [v, setV] = useState(entity.data),
     [q, setQ] = useState(""),
     [places, setPlaces] = useState<any[]>([]),
+    [searched, setSearched] = useState(false),
     [cost, setCost] = useState(String(v.cost / 10 ** precision(v.currency))),
-    a = useAsyncAction();
+    a = useAsyncAction(),
+    searchAction = useAsyncAction();
+  function searchPlaces() {
+    if (demo || q.trim().length < 2) return;
+    setSearched(false);
+    setPlaces([]);
+    void searchAction.run(async () => {
+      const result = await api("places", entity.tripId, { query: q.trim() });
+      setPlaces(result.places || []);
+      setSearched(true);
+    });
+  }
   const change = (k: keyof Entry, value: any) =>
     setV((v) => ({ ...v, [k]: value }));
   return (
@@ -183,21 +241,39 @@ export function EntryForm({
           aria-label="Find a Google place"
           placeholder="Find a place or address with Google…"
           value={q}
-          onChange={(e) => setQ(e.target.value)}
+          onChange={(e) => {
+            setQ(e.target.value);
+            setSearched(false);
+            searchAction.setError("");
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              searchPlaces();
+            }
+          }}
         />
         <Button
-          disabled={a.busy || demo || !q}
-          onClick={() =>
-            a.run(async () => {
-              const r = await api("places", entity.tripId, { query: q });
-              setPlaces(r.places || []);
-            })
-          }
+          disabled={searchAction.busy || demo || q.trim().length < 2}
+          onClick={searchPlaces}
         >
           <Search size={17} />
-          Search
+          {searchAction.busy ? "Searching..." : "Search"}
         </Button>
       </div>
+      {demo && (
+        <Notice>
+          Place search requires a connected account and configured Google
+          services. Manual plans work offline.
+        </Notice>
+      )}
+      {searchAction.busy && <p role="status">Searching Google Places...</p>}
+      {searchAction.error && <Notice tone="error">{searchAction.error}</Notice>}
+      {searched && !places.length && (
+        <Notice>
+          No places found. Try a more specific place name, city, or address.
+        </Notice>
+      )}
       {places.length > 0 && (
         <div className="search-results">
           <span className="google-attribution" translate="no">
@@ -211,6 +287,7 @@ export function EntryForm({
               onClick={() => {
                 change("placeId", p.id);
                 setPlaces([]);
+                setSearched(false);
               }}
             >
               {p.displayName?.text}

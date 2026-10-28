@@ -53,6 +53,9 @@ it("My trips opens the library, trip cards reopen the dashboard, and account con
   await u.click(screen.getByRole("button", { name: "Open account settings" }));
   expect(document.body.style.overflow).toBe("hidden");
   expect(screen.getByRole("dialog").querySelector(".dialog-body")).toBeTruthy();
+  expect(dialog().getByRole("heading", { name: "Your account" })).toBeTruthy();
+  await u.click(dialog().getByRole("button", { name: "Close dialog" }));
+  await u.click(screen.getByRole("button", { name: "Settings & account" }));
   await u.click(dialog().getByRole("button", { name: "Dark" }));
   expect(document.documentElement.dataset.theme).toBe("dark");
   await u.click(dialog().getByRole("button", { name: "Light" }));

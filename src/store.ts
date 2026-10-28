@@ -323,11 +323,15 @@ export async function api(action: string, tripId: string, body: any = {}) {
   });
   if (error) {
     // Supabase wraps non-2xx responses; show the server's recovery instructions.
-    let message = error.message;
+    let message =
+      error.name === "FunctionsFetchError"
+        ? "Could not reach the travel service. Check your connection and that ALLOWED_ORIGIN includes this site's origin in Supabase Edge Function secrets."
+        : error.message;
     if (error.context instanceof Response) {
       try {
         const result = await error.context.json();
         if (typeof result.error === "string") message = result.error;
+        else if (typeof result.message === "string") message = result.message;
       } catch {
         /* Non-JSON gateway response. */
       }

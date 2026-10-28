@@ -81,8 +81,26 @@ export default function App() {
     [theme, setThemeState] = useState(
       localStorage.getItem("wayfarer-theme") || "system",
     ),
-    [settings, setSettings] = useState(false),
-    [editingTrip, setEditingTrip] = useState<Entity<Trip>>(),
+    [settings, setSettings] = useState<
+      "appearance" | "account" | "sync" | "privacy" | "connections" | null
+    >(null),
+    [editingTrip, setEditingTrip] = useState<Entity<Trip> | undefined>(() => {
+      try {
+        const draft = JSON.parse(
+          sessionStorage.getItem("wayfarer-trip-draft") || "null",
+        );
+        if (
+          draft?.kind === "trip" &&
+          draft.version === 0 &&
+          typeof draft.data?.title === "string" &&
+          Array.isArray(draft.data.people)
+        )
+          return draft;
+      } catch {
+        /* Ignore an invalid draft. */
+      }
+      return undefined;
+    }),
     [sidebar, setSidebar] = useState(false),
     [status, setStatus] = useState("Loading…"),
     [role, setRole] = useState<Role>("viewer"),
@@ -195,10 +213,16 @@ export default function App() {
     setTab("itinerary");
     setSidebar(false);
   }
-  function openSettings() {
+  function openSettings(section: NonNullable<typeof settings> = "appearance") {
     setSidebar(false);
-    setSettings(true);
+    setSettings(section);
   }
+  function showLibrary() {
+    setOverview(true);
+    setSidebar(false);
+    setSettings(null);
+  }
+
   const scoped = records.filter((e) => e.tripId === tid),
     entries = scoped.filter((e) => e.kind === "entry"),
     expenses = scoped.filter((e) => e.kind === "expense"),
@@ -216,11 +240,6 @@ export default function App() {
   const canEdit = role !== "viewer";
   const newTrip = () => {
     setSidebar(false);
-    if (!demo && !userEmail) {
-      setSettings(true);
-      setError("Sign in before creating a connected trip.");
-      return;
-    }
     const id = uid();
     setEditingTrip(
       makeEntity("trip", id, {
@@ -261,13 +280,13 @@ export default function App() {
         >
           <X size={20} />
         </button>
-        <button className="workspace" onClick={openSettings}>
+        <button className="workspace" onClick={showLibrary}>
           <span className="workspace-icon">A</span>
           <div>
             <b>My travel space</b>
             <small>Private workspace</small>
           </div>
-          <SettingsIcon size={14} />
+          <ChevronRight size={14} />
         </button>
         <span className="sidebar-label">YOUR SPACE</span>
         <button
@@ -284,7 +303,11 @@ export default function App() {
           className={"nav-item " + (!overview ? "active" : "")}
           onClick={() => {
             if (tid) openTrip(tid);
-            else newTrip();
+            else {
+              setOverview(false);
+              setSidebar(false);
+              setTab("itinerary");
+            }
           }}
         >
           <Bookmark size={18} />
@@ -341,11 +364,11 @@ export default function App() {
               and the people you invite.
             </p>
           </div>
-          <button className="nav-item" onClick={openSettings}>
+          <button className="nav-item" onClick={() => openSettings()}>
             <SettingsIcon size={17} />
             Settings & account
           </button>
-          <button className="profile" onClick={openSettings}>
+          <button className="profile" onClick={() => openSettings("account")}>
             <span className="avatar a0">A</span>
             <div>
               <b>{demo ? "Local traveler" : "My account"}</b>
@@ -380,7 +403,12 @@ export default function App() {
             <b>{trip?.title || "Your next adventure"}</b>
           </div>
           <div className="top-actions">
-            <button className="sync-indicator" onClick={openSettings}>
+            <button
+              className="sync-indicator"
+              onClick={() =>
+                openSettings(!demo && !userId ? "account" : "sync")
+              }
+            >
               {status.includes("Offline") ? (
                 <WifiOff size={14} />
               ) : status.includes("Syncing") ? (
@@ -396,7 +424,7 @@ export default function App() {
             <button
               className="avatar small-avatar"
               aria-label="Open account settings"
-              onClick={openSettings}
+              onClick={() => openSettings("account")}
             >
               A
             </button>
@@ -411,7 +439,7 @@ export default function App() {
                 Make it your own. Changes are saved in this browser;
                 collaboration and live services require setup.
               </span>
-              <button onClick={openSettings}>
+              <button onClick={() => openSettings("connections")}>
                 Connection settings <ArrowUpRight size={13} />
               </button>
             </div>
@@ -438,7 +466,7 @@ export default function App() {
               <LoaderCircle className="spin" />
               Opening your travel space…
             </div>
-          ) : overview && trips.length > 0 ? (
+          ) : overview ? (
             <section className="trip-library">
               <div className="content-heading">
                 <div>
@@ -450,6 +478,18 @@ export default function App() {
                   Create a trip
                 </Button>
               </div>
+              {!trips.length && (
+                <Empty title="No trips yet">
+                  {!demo && !userId
+                    ? "Sign in to load your private trips, or start drafting a new trip."
+                    : "Create a trip to start planning your next adventure."}
+                </Empty>
+              )}
+              {!demo && !userId && (
+                <Button onClick={() => openSettings("account")}>
+                  Sign in to load trips
+                </Button>
+              )}
               <div className="trip-grid">
                 {trips.map((t) => (
                   <button
@@ -473,16 +513,18 @@ export default function App() {
           ) : !trip ? (
             <div className="welcome">
               <Compass size={42} />
-              <h1>Good trips begin with a little possibility.</h1>
-              <p>Create your first private trip and bring your people along.</p>
+              <h1>Trip dashboard</h1>
+              <p>
+                {!demo && !userId
+                  ? "Sign in to open your private dashboard, or draft a new trip below."
+                  : "Choose a trip from My trips, or create one to get started."}
+              </p>
               <div className="button-row">
                 <Button className="primary" onClick={newTrip}>
                   <Plus size={17} />
                   Create a trip
                 </Button>
-                <Button onClick={openSettings}>
-                  Sign in & connection settings
-                </Button>
+                <Button onClick={() => openSettings("account")}>Sign in</Button>
               </div>
               {invite && !demo && (
                 <div className="panel">
@@ -663,25 +705,42 @@ export default function App() {
             <span>
               <Compass size={14} /> Made for the journey, and the people in it.
             </span>
-            <button onClick={openSettings}>
-              Privacy, offline data & connections
+            <button onClick={() => openSettings("privacy")}>
+              Privacy & offline data
             </button>
           </footer>
         </main>
       </div>
       {settings && (
         <Modal
-          title="Your travel space"
-          onClose={() => setSettings(false)}
+          title={
+            {
+              appearance: "Appearance settings",
+              account: "Your account",
+              sync: "Sync status",
+              privacy: "Privacy & offline data",
+              connections: "Connections",
+            }[settings]
+          }
+          onClose={() => setSettings(null)}
           wide
         >
-          <Settings theme={theme} setTheme={setThemeState} queue={queue} />
+          <Settings
+            section={settings}
+            theme={theme}
+            setTheme={setThemeState}
+            queue={queue}
+          />
         </Modal>
       )}
       {editingTrip && (
         <Modal
           title={editingTrip.version ? "Edit your trip" : "Where are we going?"}
-          onClose={() => setEditingTrip(undefined)}
+          onClose={() => {
+            if (!editingTrip.version)
+              sessionStorage.removeItem("wayfarer-trip-draft");
+            setEditingTrip(undefined);
+          }}
         >
           <TripForm
             entity={editingTrip}

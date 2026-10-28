@@ -1,4 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
+import { serviceCors } from "../_shared/cors.ts";
 import { z } from "npm:zod@4";
 const allowedOrigins = (
   Deno.env.get("ALLOWED_ORIGIN") || "http://127.0.0.1:5173"
@@ -6,14 +8,6 @@ const allowedOrigins = (
   .split(",")
   .map((s) => s.trim())
   .filter(Boolean);
-const baseHeaders = {
-  Vary: "Origin",
-  "Access-Control-Allow-Headers":
-    "authorization,x-client-info,apikey,content-type",
-  "Access-Control-Allow-Methods": "POST,OPTIONS",
-  "Content-Type": "application/json",
-  "Cache-Control": "no-store",
-};
 const point = z
   .object({
     lat: z.number().min(-90).max(90).optional(),
@@ -34,7 +28,7 @@ async function google(url: string, body: any, mask: string) {
   const key = Deno.env.get("GOOGLE_MAPS_SERVER_KEY");
   if (!key)
     throw Error(
-      "Google services are not configured. Manual planning remains available.",
+      "Place search needs GOOGLE_MAPS_SERVER_KEY in Supabase Edge Function secrets. Use a separate server key with Places API (New) and Routes API enabled. Manual planning remains available.",
     );
   const r = await fetch(url, {
     method: "POST",
@@ -54,13 +48,12 @@ async function google(url: string, body: any, mask: string) {
   return data;
 }
 Deno.serve(async (req: Request) => {
-  const requestOrigin = req.headers.get("origin");
-  const origin =
-    requestOrigin && allowedOrigins.includes(requestOrigin)
-      ? requestOrigin
-      : allowedOrigins[0];
-  const headers = { ...baseHeaders, "Access-Control-Allow-Origin": origin };
-  if (requestOrigin && !allowedOrigins.includes(requestOrigin))
+  const { allowed, headers } = serviceCors(
+    req.headers.get("origin"),
+    allowedOrigins,
+    corsHeaders,
+  );
+  if (!allowed)
     return new Response(JSON.stringify({ error: "Origin not permitted" }), {
       status: 403,
       headers,
@@ -112,11 +105,14 @@ Deno.serve(async (req: Request) => {
         JSON.stringify({ error: "Trip membership required" }),
         { status: 403, headers },
       );
-    const { data: allowed, error: limitError } = await sb.rpc("consume_limit", {
-      bucket_name: body.action,
-      max_hits: body.action === "ai" ? 4 : 20,
-    });
-    if (limitError || !allowed)
+    const { data: withinLimit, error: limitError } = await sb.rpc(
+      "consume_limit",
+      {
+        bucket_name: body.action,
+        max_hits: body.action === "ai" ? 4 : 20,
+      },
+    );
+    if (limitError || !withinLimit)
       return new Response(
         JSON.stringify({ error: "Rate limit reached. Try again in a minute." }),
         { status: 429, headers },

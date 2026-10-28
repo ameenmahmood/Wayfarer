@@ -51,7 +51,7 @@ The source includes the migration and Edge Function. Supabase is now configured 
    supabase functions deploy travel-services
    ```
 
-4. Configure Edge Function secrets through the Supabase dashboard. `SUPABASE_URL` and `SUPABASE_ANON_KEY` are supplied by Supabase. Set `ALLOWED_ORIGIN` to exact allowed origins separated by commas. The current Pages origin is `https://ameenmahmood.github.io` (no path). The default for an unconfigured development deployment is `http://127.0.0.1:5173`. Redirect URLs, by contrast, include the application path: `https://ameenmahmood.github.io/Wayfarer/`. The checked-in Auth config contains this production Site URL and callback allowlist.
+4. Configure Edge Function secrets through the Supabase dashboard. `SUPABASE_URL` and `SUPABASE_ANON_KEY` are supplied by Supabase. Set `ALLOWED_ORIGIN` to exact allowed origins separated by commas. The current Pages origin is `https://ameenmahmood.github.io` (no path). For local development, include the exact origin you open, such as `http://localhost:5173` and `http://127.0.0.1:5173` (and port 5174 if used). Production and localhost origins can coexist in the comma-separated allowlist. The default when unset is `http://127.0.0.1:5173`. The function retains the Supabase SDK CORS header list, including retry/tracing headers. Redirect URLs, by contrast, include the application path: `https://ameenmahmood.github.io/Wayfarer/`. The checked-in Auth config contains this production Site URL and callback allowlist.
 5. Sign in from **Settings & account**. Create a new trip. The local sample trip is not uploaded into connected mode. Keep demo data in a separate browser profile if switching modes; there is no automatic conversion of fake sample members into real accounts.
 6. Under **Members**, the owner creates an email-bound editor/viewer invitation and copies its link. Share that link yourself. The recipient signs in with the matching email, then accepts it. Invitation creation does **not** email the friend. The link expires after seven days, is single-use, and can be revoked by the owner.
 
@@ -67,7 +67,7 @@ The app fetches visible records on sign-in/reconnect, after mutations, every 30 
 
 1. Enable billing and **Maps JavaScript API**, **Places API (New)**, and **Routes API** in Google Cloud.
 2. Create a browser key restricted by exact HTTP referrers and Maps JavaScript API. Put only that key in `VITE_GOOGLE_MAPS_BROWSER_KEY`.
-3. Configure a separate server key as `GOOGLE_MAPS_SERVER_KEY` in Supabase secrets, restricted to Places API (New) and Routes API. Use the restrictions appropriate to your server environment. Never put it in a `VITE_` variable. Use quotas, budget alerts, and billing controls.
+3. In Supabase **Edge Functions → Secrets**, set **Name** to `GOOGLE_MAPS_SERVER_KEY` and **Value** to a separate Google server API key, restricted to Places API (New) and Routes API. Use the restrictions appropriate to your server environment. Never put it in a `VITE_` variable. Use quotas, budget alerts, and billing controls.
 4. Before enabling Google in production, make the supplied `public/privacy.html` and `public/terms.html` available on a **publicly accessible** legal-pages host and set `VITE_PRIVACY_URL` / `VITE_TERMS_URL` to those URLs. A private Sites access gate also protects its static legal pages; that alone does not meet Google's public-policy requirement. Adjust the privacy page to identify your installation's operator and contact route.
 5. Rebuild/redeploy the client and deploy the Edge Function. Errors for missing configuration, quota, billing and unavailable routes are displayed; the saved itinerary continues working.
 
@@ -159,3 +159,10 @@ Google Maps loads, Places searches/details, Routes queries and matrix **elements
 - [Google Maps API security practices](https://developers.google.com/maps/api-security-best-practices)
 
 No email/file booking imports, marketplace, payment processing or public trip discovery are included.
+
+
+### Button destinations and signed-out planning
+
+My trips and the workspace control open the trip library, including its empty state. Trip dashboard opens the selected trip or an explicit empty dashboard. All create-trip buttons open the trip form, even before signing in. The form requires passwordless sign-in before saving a private trip; its draft survives reloads in the same tab using session storage and is removed on save or cancellation. When following an email sign-in link, paste it in that same tab to retain the draft. Account, appearance, synchronization, and privacy controls have separate focused dialogs. Server authorization remains required for private data and live services.
+
+Place search runs through the authenticated `travel-services` Edge Function using Places API (New), not through the browser map key. A Places-enabled browser key alone does not configure this server function. Check the server secret, exact CORS origin, signed-in trip membership, billing and API restrictions. Search errors and empty results appear beside the Search button; Enter searches without submitting the itinerary form. See [Supabase CORS](https://supabase.com/docs/guides/functions/cors), [Places Text Search](https://developers.google.com/maps/documentation/places/web-service/text-search), and [Google key restrictions](https://developers.google.com/maps/api-security-best-practices).
