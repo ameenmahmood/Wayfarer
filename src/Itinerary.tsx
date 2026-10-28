@@ -357,14 +357,13 @@ export default function Itinerary({
                         >
                           <EIcon size={18} />
                         </span>
+                        <h3>{e.data.title}</h3>
                         <span className="plan-type">{e.data.type}</span>
                         {e.data.fixed && <span className="pill">Fixed</span>}
-                        <span className="grow" />
                         <span className="plan-time">
                           {formatTime(e.data.start)}
                         </span>
                       </div>
-                      <h3>{e.data.title}</h3>
                       {view === "all" && <small>{e.data.date}</small>}
                       {e.data.address && (
                         <p className="place-address">

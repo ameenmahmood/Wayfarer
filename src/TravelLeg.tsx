@@ -59,7 +59,7 @@ export default function TravelLeg({
     >
       <div className="travel-controls">
         <label>
-          Travel to {entry.data.title}
+          <span className="visually-hidden">Travel to {entry.data.title}</span>
           <select
             aria-label={`Travel method to ${entry.data.title}`}
             value={selectedMode}
@@ -76,6 +76,7 @@ export default function TravelLeg({
         </label>
         <label className="check">
           <input
+            aria-label="Set time manually"
             type="checkbox"
             checked={manualTime !== undefined}
             disabled={!canEdit || a.busy}
@@ -91,7 +92,7 @@ export default function TravelLeg({
               )
             }
           />
-          Set time manually
+          Manual time
         </label>
         {manualTime !== undefined ? (
           <form
@@ -111,7 +112,7 @@ export default function TravelLeg({
             }}
           >
             <label>
-              Travel minutes
+              <span className="visually-hidden">Travel minutes</span>
               <input
                 aria-label={`Travel minutes to ${entry.data.title}`}
                 type="number"
@@ -123,12 +124,17 @@ export default function TravelLeg({
                 onChange={(e) => setManual(e.target.value)}
               />
             </label>
-            <Button type="submit" disabled={!canEdit || a.busy}>
-              Save time
+            <Button
+              type="submit"
+              aria-label="Save time"
+              disabled={!canEdit || a.busy}
+            >
+              Save
             </Button>
           </form>
         ) : (
           <Button
+            aria-label="Calculate travel time"
             disabled={a.busy || demo || !navigator.onLine}
             onClick={() =>
               a.run(async () => {
@@ -164,21 +170,27 @@ export default function TravelLeg({
               })
             }
           >
-            {a.busy ? "Calculating…" : "Calculate travel time"}
+            {a.busy ? "Calculating…" : "Calculate"}
           </Button>
         )}
       </div>
-      <small role="status">
-        {Number.isFinite(duration)
-          ? `${duration} min · ${manualTime !== undefined ? "manual time" : estimate ? "Google Maps estimate · live, not saved" : "rough straight-line estimate"}`
-          : "No estimate yet · calculate or set a manual time"}
-      </small>
-      {!estimate && manualTime === undefined && (
-        <small>
-          Live calculations require internet. Rough estimates exclude roads,
-          traffic and timetables.
+      <div className="travel-status">
+        <small role="status">
+          {Number.isFinite(duration)
+            ? `${duration} min · ${manualTime !== undefined ? "manual time" : estimate ? "Google Maps estimate · live, not saved" : "rough straight-line estimate"}`
+            : "No estimate yet · calculate or set a manual time"}
         </small>
-      )}
+        {manualTime === undefined && (
+          <details className="travel-help">
+            <summary>About estimates</summary>
+            <p>
+              Live calculations require internet and are not saved. Rough
+              estimates exclude roads, traffic and timetables. Choose a manual
+              time to keep your own estimate offline.
+            </p>
+          </details>
+        )}
+      </div>
       {Number.isFinite(duration) && gap < duration && (
         <Notice>
           Insufficient travel time before {entry.data.title}: allow {duration}{" "}
