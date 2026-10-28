@@ -2810,3 +2810,13 @@ button.profile {
   width: auto;
   align-self: stretch;
 }
+
+.section-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 180px;
+  padding: 24px;
+  color: var(--muted);
+}

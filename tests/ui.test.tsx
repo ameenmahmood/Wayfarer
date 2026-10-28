@@ -36,6 +36,7 @@ async function openApp() {
   await waitFor(() =>
     expect(screen.getByRole("button", { name: "Edit trip" })).toBeTruthy(),
   );
+  await screen.findByRole("button", { name: "Add a plan" });
   return userEvent.setup();
 }
 function dialog() {
@@ -56,7 +57,7 @@ it("My trips opens the library, trip cards reopen the dashboard, and account con
   expect(dialog().getByRole("heading", { name: "Your account" })).toBeTruthy();
   await u.click(dialog().getByRole("button", { name: "Close dialog" }));
   await u.click(screen.getByRole("button", { name: "Settings & account" }));
-  await u.click(dialog().getByRole("button", { name: "Dark" }));
+  await u.click(await dialog().findByRole("button", { name: "Dark" }));
   expect(document.documentElement.dataset.theme).toBe("dark");
   await u.click(dialog().getByRole("button", { name: "Light" }));
   expect(localStorage.getItem("wayfarer-theme")).toBe("light");
@@ -69,8 +70,8 @@ it("section navigation scrolls to the chosen section and packing controls save, 
   const u = await openApp();
   await u.click(screen.getByRole("button", { name: "Packing list" }));
   expect(HTMLElement.prototype.scrollIntoView).toHaveBeenCalled();
-  await u.click(screen.getByRole("button", { name: "Add item" }));
-  await u.type(dialog().getByLabelText("title"), "UI test camera");
+  await u.click(await screen.findByRole("button", { name: "Add item" }));
+  await u.type(dialog().getByLabelText("Item name"), "UI test camera");
   await u.click(dialog().getByRole("button", { name: /Save/ }));
   const checkbox = await screen.findByRole("checkbox", {
     name: "Mark UI test camera packed",
@@ -80,8 +81,8 @@ it("section navigation scrolls to the chosen section and packing controls save, 
     expect((checkbox as HTMLInputElement).checked).toBe(true),
   );
   await u.click(screen.getByRole("button", { name: "Edit UI test camera" }));
-  await u.clear(dialog().getByLabelText("title"));
-  await u.type(dialog().getByLabelText("title"), "UI test camera updated");
+  await u.clear(dialog().getByLabelText("Item name"));
+  await u.type(dialog().getByLabelText("Item name"), "UI test camera updated");
   await u.click(dialog().getByRole("button", { name: /Save/ }));
   await screen.findByText("UI test camera updated");
   await u.click(screen.getByRole("button", { name: "Save as template" }));
@@ -154,7 +155,9 @@ it("manual itinerary editing, duplication and removal work, while unavailable AI
 it("expense editing recalculates spending and repayment records leave trip spending unchanged", async () => {
   const u = await openApp();
   await u.click(screen.getByRole("button", { name: "Expenses" }));
-  await u.click(screen.getAllByRole("button", { name: "Record repayment" })[0]);
+  await u.click(
+    (await screen.findAllByRole("button", { name: "Record repayment" }))[0],
+  );
   await u.click(dialog().getByRole("button", { name: "Record repayment" }));
   await screen.findByRole("heading", { name: "Recorded repayments" });
   expect(screen.getAllByText("$80.40").length).toBeGreaterThan(0);
@@ -240,10 +243,28 @@ it("itemized expense controls validate totals, save, edit, remove items and dele
   );
 });
 
+it("switching between itinerary and map preserves the selected trip day", async () => {
+  const u = await openApp();
+  await u.click(screen.getByRole("button", { name: /^DAY 2/ }));
+  expect(
+    screen.getByRole("button", { name: /^DAY 2/ }).getAttribute("aria-pressed"),
+  ).toBe("true");
+  await u.click(screen.getByRole("button", { name: "Map" }));
+  await screen.findByRole("heading", { name: "Every place, in one view" });
+  expect(
+    screen.getByRole("button", { name: /^DAY 2/ }).getAttribute("aria-pressed"),
+  ).toBe("true");
+  await u.click(screen.getByRole("button", { name: "Itinerary" }));
+  await screen.findByRole("heading", { name: "A plan with room to wander" });
+  expect(
+    screen.getByRole("button", { name: /^DAY 2/ }).getAttribute("aria-pressed"),
+  ).toBe("true");
+});
+
 it("creating a trip exposes editing immediately and a feasible route can be previewed and accepted", async () => {
   const u = await openApp();
   await u.click(screen.getByRole("button", { name: "Plan a new trip" }));
-  await u.type(dialog().getByLabelText("Trip name"), "UI weekend");
+  await u.type(await dialog().findByLabelText("Trip name"), "UI weekend");
   await u.type(dialog().getByLabelText("Destinations"), "Boston");
   await u.click(dialog().getByRole("button", { name: "Save trip" }));
   await screen.findByRole("heading", { name: "UI weekend" });

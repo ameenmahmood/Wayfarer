@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, lazy } from "react";
 import { appBasePath } from "./urls";
 import {
   Compass,
@@ -48,12 +48,14 @@ import {
   type Role,
 } from "./model";
 import { report, money } from "./money";
-import Itinerary from "./Itinerary";
-import Budget from "./Budget";
-import Packing from "./Packing";
-import Members from "./Members";
-import Settings from "./Settings";
-import { TripForm } from "./Forms";
+const Itinerary = lazy(() => import("./Itinerary"));
+const Budget = lazy(() => import("./Budget"));
+const Packing = lazy(() => import("./Packing"));
+const Members = lazy(() => import("./Members"));
+const Settings = lazy(() => import("./Settings"));
+const TripForm = lazy(() =>
+  import("./Forms").then((m) => ({ default: m.TripForm })),
+);
 import {
   Button,
   Modal,
@@ -62,6 +64,7 @@ import {
   useAsyncAction,
   ScrollRail,
   lockPageScroll,
+  LazyPanel,
 } from "./ui";
 const tabs = [
   ["itinerary", "Itinerary", CalendarDays],
@@ -659,45 +662,47 @@ export default function App() {
                     to add or change plans, expenses, and packing items.
                   </Notice>
                 )}
-                {(tab === "itinerary" || tab === "map") && (
-                  <Itinerary
-                    key={`${tid}:${tab}`}
-                    trip={trip}
-                    tripId={tid!}
-                    entries={entries}
-                    canEdit={canEdit}
-                    mapOnly={tab === "map"}
-                  />
-                )}{" "}
-                {tab === "expenses" && (
-                  <Budget
-                    canManageBudget={role === "owner"}
-                    trip={trip}
-                    tripEntity={tripEntity}
-                    expenses={expenses}
-                    repayments={repayments}
-                    entries={entries}
-                    canEdit={canEdit}
-                  />
-                )}{" "}
-                {tab === "packing" && (
-                  <Packing
-                    key={tid}
-                    trip={trip}
-                    tripId={tid!}
-                    items={scoped.filter((e) => e.kind === "packing")}
-                    templates={scoped.filter((e) => e.kind === "template")}
-                    canEdit={canEdit}
-                  />
-                )}{" "}
-                {tab === "members" && (
-                  <Members
-                    key={tid}
-                    trip={trip}
-                    entity={tripEntity}
-                    role={role}
-                  />
-                )}
+                <LazyPanel resetKey={`${tid}:${tab}`}>
+                  {(tab === "itinerary" || tab === "map") && (
+                    <Itinerary
+                      key={tid}
+                      trip={trip}
+                      tripId={tid!}
+                      entries={entries}
+                      canEdit={canEdit}
+                      mapOnly={tab === "map"}
+                    />
+                  )}{" "}
+                  {tab === "expenses" && (
+                    <Budget
+                      canManageBudget={role === "owner"}
+                      trip={trip}
+                      tripEntity={tripEntity}
+                      expenses={expenses}
+                      repayments={repayments}
+                      entries={entries}
+                      canEdit={canEdit}
+                    />
+                  )}{" "}
+                  {tab === "packing" && (
+                    <Packing
+                      key={tid}
+                      trip={trip}
+                      tripId={tid!}
+                      items={scoped.filter((e) => e.kind === "packing")}
+                      templates={scoped.filter((e) => e.kind === "template")}
+                      canEdit={canEdit}
+                    />
+                  )}{" "}
+                  {tab === "members" && (
+                    <Members
+                      key={tid}
+                      trip={trip}
+                      entity={tripEntity}
+                      role={role}
+                    />
+                  )}
+                </LazyPanel>
               </div>
             </>
           )}
@@ -725,12 +730,14 @@ export default function App() {
           onClose={() => setSettings(null)}
           wide
         >
-          <Settings
-            section={settings}
-            theme={theme}
-            setTheme={setThemeState}
-            queue={queue}
-          />
+          <LazyPanel>
+            <Settings
+              section={settings}
+              theme={theme}
+              setTheme={setThemeState}
+              queue={queue}
+            />
+          </LazyPanel>
         </Modal>
       )}
       {editingTrip && (
@@ -742,15 +749,17 @@ export default function App() {
             setEditingTrip(undefined);
           }}
         >
-          <TripForm
-            entity={editingTrip}
-            onDone={() => {
-              setTripId(editingTrip.id);
-              setEditingTrip(undefined);
-              setTab("itinerary");
-              setOverview(false);
-            }}
-          />
+          <LazyPanel>
+            <TripForm
+              entity={editingTrip}
+              onDone={() => {
+                setTripId(editingTrip.id);
+                setEditingTrip(undefined);
+                setTab("itinerary");
+                setOverview(false);
+              }}
+            />
+          </LazyPanel>
         </Modal>
       )}
     </div>

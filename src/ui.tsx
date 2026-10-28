@@ -1,4 +1,6 @@
 import {
+  Component,
+  Suspense,
   useEffect,
   useRef,
   useState,
@@ -264,5 +266,55 @@ export function ScrollRail({
         <ChevronRight size={18} />
       </button>
     </div>
+  );
+}
+
+class SectionBoundary extends Component<
+  { children: ReactNode; resetKey?: string },
+  { failed: boolean }
+> {
+  state = { failed: false };
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+  componentDidUpdate(previous: { resetKey?: string }) {
+    if (this.state.failed && previous.resetKey !== this.props.resetKey)
+      this.setState({ failed: false });
+  }
+  render() {
+    if (this.state.failed)
+      return (
+        <Notice tone="error">
+          <p>
+            This section could not open. Check your connection, then reload to
+            try again. Saved trips and pending changes remain on this device.
+          </p>
+          <Button onClick={() => location.reload()}>Reload app</Button>
+        </Notice>
+      );
+    return this.props.children;
+  }
+}
+/** Keep the dashboard usable while a tool loads or a downloaded chunk fails. */
+export function LazyPanel({
+  children,
+  resetKey,
+}: {
+  children: ReactNode;
+  resetKey?: string;
+}) {
+  return (
+    <SectionBoundary resetKey={resetKey}>
+      <Suspense
+        fallback={
+          <div role="status" className="section-loading">
+            <LoaderCircle size={20} className="spin" />
+            Opening this section...
+          </div>
+        }
+      >
+        {children}
+      </Suspense>
+    </SectionBoundary>
   );
 }

@@ -122,7 +122,7 @@ it.each(["Create a trip", "Plan a new trip"])(
   async (name) => {
     const u = await openApp();
     await u.click(screen.getAllByRole("button", { name })[0]);
-    expect(dlg().getByLabelText("Trip name")).toBeTruthy();
+    expect(await dlg().findByLabelText("Trip name")).toBeTruthy();
     expect(dlg().queryByText("Appearance")).toBeNull();
     expect(dlg().getByText(/Sign in to save this private trip/)).toBeTruthy();
     expect(
@@ -163,7 +163,7 @@ it.each([
     if (title !== "Appearance settings")
       expect(dlg().queryByText("Appearance")).toBeNull();
     if (title === "Your account")
-      expect(dlg().getByLabelText("Email")).toBeTruthy();
+      expect(await dlg().findByLabelText("Email")).toBeTruthy();
     await u.click(dlg().getByRole("button", { name: "Close dialog" }));
     expect(screen.queryByRole("dialog")).toBeNull();
   },
@@ -185,7 +185,7 @@ it("inline sign-in preserves the draft and saving after authentication uses the 
   await u.type(dlg().getByLabelText("Email"), "owner@example.test");
   await u.click(dlg().getByRole("button", { name: "Email a sign-in link" }));
   expect(backend.otp).toHaveBeenCalledOnce();
-  expect(dlg().getByLabelText("Trip name")).toHaveProperty(
+  expect(await dlg().findByLabelText("Trip name")).toHaveProperty(
     "value",
     "Draft after login",
   );
@@ -238,7 +238,7 @@ it("signed in: every trip section and its creation control opens the right area"
   ];
   for (const [section, heading, button, modal] of cases) {
     await u.click(screen.getByRole("button", { name: section }));
-    expect(screen.getByRole("heading", { name: heading })).toBeTruthy();
+    expect(await screen.findByRole("heading", { name: heading })).toBeTruthy();
     expect(screen.queryByRole("dialog")).toBeNull();
     await u.click(screen.getByRole("button", { name: button }));
     expect(dlg().getByRole("heading", { name: modal })).toBeTruthy();
@@ -263,7 +263,7 @@ it("a trip draft survives reloading this tab and cancellation explicitly removes
   cleanup();
   render(<App />);
   await screen.findByRole("dialog");
-  expect(dlg().getByLabelText("Trip name")).toHaveProperty(
+  expect(await dlg().findByLabelText("Trip name")).toHaveProperty(
     "value",
     "Retained draft",
   );
@@ -325,4 +325,33 @@ it("place search supports click and Enter, shows loading/results/errors, and nev
   });
   await u.click(dlg().getByRole("button", { name: "Search" }));
   await dlg().findByRole("button", { name: "Found after retry" });
+});
+
+it("a delayed place response cannot replace results for a newer query", async () => {
+  backend.session = { user: { id: "owner-test", email: "owner@example.test" } };
+  backend.records = seed();
+  render(<App />);
+  const u = userEvent.setup();
+  await u.click(await screen.findByRole("button", { name: "Add a plan" }));
+  let finish: (result: any) => void = () => {};
+  backend.api.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+  );
+  const query = await dlg().findByLabelText("Find a Google place");
+  await u.type(query, "old query");
+  await u.click(dlg().getByRole("button", { name: "Search" }));
+  await u.clear(query);
+  await u.type(query, "new query");
+  await act(async () => {
+    finish({ places: [{ id: "old", displayName: { text: "Stale place" } }] });
+  });
+  expect(dlg().queryByRole("button", { name: "Stale place" })).toBeNull();
+  backend.api.mockResolvedValueOnce({
+    places: [{ id: "new", displayName: { text: "Fresh place" } }],
+  });
+  await u.click(dlg().getByRole("button", { name: "Search" }));
+  await dlg().findByRole("button", { name: "Fresh place" });
 });

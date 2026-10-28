@@ -1,5 +1,5 @@
 import SignIn from "./SignIn";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Search, Plus, X } from "lucide-react";
 import {
   currencies,
@@ -188,14 +188,22 @@ export function EntryForm({
     [cost, setCost] = useState(String(v.cost / 10 ** precision(v.currency))),
     a = useAsyncAction(),
     searchAction = useAsyncAction();
+  const latestQuery = useRef(q);
+  latestQuery.current = q;
   function searchPlaces() {
-    if (demo || q.trim().length < 2) return;
+    if (demo || searchAction.busy || q.trim().length < 2) return;
+    const query = q.trim();
     setSearched(false);
     setPlaces([]);
     void searchAction.run(async () => {
-      const result = await api("places", entity.tripId, { query: q.trim() });
-      setPlaces(result.places || []);
-      setSearched(true);
+      try {
+        const result = await api("places", entity.tripId, { query });
+        if (latestQuery.current.trim() !== query) return;
+        setPlaces(result.places || []);
+        setSearched(true);
+      } catch (error) {
+        if (latestQuery.current.trim() === query) throw error;
+      }
     });
   }
   const change = (k: keyof Entry, value: any) =>
@@ -241,8 +249,10 @@ export function EntryForm({
           aria-label="Find a Google place"
           placeholder="Find a place or address with Google…"
           value={q}
+          maxLength={200}
           onChange={(e) => {
             setQ(e.target.value);
+            setPlaces([]);
             setSearched(false);
             searchAction.setError("");
           }}

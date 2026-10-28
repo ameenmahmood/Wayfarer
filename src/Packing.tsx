@@ -232,7 +232,14 @@ export default function Packing({
             }}
           >
             {(["title", "category", "notes"] as const).map((k) => (
-              <Field key={k} label={k}>
+              <Field
+                key={k}
+                label={
+                  { title: "Item name", category: "Category", notes: "Notes" }[
+                    k
+                  ]
+                }
+              >
                 <input
                   required={k !== "notes"}
                   value={editing.data[k]}

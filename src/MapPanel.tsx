@@ -16,17 +16,28 @@ function loadMaps() {
   if (mapsPromise) return mapsPromise;
   mapsPromise = new Promise((resolve, reject) => {
     const s = document.createElement("script");
-    window.wayfarerMapsReady = () => resolve();
-    s.src = `https://maps.googleapis.com/maps/api/js?key=${import.meta.env.VITE_GOOGLE_MAPS_BROWSER_KEY}&callback=wayfarerMapsReady&libraries=geometry&loading=async`;
-    s.onerror = () => {
+    const fail = (message: string) => {
+      clearTimeout(timeout);
       mapsPromise = undefined;
       s.remove();
-      reject(
-        Error(
-          "Google Maps could not load. Check connectivity and key restrictions.",
-        ),
-      );
+      reject(Error(message));
     };
+    const timeout = setTimeout(
+      () =>
+        fail(
+          "Google Maps took too long to load. Check your connection and try again.",
+        ),
+      15000,
+    );
+    window.wayfarerMapsReady = () => {
+      clearTimeout(timeout);
+      resolve();
+    };
+    s.src = `https://maps.googleapis.com/maps/api/js?key=${import.meta.env.VITE_GOOGLE_MAPS_BROWSER_KEY}&callback=wayfarerMapsReady&libraries=geometry&loading=async`;
+    s.onerror = () =>
+      fail(
+        "Google Maps could not load. Check connectivity and key restrictions.",
+      );
     document.head.appendChild(s);
   });
   return mapsPromise;
@@ -46,11 +57,17 @@ export default function MapPanel({
 }) {
   const ref = useRef<HTMLDivElement>(null),
     map = useRef<any>(null),
-    markers = useRef<any[]>([]),
+    markers = useRef(new Map<string, any>()),
     paths = useRef<any[]>([]),
     [error, setError] = useState(""),
     [ready, setReady] = useState(false),
     [retry, setRetry] = useState(0);
+  const onSelectRef = useRef(onSelect);
+  onSelectRef.current = onSelect;
+  const locationKey = JSON.stringify(
+    entries.map((e) => [e.id, e.data.placeId, e.data.lat, e.data.lng]),
+  );
+  const [mapVersion, setMapVersion] = useState(0);
   const [routeWarnings, setRouteWarnings] = useState<string[]>([]);
   const configured = !demo && !!import.meta.env.VITE_GOOGLE_MAPS_BROWSER_KEY;
   const located = entries.filter(
@@ -58,6 +75,8 @@ export default function MapPanel({
   );
   useEffect(() => {
     if (!configured || !navigator.onLine) return;
+    setReady(false);
+    setError("");
     window.gm_authFailure = () =>
       setError(
         "Google Maps authorization or billing failed. Check key restrictions and enabled APIs. Your itinerary is still available.",
@@ -67,15 +86,18 @@ export default function MapPanel({
       .then(() => {
         if (canceled) return;
         map.current = new window.google.maps.Map(ref.current, {
-          center: { lat: 35.687, lng: 139.71 },
-          zoom: 13,
+          center: { lat: 0, lng: 0 },
+          zoom: 2,
           mapTypeControl: false,
           streetViewControl: false,
           fullscreenControl: false,
         });
+        setMapVersion((version) => version + 1);
         setReady(true);
       })
-      .catch((e) => setError(e.message));
+      .catch((e) => {
+        if (!canceled) setError(e.message);
+      });
     return () => {
       canceled = true;
     };
@@ -85,7 +107,7 @@ export default function MapPanel({
     let active = true;
     markers.current.forEach((m) => m.setMap(null));
     paths.current.forEach((p) => p.setMap(null));
-    markers.current = [];
+    markers.current.clear();
     paths.current = [];
     setRouteWarnings([]);
     const bounds = new window.google.maps.LatLngBounds();
@@ -106,6 +128,12 @@ export default function MapPanel({
           }
         }
         if (!active) return;
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+          setError(
+            "A place has no usable coordinates. Edit its location or try searching for it again.",
+          );
+          continue;
+        }
         const position = { lat, lng };
         points.push({ id: e.id, position });
         const marker = new window.google.maps.Marker({
@@ -115,11 +143,14 @@ export default function MapPanel({
           title: e.data.title,
           zIndex: e.id === selected ? 10 : 1,
         });
-        marker.addListener("click", () => onSelect(e.id));
-        markers.current.push(marker);
+        marker.addListener("click", () => onSelectRef.current(e.id));
+        markers.current.set(e.id, marker);
         bounds.extend(position);
       }
-      if (points.length) map.current.fitBounds(bounds, 50);
+      if (points.length === 1) {
+        map.current.setCenter(points[0].position);
+        map.current.setZoom(15);
+      } else if (points.length > 1) map.current.fitBounds(bounds, 50);
       if (points.length > 1 && !demo) {
         for (let i = 1; i < points.length; i++) {
           try {
@@ -129,7 +160,9 @@ export default function MapPanel({
               mode,
             });
             if (!active) return;
-            setRouteWarnings((w) => [...new Set([...w, ...route.warnings])]);
+            setRouteWarnings((w) => [
+              ...new Set([...w, ...(route.warnings || [])]),
+            ]);
             if (route.polyline) {
               const path = new window.google.maps.Polyline({
                 path: window.google.maps.geometry.encoding.decodePath(
@@ -153,15 +186,19 @@ export default function MapPanel({
       markers.current.forEach((m) => m.setMap(null));
       paths.current.forEach((p) => p.setMap(null));
     };
-  }, [ready, entries.map((e) => e.id + e.updatedAt).join(), mode, tripId]);
+  }, [ready, mapVersion, locationKey, mode, tripId]);
   useEffect(() => {
-    const i = located.findIndex((e) => e.id === selected);
-    if (markers.current[i]) {
-      markers.current[i].setAnimation(window.google.maps.Animation.BOUNCE);
-      const t = setTimeout(() => markers.current[i]?.setAnimation(null), 700);
-      return () => clearTimeout(t);
+    const marker = markers.current.get(selected);
+    if (marker && window.google?.maps) {
+      marker.setAnimation(window.google.maps.Animation.BOUNCE);
+      const timer = setTimeout(() => marker.setAnimation(null), 700);
+      return () => clearTimeout(timer);
     }
   }, [selected]);
+  useEffect(() => {
+    for (const entry of entries)
+      markers.current.get(entry.id)?.setTitle(entry.data.title);
+  }, [entries.map((e) => `${e.id}:${e.data.title}`).join()]);
   return (
     <section className="map-card">
       <div className="section-head">

@@ -18,6 +18,8 @@ it.each(["/", "/Wayfarer/"])(
         base + "manifest.webmanifest",
         base + "assets/app-test.js",
         base + "assets/app-test.css",
+        base + "assets/Itinerary-lazy.js",
+        base + "assets/Forms-lazy.js",
       ]),
     );
     const cache = {
@@ -62,6 +64,8 @@ it.each(["/", "/Wayfarer/"])(
     await work;
     expect(saved.has(base + "assets/app-test.js")).toBe(true);
     expect(saved.has(base + "assets/app-test.css")).toBe(true);
+    expect(saved.has(base + "assets/Itinerary-lazy.js")).toBe(true);
+    expect(saved.has(base + "assets/Forms-lazy.js")).toBe(true);
     listeners.activate({ waitUntil: (p: Promise<any>) => (work = p) });
     await work;
     expect(removedCaches).toEqual([`wayfarer:${base}:old`]);
