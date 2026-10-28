@@ -2599,3 +2599,214 @@ td {
   padding: 5px 10px;
   border-radius: 3px;
 }
+
+/* Each surface owns its overflow; dialogs and navigation never trap page content. */
+html {
+  scroll-padding-top: 20px;
+}
+.main-shell,
+main,
+.tab-content,
+.timeline-panel,
+.day-aside,
+.two-columns > *,
+.itinerary-columns > * {
+  min-width: 0;
+}
+.sidebar {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+.sidebar > * {
+  flex-shrink: 0;
+}
+button.workspace,
+button.profile {
+  width: 100%;
+  text-align: left;
+  color: var(--text);
+}
+button.profile {
+  background: transparent;
+  border: 0;
+}
+.breadcrumb button {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  color: var(--muted);
+  font: inherit;
+}
+.breadcrumb button:hover {
+  text-decoration: underline;
+}
+.small-avatar {
+  border: 0;
+}
+.tab-content {
+  scroll-margin-top: 20px;
+}
+.scroll-rail {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.scroll-rail > [role="region"] {
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+}
+.scroll-rail > .day-strip {
+  margin: 12px 0 24px;
+}
+.scroll-rail > .tabs {
+  margin-bottom: 0;
+}
+.rail-arrow {
+  flex: 0 0 32px;
+  height: 40px;
+}
+.rail-arrow:disabled {
+  opacity: 0.25;
+  cursor: default;
+}
+.tabs > button {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.trip-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 270px), 1fr));
+  gap: 20px;
+  margin: 28px 0;
+}
+.trip-tile {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 25px;
+  text-align: left;
+  color: var(--text);
+}
+.trip-tile:hover {
+  border-color: var(--accent, #467568);
+  box-shadow: 0 5px 20px #0001;
+}
+.trip-tile h2 {
+  margin: 16px 0 8px;
+}
+.trip-tile small {
+  color: var(--muted);
+}
+.trip-tile span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 22px;
+  font-weight: 600;
+}
+dialog {
+  padding: 0;
+  overflow: hidden;
+}
+dialog[open] {
+  display: flex;
+  flex-direction: column;
+}
+.dialog-head {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 22px 24px;
+  border-bottom: 1px solid var(--border);
+  align-items: center;
+}
+.dialog-body {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 22px 24px;
+  scrollbar-gutter: stable;
+}
+.dialog-actions {
+  position: sticky;
+  bottom: -22px;
+  padding: 14px 0;
+  background: var(--surface);
+  z-index: 1;
+  border-top: 1px solid var(--border);
+}
+.table-scroll {
+  overscroll-behavior-x: contain;
+}
+@media (max-width: 650px) {
+  .sidebar:not(.open) {
+    visibility: hidden;
+  }
+  .sidebar.open {
+    visibility: visible;
+  }
+  .icon-button {
+    min-width: 36px;
+    min-height: 36px;
+  }
+  .plan-actions > div {
+    flex-wrap: wrap;
+  }
+  dialog {
+    padding: 0;
+    max-height: 92dvh;
+  }
+  .dialog-head {
+    padding: 16px;
+  }
+  .dialog-body {
+    padding: 16px;
+  }
+  .dialog-actions {
+    bottom: -16px;
+  }
+  .rail-arrow {
+    flex-basis: 28px;
+    min-width: 28px;
+  }
+}
+
+.tab-content {
+  scroll-margin-top: 90px;
+}
+@media (max-width: 650px) {
+  .tabs > button {
+    font-size: 11px;
+    padding: 12px 9px;
+    min-height: 44px;
+  }
+  .tabs > button svg {
+    width: 16px;
+    height: 16px;
+  }
+}
+
+:root {
+  background: var(--bg);
+  color: var(--text);
+}
+body,
+#root,
+.app-shell {
+  min-height: 100dvh;
+}
+.sidebar {
+  overflow-x: hidden;
+}
+.sidebar > * {
+  min-width: 0;
+}
+button.workspace,
+button.profile {
+  width: auto;
+  align-self: stretch;
+}

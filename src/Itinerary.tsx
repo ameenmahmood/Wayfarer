@@ -25,7 +25,15 @@ import { save, remove, api, demo } from "./store";
 import { travel, warnings, entryBounds } from "./schedule";
 import { money } from "./money";
 import { EntryForm } from "./Forms";
-import { Button, Modal, Field, Notice, Empty, useAsyncAction } from "./ui";
+import {
+  Button,
+  Modal,
+  Field,
+  Notice,
+  Empty,
+  useAsyncAction,
+  ScrollRail,
+} from "./ui";
 import MapPanel from "./MapPanel";
 import RoutePlanner from "./RoutePlanner";
 export default function Itinerary({
@@ -177,6 +185,15 @@ export default function Itinerary({
         </div>
         <Button
           disabled={!canEdit || !dayEntries.length || view !== "day"}
+          title={
+            !canEdit
+              ? "Editor access is required"
+              : view !== "day"
+                ? "Choose Daily plan to optimize a day"
+                : !dayEntries.length
+                  ? "Add a single-day activity first"
+                  : "Preview a route before applying changes"
+          }
           onClick={() => setRoute(true)}
         >
           <Route size={16} />
@@ -184,12 +201,19 @@ export default function Itinerary({
         </Button>
       </div>
       {view === "day" && (
-        <div className="day-strip">
+        <ScrollRail className="day-strip" label="Trip days">
           {dayList.map((d, i) => (
             <button
               key={d}
               className={d === date ? "active" : ""}
-              onClick={() => setDate(d)}
+              onClick={(e) => {
+                setDate(d);
+                e.currentTarget.scrollIntoView({
+                  block: "nearest",
+                  inline: "nearest",
+                });
+              }}
+              aria-pressed={d === date}
             >
               <small>DAY {i + 1}</small>
               <b>
@@ -210,7 +234,7 @@ export default function Itinerary({
               />
             </button>
           ))}
-        </div>
+        </ScrollRail>
       )}
       <div className={"itinerary-columns " + (mapOnly ? "map-first" : "")}>
         <section className="timeline-panel">
@@ -247,7 +271,7 @@ export default function Itinerary({
               </button>
             )}
           </div>
-          {showWarnings && view === "day" && (
+          {showWarnings && alerts.length > 0 && view === "day" && (
             <div className="schedule-alerts">
               {alerts.map((msg, i) => (
                 <Notice key={i}>{msg}</Notice>
@@ -313,7 +337,13 @@ export default function Itinerary({
                           setSelected(e.id);
                         }
                       }}
-                      onClick={() => setSelected(e.id)}
+                      onClick={() => {
+                        setSelected(e.id);
+                        if (mapOnly)
+                          document
+                            .querySelector(".map-card")
+                            ?.scrollIntoView({ block: "nearest" });
+                      }}
                     >
                       <div className="plan-top">
                         <span

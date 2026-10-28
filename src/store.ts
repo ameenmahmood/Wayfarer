@@ -321,7 +321,19 @@ export async function api(action: string, tripId: string, body: any = {}) {
   const { data, error } = await supabase.functions.invoke("travel-services", {
     body: { action, tripId, ...body },
   });
-  if (error) throw Error(error.message);
-  if (data.error) throw Error(data.error);
+  if (error) {
+    // Supabase wraps non-2xx responses; show the server's recovery instructions.
+    let message = error.message;
+    if (error.context instanceof Response) {
+      try {
+        const result = await error.context.json();
+        if (typeof result.error === "string") message = result.error;
+      } catch {
+        /* Non-JSON gateway response. */
+      }
+    }
+    throw Error(message);
+  }
+  if (data?.error) throw Error(data.error);
   return data;
 }

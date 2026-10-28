@@ -1,9 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { appBasePath } from "./urls";
 import {
   Compass,
   Plus,
-  ChevronDown,
   ChevronRight,
   CalendarDays,
   MapPin,
@@ -34,6 +33,7 @@ import {
   syncError,
   synchronize,
   userId,
+  userEmail,
   supabase,
   save,
 } from "./store";
@@ -54,7 +54,15 @@ import Packing from "./Packing";
 import Members from "./Members";
 import Settings from "./Settings";
 import { TripForm } from "./Forms";
-import { Button, Modal, Notice, Empty, useAsyncAction } from "./ui";
+import {
+  Button,
+  Modal,
+  Notice,
+  Empty,
+  useAsyncAction,
+  ScrollRail,
+  lockPageScroll,
+} from "./ui";
 const tabs = [
   ["itinerary", "Itinerary", CalendarDays],
   ["map", "Map", MapPin],
@@ -67,6 +75,7 @@ export default function App() {
     [queue, setQueue] = useState<Mutation[]>([]),
     [tripId, setTripId] = useState(localStorage.getItem("wayfarer-trip") || ""),
     [tab, setTab] = useState("itinerary"),
+    [overview, setOverview] = useState(false),
     [loading, setLoading] = useState(true),
     [error, setError] = useState(""),
     [theme, setThemeState] = useState(
@@ -110,19 +119,86 @@ export default function App() {
     trip = tripEntity?.data,
     tid = tripEntity?.id;
   useEffect(() => {
-    if (tid) {
-      localStorage.setItem("wayfarer-trip", tid);
-      if (demo) setRole("owner");
-      else
-        supabase!
-          .from("memberships")
-          .select("role")
-          .eq("trip_id", tid)
-          .eq("user_id", userId)
-          .maybeSingle()
-          .then(({ data }) => setRole(data?.role || "viewer"));
+    if (!tid) return;
+    localStorage.setItem("wayfarer-trip", tid);
+    let active = true;
+    const cacheKey = `wayfarer-role:${userId}:${tid}`;
+    const cached = localStorage.getItem(cacheKey) as Role | null;
+    const pendingOwner = queue.some(
+      (m) =>
+        m.entityId === tid &&
+        m.baseVersion === 0 &&
+        m.entity.updatedBy === userId,
+    );
+    setRole(demo || pendingOwner ? "owner" : cached || "viewer");
+    if (!demo && navigator.onLine)
+      void supabase!
+        .from("memberships")
+        .select("role")
+        .eq("trip_id", tid)
+        .eq("user_id", userId)
+        .maybeSingle()
+        .then(({ data, error }) => {
+          if (!active || error || (!data && pendingOwner)) return;
+          const next = data?.role || "viewer";
+          localStorage.setItem(cacheKey, next);
+          setRole(next);
+        });
+    return () => {
+      active = false;
+    };
+  }, [tid, status, queue.length]);
+  const sectionRef = useRef<HTMLDivElement>(null);
+  const firstSection = useRef(true);
+  useEffect(() => {
+    if (firstSection.current) {
+      firstSection.current = false;
+      return;
     }
-  }, [tid, status]);
+    if (!overview) sectionRef.current?.scrollIntoView({ block: "start" });
+    else window.scrollTo({ top: 0 });
+  }, [tab, overview, tid]);
+  useEffect(() => {
+    if (!sidebar) return;
+    const unlock = lockPageScroll();
+    const opener = document.activeElement as HTMLElement | null;
+    document.querySelector<HTMLButtonElement>(".mobile-close")?.focus();
+    const escape = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setSidebar(false);
+      if (e.key === "Tab") {
+        const controls = [
+          ...document.querySelectorAll<HTMLElement>(
+            ".sidebar a, .sidebar button:not(:disabled)",
+          ),
+        ].filter((el) => el.getClientRects().length);
+        const first = controls[0],
+          last = controls.at(-1);
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last?.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first?.focus();
+        }
+      }
+    };
+    document.addEventListener("keydown", escape);
+    return () => {
+      unlock();
+      document.removeEventListener("keydown", escape);
+      opener?.focus();
+    };
+  }, [sidebar]);
+  function openTrip(id: string) {
+    setTripId(id);
+    setOverview(false);
+    setTab("itinerary");
+    setSidebar(false);
+  }
+  function openSettings() {
+    setSidebar(false);
+    setSettings(true);
+  }
   const scoped = records.filter((e) => e.tripId === tid),
     entries = scoped.filter((e) => e.kind === "entry"),
     expenses = scoped.filter((e) => e.kind === "expense"),
@@ -139,7 +215,8 @@ export default function App() {
   } catch {}
   const canEdit = role !== "viewer";
   const newTrip = () => {
-    if (!demo && !userId) {
+    setSidebar(false);
+    if (!demo && !userEmail) {
       setSettings(true);
       setError("Sign in before creating a connected trip.");
       return;
@@ -168,7 +245,8 @@ export default function App() {
           href={appBasePath}
           onClick={(e) => {
             e.preventDefault();
-            setTab("itinerary");
+            setOverview(true);
+            setSidebar(false);
           }}
         >
           <span className="brand-icon">
@@ -183,19 +261,19 @@ export default function App() {
         >
           <X size={20} />
         </button>
-        <div className="workspace">
+        <button className="workspace" onClick={openSettings}>
           <span className="workspace-icon">A</span>
           <div>
             <b>My travel space</b>
             <small>Private workspace</small>
           </div>
-          <ChevronDown size={14} />
-        </div>
+          <SettingsIcon size={14} />
+        </button>
         <span className="sidebar-label">YOUR SPACE</span>
         <button
-          className="nav-item active"
+          className={"nav-item " + (overview ? "active" : "")}
           onClick={() => {
-            setTab("itinerary");
+            setOverview(true);
             setSidebar(false);
           }}
         >
@@ -203,11 +281,10 @@ export default function App() {
           My trips<span className="count">{trips.length}</span>
         </button>
         <button
-          className="nav-item"
+          className={"nav-item " + (!overview ? "active" : "")}
           onClick={() => {
-            setTab("itinerary");
-            setSidebar(false);
-            setTripId(tid || "");
+            if (tid) openTrip(tid);
+            else newTrip();
           }}
         >
           <Bookmark size={18} />
@@ -228,8 +305,7 @@ export default function App() {
             key={t.id}
             className={"trip-nav " + (t.id === tid ? "selected" : "")}
             onClick={() => {
-              setTripId(t.id);
-              setSidebar(false);
+              openTrip(t.id);
             }}
           >
             <span className={"trip-thumb thumb" + i}>
@@ -265,24 +341,24 @@ export default function App() {
               and the people you invite.
             </p>
           </div>
-          <button className="nav-item" onClick={() => setSettings(true)}>
+          <button className="nav-item" onClick={openSettings}>
             <SettingsIcon size={17} />
             Settings & account
           </button>
-          <div className="profile">
+          <button className="profile" onClick={openSettings}>
             <span className="avatar a0">A</span>
             <div>
               <b>{demo ? "Local traveler" : "My account"}</b>
               <small>{demo ? "Demo workspace" : "Private workspace"}</small>
             </div>
             <span className="pill tiny">{demo ? "LOCAL" : "PRIVATE"}</span>
-          </div>
+          </button>
         </div>
       </aside>
       {sidebar && (
         <div className="sidebar-backdrop" onClick={() => setSidebar(false)} />
       )}
-      <div className="main-shell">
+      <div className="main-shell" inert={sidebar}>
         <header className="topbar">
           <button
             className="mobile-menu icon-button"
@@ -292,26 +368,38 @@ export default function App() {
             <Menu size={21} />
           </button>
           <div className="breadcrumb">
-            <span>My trips</span>
+            <button
+              onClick={() => {
+                setOverview(true);
+                setSidebar(false);
+              }}
+            >
+              My trips
+            </button>
             <ChevronRight size={14} />
             <b>{trip?.title || "Your next adventure"}</b>
           </div>
           <div className="top-actions">
-            <button
-              className="sync-indicator"
-              onClick={() => setSettings(true)}
-            >
+            <button className="sync-indicator" onClick={openSettings}>
               {status.includes("Offline") ? (
                 <WifiOff size={14} />
               ) : status.includes("Syncing") ? (
                 <LoaderCircle size={14} className="spin" />
+              ) : status.includes("Sign in") ? (
+                <Cloud size={14} />
               ) : (
                 <Check size={14} />
               )}
               <span>{status}</span>
               {queue.length > 0 && <b>{queue.length}</b>}
             </button>
-            <span className="avatar small-avatar">A</span>
+            <button
+              className="avatar small-avatar"
+              aria-label="Open account settings"
+              onClick={openSettings}
+            >
+              A
+            </button>
           </div>
         </header>
         <main>
@@ -323,7 +411,7 @@ export default function App() {
                 Make it your own. Changes are saved in this browser;
                 collaboration and live services require setup.
               </span>
-              <button onClick={() => setSettings(true)}>
+              <button onClick={openSettings}>
                 Connection settings <ArrowUpRight size={13} />
               </button>
             </div>
@@ -334,8 +422,10 @@ export default function App() {
               <Button
                 onClick={() => {
                   setError("");
-                  void synchronize();
-                  void refresh();
+                  void a.run(async () => {
+                    await synchronize();
+                    await refresh();
+                  });
                 }}
               >
                 <RefreshCw size={14} />
@@ -348,6 +438,38 @@ export default function App() {
               <LoaderCircle className="spin" />
               Opening your travel space…
             </div>
+          ) : overview && trips.length > 0 ? (
+            <section className="trip-library">
+              <div className="content-heading">
+                <div>
+                  <h1>My trips</h1>
+                  <p>Your private adventures, all in one place.</p>
+                </div>
+                <Button className="primary" onClick={newTrip}>
+                  <Plus size={17} />
+                  Create a trip
+                </Button>
+              </div>
+              <div className="trip-grid">
+                {trips.map((t) => (
+                  <button
+                    className="trip-tile"
+                    key={t.id}
+                    onClick={() => openTrip(t.id)}
+                  >
+                    <Plane size={24} />
+                    <h2>{t.data.title}</h2>
+                    <p>{t.data.destinations}</p>
+                    <small>
+                      {t.data.start} - {t.data.end}
+                    </small>
+                    <span>
+                      Open trip <ChevronRight size={16} />
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </section>
           ) : !trip ? (
             <div className="welcome">
               <Compass size={42} />
@@ -358,7 +480,7 @@ export default function App() {
                   <Plus size={17} />
                   Create a trip
                 </Button>
-                <Button onClick={() => setSettings(true)}>
+                <Button onClick={openSettings}>
                   Sign in & connection settings
                 </Button>
               </div>
@@ -472,7 +594,7 @@ export default function App() {
                   </small>
                 </button>
               </section>
-              <nav className="tabs" aria-label="Trip sections">
+              <ScrollRail className="tabs" label="Trip sections">
                 {tabs.map(([id, label, Icon]) => (
                   <button
                     aria-current={tab === id ? "page" : undefined}
@@ -487,11 +609,17 @@ export default function App() {
                 ))}
                 <span className="grow" />
                 <span className="trip-role">{role} access</span>
-              </nav>
-              <div className="tab-content">
+              </ScrollRail>
+              <div className="tab-content" ref={sectionRef}>
+                {!canEdit && (
+                  <Notice>
+                    You have viewer access. Ask the trip owner for editor access
+                    to add or change plans, expenses, and packing items.
+                  </Notice>
+                )}
                 {(tab === "itinerary" || tab === "map") && (
                   <Itinerary
-                    key={tid}
+                    key={`${tid}:${tab}`}
                     trip={trip}
                     tripId={tid!}
                     entries={entries}
@@ -501,6 +629,7 @@ export default function App() {
                 )}{" "}
                 {tab === "expenses" && (
                   <Budget
+                    canManageBudget={role === "owner"}
                     trip={trip}
                     tripEntity={tripEntity}
                     expenses={expenses}
@@ -511,6 +640,7 @@ export default function App() {
                 )}{" "}
                 {tab === "packing" && (
                   <Packing
+                    key={tid}
                     trip={trip}
                     tripId={tid!}
                     items={scoped.filter((e) => e.kind === "packing")}
@@ -519,7 +649,12 @@ export default function App() {
                   />
                 )}{" "}
                 {tab === "members" && (
-                  <Members trip={trip} entity={tripEntity} role={role} />
+                  <Members
+                    key={tid}
+                    trip={trip}
+                    entity={tripEntity}
+                    role={role}
+                  />
                 )}
               </div>
             </>
@@ -528,7 +663,7 @@ export default function App() {
             <span>
               <Compass size={14} /> Made for the journey, and the people in it.
             </span>
-            <button onClick={() => setSettings(true)}>
+            <button onClick={openSettings}>
               Privacy, offline data & connections
             </button>
           </footer>
@@ -554,6 +689,7 @@ export default function App() {
               setTripId(editingTrip.id);
               setEditingTrip(undefined);
               setTab("itinerary");
+              setOverview(false);
             }}
           />
         </Modal>

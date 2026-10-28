@@ -101,7 +101,7 @@ export default function Packing({
                       aria-label={`Mark ${e.data.title} packed`}
                       type="checkbox"
                       checked={e.data.packed}
-                      disabled={!canEdit}
+                      disabled={!canEdit || a.busy}
                       onChange={(ev) =>
                         a.run(() =>
                           save({
@@ -137,6 +137,7 @@ export default function Packing({
                         <button
                           className="icon-button"
                           aria-label={`Delete ${e.data.title}`}
+                          disabled={a.busy}
                           onClick={() => a.run(() => remove(e))}
                         >
                           <Trash2 size={15} />
@@ -197,7 +198,8 @@ export default function Packing({
                 </Button>
                 <button
                   className="icon-button"
-                  aria-label="Delete template"
+                  aria-label={`Delete template ${t.data.title}`}
+                  disabled={!canEdit || a.busy}
                   onClick={() => a.run(() => remove(t))}
                 >
                   <Trash2 size={14} />

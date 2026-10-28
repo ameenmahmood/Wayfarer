@@ -35,6 +35,7 @@ export default function Settings({
           ].map(([value, label, Icon]) => (
             <button
               key={value as string}
+              aria-pressed={theme === value}
               className={theme === value ? "active" : ""}
               onClick={() => setTheme(value as string)}
             >

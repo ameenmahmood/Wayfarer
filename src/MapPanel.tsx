@@ -18,12 +18,15 @@ function loadMaps() {
     const s = document.createElement("script");
     window.wayfarerMapsReady = () => resolve();
     s.src = `https://maps.googleapis.com/maps/api/js?key=${import.meta.env.VITE_GOOGLE_MAPS_BROWSER_KEY}&callback=wayfarerMapsReady&libraries=geometry&loading=async`;
-    s.onerror = () =>
+    s.onerror = () => {
+      mapsPromise = undefined;
+      s.remove();
       reject(
         Error(
           "Google Maps could not load. Check connectivity and key restrictions.",
         ),
       );
+    };
     document.head.appendChild(s);
   });
   return mapsPromise;
@@ -49,7 +52,7 @@ export default function MapPanel({
     [ready, setReady] = useState(false),
     [retry, setRetry] = useState(0);
   const [routeWarnings, setRouteWarnings] = useState<string[]>([]);
-  const configured = !!import.meta.env.VITE_GOOGLE_MAPS_BROWSER_KEY;
+  const configured = !demo && !!import.meta.env.VITE_GOOGLE_MAPS_BROWSER_KEY;
   const located = entries.filter(
     (e) => (e.data.lat != null && e.data.lng != null) || e.data.placeId,
   );
@@ -172,7 +175,16 @@ export default function MapPanel({
             <div className="notice">Loading live Google map…</div>
           )}
         </>
-      ) : !tripId.startsWith('demo') ? <div className="empty"><MapPin size={28}/><h3>Your places, ready to connect</h3><p>Configure Google Maps for a live view. Keep adding addresses and coordinates to your itinerary offline.</p></div> : (
+      ) : !tripId.startsWith("demo") ? (
+        <div className="empty">
+          <MapPin size={28} />
+          <h3>Your places, ready to connect</h3>
+          <p>
+            Configure Google Maps for a live view. Keep adding addresses and
+            coordinates to your itinerary offline.
+          </p>
+        </div>
+      ) : (
         <div className="sketch">
           <svg
             viewBox="0 0 440 310"
@@ -291,7 +303,7 @@ export default function MapPanel({
           <Navigation size={15} />
           {configured
             ? "Live map · internet required"
-            : "Connect Google Maps in settings"}
+            : "Live map is not configured"}
         </span>
         {located.length > 0 && (
           <a

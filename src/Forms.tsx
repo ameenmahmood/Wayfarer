@@ -468,6 +468,8 @@ export function ExpenseForm({
   const change = (k: keyof Expense, value: any) =>
     setV((s) => ({ ...s, [k]: value }));
   function build() {
+    if (itemized && !v.items.length)
+      throw Error("Add at least one item or turn off itemization.");
     const n = Number(rate);
     if (!Number.isFinite(n) || n <= 0)
       throw Error("A positive exchange rate is required.");
@@ -490,9 +492,12 @@ export function ExpenseForm({
     return e;
   }
   let preview: Record<string, number> | undefined;
+  let previewError = "";
   try {
     preview = splitExpense(build());
-  } catch {}
+  } catch (error: any) {
+    previewError = error.message;
+  }
   return (
     <form
       onSubmit={(e) => {
@@ -636,6 +641,7 @@ export function ExpenseForm({
                   }
                 />
                 <Button
+                  aria-label={`Remove item ${i + 1}`}
                   onClick={() =>
                     change(
                       "items",
@@ -843,8 +849,8 @@ export function ExpenseForm({
         </div>
       ) : (
         <Notice>
-          Enter valid amounts. Items + extras must equal the total; exact splits
-          and percentages must reconcile.
+          {previewError} Items + extras must equal the total; exact splits and
+          percentages must reconcile.
         </Notice>
       )}
       {a.error && <Notice tone="error">{a.error}</Notice>}

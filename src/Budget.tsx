@@ -21,6 +21,7 @@ export default function Budget({
   repayments,
   entries,
   canEdit,
+  canManageBudget,
 }: {
   trip: Trip;
   tripEntity: Entity<Trip>;
@@ -28,6 +29,7 @@ export default function Budget({
   repayments: Entity<Repayment>[];
   entries: Entity<Entry>[];
   canEdit: boolean;
+  canManageBudget: boolean;
 }) {
   const [editing, setEditing] = useState<Entity<Expense>>(),
     [settle, setSettle] = useState<{
@@ -120,7 +122,16 @@ export default function Budget({
           <small>Trip budget</small>
           <strong>{money(trip.budget, trip.currency)}</strong>
           {canEdit && (
-            <button className="text-button" onClick={() => setBudgeting(true)}>
+            <button
+              className="text-button"
+              disabled={!canManageBudget}
+              title={
+                !canManageBudget
+                  ? "Only the trip owner can change budgets"
+                  : undefined
+              }
+              onClick={() => setBudgeting(true)}
+            >
               Manage budgets <ArrowUpRight size={13} />
             </button>
           )}

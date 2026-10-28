@@ -19,6 +19,20 @@ vi.mock("@supabase/supabase-js", () => ({
         },
       }),
     },
+    functions: {
+      invoke: async () => ({
+        error: {
+          message: "Edge Function returned a non-2xx status code",
+          context: new Response(
+            JSON.stringify({
+              error:
+                "Google services are not configured. Manual planning remains available.",
+            }),
+            { status: 503 },
+          ),
+        },
+      }),
+    },
     from: () => ({
       select: async () => ({ data: [...backend.rows.values()], error: null }),
     }),
@@ -113,4 +127,12 @@ it("queues ordered offline edits, survives a lost acknowledgment, resolves concu
   await synchronize();
   expect((await all()).find((r) => r.id === e.id)?.deleted).toBe(true);
   expect(backend.rows.size).toBe(1);
+});
+
+it("online-service errors expose actionable server instructions instead of a generic gateway error", async () => {
+  vi.stubGlobal("navigator", { onLine: true });
+  const { api } = await import("../src/store");
+  await expect(api("search", "trip", { query: "Cafe" })).rejects.toThrow(
+    "Google services are not configured. Manual planning remains available.",
+  );
 });
