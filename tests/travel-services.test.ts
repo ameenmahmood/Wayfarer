@@ -12,6 +12,7 @@ function handler({
   key = "test-server-key",
   member = true,
   authenticated = true,
+  deleted = false,
 } = {}) {
   let serve: (req: Request) => Promise<Response> = async () => new Response();
   const google = vi.fn<(...args: any[]) => Promise<Response>>(
@@ -35,7 +36,18 @@ function handler({
         error: null,
       }),
     },
-    from: () => membership,
+    from: (table: string) =>
+      table === "entities"
+        ? {
+            select: () => ({
+              eq: () => ({
+                eq: () => ({
+                  maybeSingle: async () => ({ data: { deleted }, error: null }),
+                }),
+              }),
+            }),
+          }
+        : membership,
     rpc: async () => ({ data: true, error: null }),
   });
   const context = vm.createContext({
@@ -284,4 +296,11 @@ it("nearby keeps membership and authentication checks", async () => {
     expect((await service.invoke(nearbyRequest())).status).not.toBe(200);
     expect(service.google).not.toHaveBeenCalled();
   }
+});
+
+it("online services reject deleted trips before calling Google", async () => {
+  const service = handler({ deleted: true });
+  const r = await service.invoke(request());
+  expect(r.status).toBe(403);
+  expect(service.google).not.toHaveBeenCalled();
 });

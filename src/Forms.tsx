@@ -12,17 +12,20 @@ import {
 } from "./model";
 import { save, api, demo, supabase } from "./store";
 import { minor, precision, money, splitExpense } from "./money";
-import { entryBounds } from "./schedule";
+import { entryBounds, entryWithDuration } from "./schedule";
 import { Field, Button, Notice, useAsyncAction } from "./ui";
 export function TripForm({
   entity,
   onDone,
+  onDelete,
 }: {
   entity: Entity<Trip>;
   onDone: () => void;
+  onDelete?: () => Promise<void>;
 }) {
   const [t, setT] = useState(entity.data),
     a = useAsyncAction();
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [signedIn, setSignedIn] = useState(demo);
   useEffect(() => {
     if (!supabase) return;
@@ -45,6 +48,36 @@ export function TripForm({
         JSON.stringify({ ...entity, data: t }),
       );
   }, [t, entity.id]);
+  if (confirmDelete && onDelete)
+    return (
+      <section className="delete-trip-confirmation">
+        <h3>Delete “{entity.data.title}”?</h3>
+        <Notice tone="error">
+          This removes the trip and its itinerary, expenses, repayments and
+          packing lists for everyone. Pending invitations will stop working.
+          There is no undo in the app. Copies already downloaded by others
+          cannot be erased remotely.
+        </Notice>
+        <p>
+          {demo
+            ? "This is a local demo trip; deletion affects this browser only."
+            : "Internet is required. Sync or resolve pending changes before deleting."}
+        </p>
+        {a.error && <Notice tone="error">{a.error}</Notice>}
+        <div className="dialog-actions trip-form-actions">
+          <Button disabled={a.busy} onClick={() => setConfirmDelete(false)}>
+            Keep trip
+          </Button>
+          <Button
+            className="danger"
+            disabled={a.busy}
+            onClick={() => a.run(onDelete)}
+          >
+            {a.busy ? "Deleting…" : "Delete this trip"}
+          </Button>
+        </div>
+      </section>
+    );
   return (
     <form
       onSubmit={(e) => {
@@ -156,7 +189,19 @@ export function TripForm({
       {!signedIn && (
         <SignIn purpose="Sign in to save this private trip. Your draft is kept in this tab while you sign in; nothing is shared until you save." />
       )}
-      <div className="dialog-actions">
+      <div className="dialog-actions trip-form-actions">
+        {onDelete && (
+          <Button
+            className="danger-outline"
+            disabled={a.busy}
+            onClick={() => {
+              a.setError("");
+              setConfirmDelete(true);
+            }}
+          >
+            Delete trip
+          </Button>
+        )}
         <Button
           type="submit"
           className="primary"
@@ -180,7 +225,7 @@ export function EntryForm({
 }: {
   entity: Entity<Entry>;
   trip: Trip;
-  onDone: () => void;
+  onDone: (saved?: Entity<Entry>) => void;
 }) {
   const [v, setV] = useState(entity.data),
     [q, setQ] = useState(""),
@@ -223,7 +268,7 @@ export function EntryForm({
             throw Error("Links must start with https:// or http://.");
           if ((v.lat == null) !== (v.lng == null))
             throw Error("Supply both latitude and longitude.");
-          await save({
+          const saved = await save({
             ...entity,
             data: {
               ...v,
@@ -236,7 +281,7 @@ export function EntryForm({
               cost: minor(cost, v.currency),
             },
           });
-          onDone();
+          onDone(saved);
         });
       }}
     >
@@ -369,7 +414,16 @@ export function EntryForm({
             max="10080"
             required
             value={v.duration}
-            onChange={(e) => change("duration", Number(e.target.value))}
+            onChange={(e) =>
+              setV((current) => {
+                const duration = Number(e.target.value);
+                try {
+                  return entryWithDuration(current, duration);
+                } catch {
+                  return { ...current, duration };
+                }
+              })
+            }
           />
         </Field>
       </div>

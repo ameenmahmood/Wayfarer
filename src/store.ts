@@ -35,7 +35,13 @@ export async function all(): Promise<Entity[]> {
       account = await db.get("meta", "account");
     if (!session || (account && account !== session.user.id)) return [];
   }
-  return db.getAll("entities");
+  const rows = (await db.getAll("entities")) as Entity[];
+  const deletedTrips = new Set(
+    rows.filter((e) => e.kind === "trip" && e.deleted).map((e) => e.id),
+  );
+  return rows.map((e) =>
+    deletedTrips.has(e.tripId) ? { ...e, deleted: true } : e,
+  );
 }
 export async function pending(): Promise<Mutation[]> {
   return ((await (await dbPromise).getAll("mutations")) as Mutation[]).sort(
@@ -43,6 +49,16 @@ export async function pending(): Promise<Mutation[]> {
   );
 }
 export async function save(entity: Entity) {
+  return (await saveBatch([entity]))[0];
+}
+export async function saveBatch(
+  entities: Entity[],
+  expected: Entity[] = entities,
+  scope?: { tripId: string; date: string },
+) {
+  if (!entities.length) return [];
+  if (new Set(entities.map((e) => e.id)).size !== entities.length)
+    throw Error("A batch cannot contain duplicate records.");
   if (!demo) {
     const {
       data: { session },
@@ -57,58 +73,146 @@ export async function save(entity: Entity) {
   }
   const db = await dbPromise,
     tx = db.transaction(["entities", "mutations"], "readwrite");
-  const stored = (await tx.objectStore("entities").get(entity.id)) as
-    Entity | undefined;
-  if (stored && stored.version !== entity.version) {
-    tx.abort();
-    throw Error(
-      "This record changed while you were editing. Close and reopen it to review the latest version.",
+  if (scope) {
+    const current = (
+      (await tx.objectStore("entities").getAll()) as Entity[]
+    ).filter(
+      (e) =>
+        e.kind === "entry" &&
+        !e.deleted &&
+        e.tripId === scope.tripId &&
+        e.data.date === scope.date,
     );
-  }
-  const baseVersion = stored?.version || 0;
-  const next = {
-    ...entity,
-    version: baseVersion + 1,
-    updatedAt: new Date().toISOString(),
-    updatedBy: userId,
-  };
-  if (!demo) {
-    const mutations = (await tx
-      .objectStore("mutations")
-      .getAll()) as Mutation[];
+    const ids = (rows: Entity[]) =>
+      JSON.stringify(
+        rows
+          .map((e) => [e.id, e.version])
+          .sort((a, b) => String(a[0]).localeCompare(String(b[0]))),
+      );
     if (
+      ids(current) !==
+      ids(
+        expected.filter(
+          (e) =>
+            e.kind === "entry" &&
+            !e.deleted &&
+            e.tripId === scope.tripId &&
+            e.data.date === scope.date,
+        ),
+      )
+    ) {
+      tx.abort();
+      await tx.done.catch(() => {});
+      throw Error(
+        "This day changed. Close and reopen the preview before applying.",
+      );
+    }
+  }
+  // Read all guards and pending operations in the same transaction before writing anything.
+  const guards = new Map([...expected, ...entities].map((e) => [e.id, e]));
+  const stored = new Map<string, Entity | undefined>();
+  const mutations = (await tx.objectStore("mutations").getAll()) as Mutation[];
+  for (const entity of guards.values()) {
+    const current = (await tx.objectStore("entities").get(entity.id)) as
+      Entity | undefined;
+    stored.set(entity.id, current);
+    if (
+      (current && current.version !== entity.version) ||
+      (!current && entity.version !== 0) ||
+      (current?.deleted && !entity.deleted)
+    ) {
+      tx.abort();
+      await tx.done.catch(() => {});
+      throw Error(
+        "This record changed while you were editing. Close and reopen it to review the latest version.",
+      );
+    }
+    if (
+      !demo &&
       mutations.some((m) => m.entityId === entity.id && m.state === "conflict")
     ) {
       tx.abort();
+      await tx.done.catch(() => {});
       throw Error("Resolve this record’s conflict before editing it.");
     }
-    const sequence = Math.max(0, ...mutations.map((m) => m.sequence)) + 1;
-    // Immutable operations: every retry resends the same payload and identifier.
-    await tx.objectStore("mutations").put({
-      id: uid(),
-      entityId: entity.id,
-      tripId: entity.tripId,
-      baseVersion,
-      sequence,
-      entity: next,
-      state: "pending",
-    } satisfies Mutation);
   }
-  await tx.objectStore("entities").put(next);
+  let sequence = Math.max(0, ...mutations.map((m) => m.sequence));
+  const results: Entity[] = [];
+  for (const entity of entities) {
+    const baseVersion = stored.get(entity.id)?.version || 0;
+    const next = {
+      ...entity,
+      version: baseVersion + 1,
+      updatedAt: new Date().toISOString(),
+      updatedBy: userId,
+    };
+    if (!demo)
+      await tx.objectStore("mutations").put({
+        id: uid(),
+        entityId: entity.id,
+        tripId: entity.tripId,
+        baseVersion,
+        sequence: ++sequence,
+        entity: next,
+        state: "pending",
+      } satisfies Mutation);
+    await tx.objectStore("entities").put(next);
+    results.push(next);
+  }
   await tx.done;
+  if (demo) syncStatus = "Saved on this device";
   changed();
   if (!demo) void synchronize();
-  else {
-    syncStatus = "Saved on this device";
-    changed();
-  }
-  return next;
+  return results;
 }
 export async function create(kind: Kind, tripId: string, data: any) {
   return save(makeEntity(kind, tripId, data, userId));
 }
 export async function remove(e: Entity) {
   await save({ ...e, deleted: true });
+}
+export async function deleteTrip(trip: Entity) {
+  if (trip.kind !== "trip") throw Error("Choose a trip to delete.");
+  if (!demo) {
+    if (!navigator.onLine)
+      throw Error("Connect to the internet to delete a shared trip.");
+    const {
+      data: { session },
+    } = await supabase!.auth.getSession();
+    if (!session) throw Error("Sign in before deleting a trip.");
+    const account = await (await dbPromise).get("meta", "account");
+    if (account && account !== session.user.id)
+      throw Error("This browser cache belongs to another account.");
+    if ((await pending()).some((m) => m.tripId === trip.id))
+      throw Error(
+        "Synchronize or resolve this trip's pending changes before deleting it.",
+      );
+    const { error } = await supabase!.rpc("delete_trip", {
+      target_trip: trip.id,
+      expected_version: trip.version,
+    });
+    if (error) throw error;
+  } else if (
+    !trip.data.people?.some((p: any) => p.id === userId && p.role === "owner")
+  )
+    throw Error("Only the trip owner can delete this trip.");
+  const db = await dbPromise,
+    tx = db.transaction(["entities", "mutations"], "readwrite");
+  for (const e of (await tx.objectStore("entities").getAll()) as Entity[])
+    if (e.tripId === trip.id)
+      await tx
+        .objectStore("entities")
+        .put({
+          ...e,
+          deleted: true,
+          updatedAt: new Date().toISOString(),
+          updatedBy: userId,
+        });
+  for (const m of (await tx.objectStore("mutations").getAll()) as Mutation[])
+    if (m.tripId === trip.id) await tx.objectStore("mutations").delete(m.id);
+  await tx.done;
+  changed();
+  if (!demo) void synchronize();
 }
 let running = false;
 export async function synchronize() {
@@ -179,6 +283,8 @@ export async function synchronize() {
       }
       const tx = db.transaction(["entities", "mutations"], "readwrite");
       if (data.conflict) {
+        if (data.entity?.kind === "trip" && data.entity.deleted)
+          await tx.objectStore("entities").put(fromRemote(data.entity));
         await tx.objectStore("mutations").put({
           ...m,
           state: "conflict",

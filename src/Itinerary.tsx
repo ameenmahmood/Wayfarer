@@ -38,6 +38,7 @@ import MapPanel from "./MapPanel";
 import TravelLeg from "./TravelLeg";
 import NearbyPlaces from "./NearbyPlaces";
 import RoutePlanner from "./RoutePlanner";
+import ScheduleAdjustments from "./ScheduleAdjustments";
 export default function Itinerary({
   trip,
   tripId,
@@ -57,6 +58,11 @@ export default function Itinerary({
     [editing, setEditing] = useState<Entity<Entry>>(),
     [route, setRoute] = useState(false),
     [nearby, setNearby] = useState(false),
+    [adjusting, setAdjusting] = useState<{ date: string; anchorId?: string }>(),
+    [scheduleHint, setScheduleHint] = useState<{
+      date: string;
+      anchorId?: string;
+    }>(),
     [moving, setMoving] = useState<Entity<Entry>>(),
     [drag, setDrag] = useState(""),
     [mode, setMode] = useState("WALK"),
@@ -192,6 +198,13 @@ export default function Itinerary({
           </button>
         </div>
         <Button
+          disabled={!canEdit || view !== "day" || !dayEntries.length}
+          onClick={() => setAdjusting({ date })}
+        >
+          <Clock size={16} />
+          Adjust schedule
+        </Button>
+        <Button
           disabled={!canEdit || !dayEntries.length || view !== "day"}
           title={
             !canEdit
@@ -208,6 +221,21 @@ export default function Itinerary({
           Optimize day
         </Button>
       </div>
+      {scheduleHint && canEdit && (
+        <Notice>
+          Timing changed. Review how it affects the rest of the day.{" "}
+          <Button onClick={() => setAdjusting(scheduleHint)}>
+            Review schedule
+          </Button>
+          <button
+            className="icon-button"
+            aria-label="Dismiss schedule reminder"
+            onClick={() => setScheduleHint(undefined)}
+          >
+            ×
+          </button>
+        </Notice>
+      )}
       {view === "day" && (
         <ScrollRail className="day-strip" label="Trip days">
           {dayList.map((d, i) => (
@@ -319,6 +347,18 @@ export default function Itinerary({
                         entry={e}
                         mode={mode}
                         canEdit={canEdit}
+
+                        onScheduleChange={() => {
+                          if (
+                            previous.data.date &&
+                            (!previous.data.endDate ||
+                              previous.data.endDate === previous.data.date)
+                          )
+                            setScheduleHint({
+                              date: previous.data.date,
+                              anchorId: previous.id,
+                            });
+                        }}
                       />
                     )}
                   <article
@@ -535,7 +575,38 @@ export default function Itinerary({
           <EntryForm
             entity={editing}
             trip={trip}
-            onDone={() => setEditing(undefined)}
+            onDone={(saved) => {
+              if (
+                saved &&
+                editing.version > 0 &&
+                saved.data.date &&
+                saved.data.date === editing.data.date &&
+                (saved.data.start !== editing.data.start ||
+                  saved.data.duration !== editing.data.duration ||
+                  saved.data.end !== editing.data.end)
+              )
+                setScheduleHint({ date: saved.data.date, anchorId: saved.id });
+              setEditing(undefined);
+            }}
+          />
+        </Modal>
+      )}
+      {adjusting && (
+        <Modal
+          title="Adjust your day"
+          onClose={() => setAdjusting(undefined)}
+          wide
+        >
+          <ScheduleAdjustments
+            entries={entries}
+            date={adjusting.date}
+            anchorId={adjusting.anchorId}
+            mode={mode}
+            canEdit={canEdit}
+            onDone={() => {
+              setAdjusting(undefined);
+              setScheduleHint(undefined);
+            }}
           />
         </Modal>
       )}

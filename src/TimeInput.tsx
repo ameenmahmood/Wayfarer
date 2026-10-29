@@ -4,11 +4,13 @@ export default function TimeInput({
   onChange,
   label,
   required = false,
+  disabled = false,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   required?: boolean;
+  disabled?: boolean;
 }) {
   const id = useId();
   const [hour, minute] = (value || "09:00").split(":").map(Number);
@@ -18,6 +20,7 @@ export default function TimeInput({
   return (
     <span className="time-input" id={id} role="group" aria-label={label}>
       <select
+        disabled={disabled}
         aria-label={`${label} hour`}
         value={value ? hour % 12 || 12 : ""}
         required={required}
@@ -37,6 +40,7 @@ export default function TimeInput({
       </select>
       <span>:</span>
       <select
+        disabled={disabled}
         aria-label={`${label} minute`}
         value={minute}
         onChange={(e) => change(hour, Number(e.target.value))}
@@ -48,6 +52,7 @@ export default function TimeInput({
         ))}
       </select>
       <select
+        disabled={disabled}
         aria-label={`${label} AM or PM`}
         value={hour < 12 ? "AM" : "PM"}
         onChange={(e) =>
@@ -59,6 +64,7 @@ export default function TimeInput({
       </select>
       {value && !required && (
         <button
+          disabled={disabled}
           type="button"
           className="icon-button"
           aria-label={`Clear ${label.toLowerCase()}`}

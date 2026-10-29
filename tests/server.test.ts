@@ -49,8 +49,26 @@ beforeAll(async () => {
   const sql = readFileSync(
     new URL("../supabase/migrations/001_private_trips.sql", import.meta.url),
     "utf8",
-  ).replace("create extension if not exists pgcrypto with schema extensions;", "");
+  ).replace(
+    "create extension if not exists pgcrypto with schema extensions;",
+    "",
+  );
   await db.exec(sql);
+  await db.exec(
+    readFileSync(
+      new URL("../supabase/migrations/002_delete_trips.sql", import.meta.url),
+      "utf8",
+    ),
+  );
+  await db.exec(
+    readFileSync(
+      new URL(
+        "../supabase/migrations/003_missing_conflict_entity.sql",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  );
   await actor(owner);
   await change("trip", tripId, {
     title: "Shared Japan",
@@ -308,4 +326,141 @@ describe("actual PostgreSQL permission and sync RPCs", () => {
     ).toHaveLength(0);
     await db.exec("reset role");
   });
+});
+
+it("owner trip deletion tombstones every record, revokes invites and blocks offline resurrection", async () => {
+  await actor(owner);
+  const id = randomUUID(),
+    child = randomUUID(),
+    receipt = randomUUID();
+  const payload = {
+    title: "Disposable test trip",
+    destinations: "Tokyo",
+    start: "2027-04-12",
+    end: "2027-04-13",
+    zone: "Asia/Tokyo",
+    currency: "USD",
+    budget: 0,
+    categoryBudgets: {},
+    people: [],
+    description: "",
+  };
+  const create = async (
+    kind: string,
+    entityId: string,
+    data: any,
+    version = 0,
+    op = randomUUID(),
+  ) =>
+    (
+      await rpc("select apply_change($1,$2,$3,$4,$5,$6::jsonb,false) r", [
+        op,
+        entityId,
+        id,
+        kind,
+        version,
+        JSON.stringify(data),
+      ])
+    ).rows[0].r;
+  await create("trip", id, payload);
+  const old = await create(
+    "packing",
+    child,
+    { title: "Camera", quantity: 1, personal: false },
+    0,
+    receipt,
+  );
+  const token = (
+    await rpc(
+      "select create_invitation($1,'outsider@example.test','editor') r",
+      [id],
+    )
+  ).rows[0].r.token;
+  await db.query(
+    "insert into memberships values($1,$2,'friend@example.test','editor'),($1,$3,'viewer@example.test','viewer')",
+    [id, editor, viewer],
+  );
+  for (const user of [editor, viewer, stranger]) {
+    await actor(user);
+    await expect(rpc("select delete_trip($1,1)", [id])).rejects.toThrow(
+      "Owner access required",
+    );
+  }
+  await actor(owner);
+  await expect(rpc("select delete_trip($1,99)", [id])).rejects.toThrow(
+    "Trip changed",
+  );
+  expect(
+    (await rpc("select delete_trip($1,1) r", [id])).rows[0].r.deleted,
+  ).toBe(true);
+  expect(
+    (
+      await rpc(
+        "select count(*)::int n from entities where trip_id=$1 and not deleted",
+        [id],
+      )
+    ).rows[0].n,
+  ).toBe(0);
+  const versions = (
+    await rpc("select id,version from entities where trip_id=$1 order by id", [
+      id,
+    ])
+  ).rows;
+  await rpc("select delete_trip($1,1)", [id]);
+  expect(
+    (
+      await rpc(
+        "select id,version from entities where trip_id=$1 order by id",
+        [id],
+      )
+    ).rows,
+  ).toEqual(versions);
+  expect(
+    (
+      await create(
+        "packing",
+        child,
+        { title: "Offline edit", quantity: 1, personal: false },
+        old.entity.version,
+      )
+    ).conflict,
+  ).toBe(true);
+  expect(
+    (
+      await create(
+        "packing",
+        child,
+        { title: "Camera", quantity: 1, personal: false },
+        0,
+        receipt,
+      )
+    ).entity.deleted,
+  ).toBe(true);
+  expect(
+    (
+      await create("packing", randomUUID(), {
+        title: "New offline item",
+        quantity: 1,
+        personal: false,
+      })
+    ).conflict,
+  ).toBe(true);
+  await expect(
+    rpc("select create_invitation($1,'new@example.test','editor')", [id]),
+  ).rejects.toThrow("Trip no longer exists");
+  const missing = await create("packing", randomUUID(), {
+    title: "Another offline item",
+    quantity: 1,
+    personal: false,
+  });
+  expect(missing.entity).toBeNull();
+  await actor(stranger);
+  await expect(rpc("select accept_invitation($1)", [token])).rejects.toThrow(
+    "Trip no longer exists",
+  );
+  await actor(owner);
+  expect(
+    (await rpc("select deleted from entities where id=$1", [tripId])).rows[0]
+      .deleted,
+  ).toBe(false);
 });

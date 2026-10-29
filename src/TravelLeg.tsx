@@ -9,11 +9,13 @@ export default function TravelLeg({
   entry,
   mode,
   canEdit,
+  onScheduleChange,
 }: {
   previous: Entity<Entry>;
   entry: Entity<Entry>;
   mode: string;
   canEdit: boolean;
+  onScheduleChange?: () => void;
 }) {
   const arrival =
     entry.data.arrival?.fromId === previous.id ? entry.data.arrival : undefined;
@@ -51,6 +53,7 @@ export default function TravelLeg({
     )
       throw Error("Enter 0–10080 whole minutes.");
     await save({ ...entry, data: { ...entry.data, arrival: next } });
+    onScheduleChange?.();
   }
   return (
     <section

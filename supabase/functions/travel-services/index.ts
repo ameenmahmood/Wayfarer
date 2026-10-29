@@ -111,6 +111,17 @@ Deno.serve(async (req: Request) => {
         JSON.stringify({ error: "Trip membership required" }),
         { status: 403, headers },
       );
+    const { data: activeTrip, error: tripError } = await sb
+      .from("entities")
+      .select("deleted")
+      .eq("id", body.tripId)
+      .eq("kind", "trip")
+      .maybeSingle();
+    if (tripError || !activeTrip || activeTrip.deleted)
+      return new Response(JSON.stringify({ error: "Trip no longer exists" }), {
+        status: 403,
+        headers,
+      });
     const { data: withinLimit, error: limitError } = await sb.rpc(
       "consume_limit",
       {

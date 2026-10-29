@@ -181,3 +181,22 @@ export function formatTime(value: string) {
   const [h, m] = value.split(":").map(Number);
   return `${h % 12 || 12}:${String(m).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`;
 }
+
+// Keep an explicit end consistent when a user changes the duration in the simple form.
+export function entryWithDuration(entry: Entry, duration: number): Entry {
+  const next = { ...entry, duration };
+  if (
+    entry.date &&
+    entry.start &&
+    entry.end &&
+    Number.isInteger(duration) &&
+    duration > 0
+  ) {
+    const end = Temporal.Instant.fromEpochMilliseconds(
+      instant(entry.date, entry.start, entry.zone) + duration * 60000,
+    ).toZonedDateTimeISO(entry.endZone || entry.zone);
+    next.endDate = end.toPlainDate().toString();
+    next.end = `${String(end.hour).padStart(2, "0")}:${String(end.minute).padStart(2, "0")}`;
+  }
+  return next;
+}

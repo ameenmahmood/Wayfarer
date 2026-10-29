@@ -335,3 +335,69 @@ it("previews, cancels and saves a suggested trip cover with persistent framing",
   ).toBe("72");
   await u.click(dialog().getByRole("button", { name: "Cancel" }));
 });
+
+it("a day adjustment can be previewed and applied to actual local itinerary records", async () => {
+  localStorage.setItem("wayfarer-trip", "demo-japan");
+  const u = await openApp();
+  await u.click(screen.getByRole("button", { name: "Adjust schedule" }));
+  await dialog().findByRole("heading", { name: "Adjust your day" });
+  const { fireEvent } = await import("@testing-library/react");
+  fireEvent.change(dialog().getByLabelText("Buffer per travel leg · minutes"), {
+    target: { value: "10" },
+  });
+  const { all } = await import("../src/store");
+  const before = (await all()).filter(
+    (e) => e.kind === "entry" && e.tripId === "demo-japan",
+  );
+  const button = dialog().getByRole("button", { name: /^Apply [1-9]/ });
+  expect((button as HTMLButtonElement).disabled).toBe(false);
+  await u.click(button);
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  const after = (await all()).filter(
+    (e) => e.kind === "entry" && e.tripId === "demo-japan",
+  );
+  expect(
+    after.some(
+      (e) =>
+        JSON.stringify(e.data) !==
+        JSON.stringify(before.find((b) => b.id === e.id)?.data),
+    ),
+  ).toBe(true);
+  for (const fixed of before.filter((e) => e.data.fixed))
+    expect(after.find((e) => e.id === fixed.id)?.data.start).toBe(
+      fixed.data.start,
+    );
+  const manualChecks = screen.getAllByRole("checkbox", {
+    name: "Set time manually",
+  });
+  await u.click(manualChecks[manualChecks.length - 1]);
+  await screen.findByRole("button", { name: "Review schedule" });
+});
+
+it("Edit trip contains red deletion controls, cancel keeps the trip and confirm returns to the library", async () => {
+  localStorage.setItem("wayfarer-trip", "demo-japan");
+  const u = await openApp();
+  await u.click(screen.getByRole("button", { name: "Plan a new trip" }));
+  expect(dialog().queryByRole("button", { name: "Delete trip" })).toBeNull();
+  await u.type(dialog().getByLabelText("Trip name"), "Disposable UI trip");
+  await u.type(dialog().getByLabelText("Destinations"), "Boston");
+  await u.click(dialog().getByRole("button", { name: "Save trip" }));
+  await screen.findByRole("heading", { name: "Disposable UI trip" });
+  await u.click(screen.getByRole("button", { name: "Edit trip" }));
+  await u.click(await dialog().findByRole("button", { name: "Delete trip" }));
+  await dialog().findByRole("heading", {
+    name: "Delete “Disposable UI trip”?",
+  });
+  await u.click(dialog().getByRole("button", { name: "Keep trip" }));
+  expect(dialog().getByLabelText("Trip name")).toBeTruthy();
+  await u.click(dialog().getByRole("button", { name: "Delete trip" }));
+  await u.click(dialog().getByRole("button", { name: "Delete this trip" }));
+  await screen.findByRole("heading", { name: "My trips" });
+  expect(screen.queryByRole("dialog")).toBeNull();
+  expect(
+    screen.queryByRole("button", { name: /Disposable UI trip.*Open trip/ }),
+  ).toBeNull();
+  expect(
+    screen.getByRole("button", { name: /A little lost in Japan.*Open trip/ }),
+  ).toBeTruthy();
+});

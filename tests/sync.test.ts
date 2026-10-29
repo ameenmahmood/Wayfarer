@@ -5,6 +5,7 @@ const backend = vi.hoisted(() => ({
   receipts: new Map<string, any>(),
   dropResponse: false,
   requests: [] as any[],
+  deletions: [] as any[],
 }));
 vi.stubEnv("VITE_SUPABASE_URL", "https://test.supabase.co");
 vi.stubEnv("VITE_SUPABASE_ANON_KEY", "public-test-key");
@@ -37,6 +38,17 @@ vi.mock("@supabase/supabase-js", () => ({
       select: async () => ({ data: [...backend.rows.values()], error: null }),
     }),
     rpc: async (_name: string, m: any) => {
+      if (_name === "delete_trip") {
+        backend.deletions.push(m);
+        for (const [id, row] of backend.rows)
+          if (row.trip_id === m.target_trip)
+            backend.rows.set(id, {
+              ...row,
+              deleted: true,
+              version: row.version + 1,
+            });
+        return { data: { deleted: true }, error: null };
+      }
       backend.requests.push(m);
       let result = backend.receipts.get(m.op_id);
       if (!result) {
@@ -69,8 +81,16 @@ vi.mock("@supabase/supabase-js", () => ({
     },
   }),
 }));
-const { save, synchronize, pending, all, remove, resolveConflict } =
-  await import("../src/store");
+const {
+  save,
+  synchronize,
+  pending,
+  all,
+  remove,
+  resolveConflict,
+  saveBatch,
+  deleteTrip,
+} = await import("../src/store");
 import { makeEntity } from "../src/model";
 const flush = () => new Promise((r) => setTimeout(r, 10));
 it("queues ordered offline edits, survives a lost acknowledgment, resolves concurrency, and preserves tombstones", async () => {
@@ -135,4 +155,78 @@ it("online-service errors expose actionable server instructions instead of a gen
   await expect(api("search", "trip", { query: "Cafe" })).rejects.toThrow(
     "Google services are not configured. Manual planning remains available.",
   );
+});
+
+it("queues offline schedule batches with unique ordered operations and retries without duplicates", async () => {
+  (navigator as any).onLine = false;
+  const rows = await saveBatch([
+    makeEntity("entry", "trip", { title: "Batch A" }),
+    makeEntity("entry", "trip", { title: "Batch B" }),
+  ]);
+  await flush();
+  const q = (await pending()).filter((m) =>
+    rows.some((e) => e.id === m.entityId),
+  );
+  expect(q).toHaveLength(2);
+  expect(new Set(q.map((m) => m.id)).size).toBe(2);
+  expect(q[1].sequence).toBe(q[0].sequence + 1);
+  (navigator as any).onLine = true;
+  backend.dropResponse = true;
+  await synchronize();
+  await synchronize();
+  expect(
+    (await pending()).filter((m) => rows.some((e) => e.id === m.entityId)),
+  ).toHaveLength(0);
+  for (const row of rows) expect(backend.rows.get(row.id).version).toBe(1);
+});
+
+it("connected deletion requires online synchronized edits, then hides the trip and its children", async () => {
+  (navigator as any).onLine = false;
+  const trip = await save(
+    makeEntity("trip", "delete-transport", {
+      title: "Disposable transport trip",
+      people: [{ id: "owner", role: "owner" }],
+    }),
+  );
+  const child = await save(makeEntity("packing", trip.id, { title: "Bag" }));
+  await flush();
+  await expect(deleteTrip(trip)).rejects.toThrow("internet");
+  (navigator as any).onLine = true;
+  await expect(deleteTrip(trip)).rejects.toThrow("pending changes");
+  expect(backend.deletions).toHaveLength(0);
+  await synchronize();
+  await deleteTrip(trip);
+  await flush();
+  expect(backend.deletions).toHaveLength(1);
+  expect(backend.deletions[0]).toEqual({
+    target_trip: trip.id,
+    expected_version: trip.version,
+  });
+  expect((await all()).find((e) => e.id === trip.id)?.deleted).toBe(true);
+  expect((await all()).find((e) => e.id === child.id)?.deleted).toBe(true);
+});
+it("a deleted parent cannot be kept visible by an offline trip-settings conflict", async () => {
+  (navigator as any).onLine = false;
+  const trip = await save(
+    makeEntity("trip", "delete-conflict", { title: "Original" }),
+  );
+  await flush();
+  (navigator as any).onLine = true;
+  await synchronize();
+  (navigator as any).onLine = false;
+  const current = (await all()).find((e) => e.id === trip.id)!;
+  await save({ ...current, data: { title: "Offline title" } });
+  await flush();
+  const remote = backend.rows.get(trip.id);
+  backend.rows.set(trip.id, {
+    ...remote,
+    deleted: true,
+    version: remote.version + 1,
+  });
+  (navigator as any).onLine = true;
+  await synchronize();
+  expect((await pending()).find((m) => m.entityId === trip.id)?.state).toBe(
+    "conflict",
+  );
+  expect((await all()).find((e) => e.id === trip.id)?.deleted).toBe(true);
 });

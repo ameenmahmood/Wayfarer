@@ -38,6 +38,7 @@ import {
   userEmail,
   supabase,
   save,
+  deleteTrip,
 } from "./store";
 import {
   days,
@@ -780,6 +781,18 @@ export default function App() {
           <LazyPanel>
             <TripForm
               entity={editingTrip}
+              onDelete={
+                role === "owner" && trips.some((t) => t.id === editingTrip.id)
+                  ? async () => {
+                      await deleteTrip(editingTrip);
+                      sessionStorage.removeItem("wayfarer-trip-draft");
+                      setEditingTrip(undefined);
+                      setTripId("");
+                      localStorage.removeItem("wayfarer-trip");
+                      setOverview(true);
+                    }
+                  : undefined
+              }
               onDone={() => {
                 setTripId(editingTrip.id);
                 setEditingTrip(undefined);
