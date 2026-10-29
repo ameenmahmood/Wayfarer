@@ -87,7 +87,15 @@ Deno.serve(async (req: Request) => {
     if (raw.length > 30000) throw Error("Request too large");
     const body = z
       .object({
-        action: z.enum(["places", "place", "route", "matrix", "ai", "rate"]),
+        action: z.enum([
+          "places",
+          "place",
+          "route",
+          "matrix",
+          "ai",
+          "rate",
+          "nearby",
+        ]),
         tripId: z.uuid(),
       })
       .passthrough()
@@ -123,6 +131,76 @@ Deno.serve(async (req: Request) => {
         { textQuery: query, maxResultCount: 5 },
         "places.id,places.displayName,places.formattedAddress,places.attributions",
       );
+    }
+    if (body.action === "nearby") {
+      const input = z
+        .object({
+          category: z.enum([
+            "cafe",
+            "restaurant",
+            "tourist_attraction",
+            "park",
+            "museum",
+          ]),
+          location: z.string().trim().min(2).max(200).optional(),
+          anchor: point.optional(),
+          radius: z.number().int().min(500).max(10000).default(1500),
+        })
+        .refine((v) => v.anchor || v.location, "Choose a search location")
+        .parse(body);
+      let center: { latitude: number; longitude: number } | undefined;
+      let centerLabel = input.location || "Selected activity";
+      if (input.anchor?.placeId) {
+        const key = Deno.env.get("GOOGLE_MAPS_SERVER_KEY");
+        if (!key) throw Error("Google services are not configured.");
+        const r = await fetch(
+          `https://places.googleapis.com/v1/places/${encodeURIComponent(input.anchor.placeId)}`,
+          {
+            headers: {
+              "X-Goog-Api-Key": key,
+              "X-Goog-FieldMask": "location,displayName",
+            },
+            signal: AbortSignal.timeout(15000),
+          },
+        );
+        const detail = await r.json();
+        if (!r.ok) throw Error(googleFailure(r.status, detail, key));
+        center = detail.location;
+        centerLabel = detail.displayName?.text || centerLabel;
+      } else if (input.anchor?.lat != null && input.anchor?.lng != null) {
+        center = { latitude: input.anchor.lat, longitude: input.anchor.lng };
+      } else {
+        const resolved = await google(
+          "https://places.googleapis.com/v1/places:searchText",
+          { textQuery: input.location, maxResultCount: 1 },
+          "places.location,places.displayName",
+        );
+        center = resolved.places?.[0]?.location;
+        centerLabel = resolved.places?.[0]?.displayName?.text || centerLabel;
+      }
+      if (
+        !center ||
+        !Number.isFinite(center.latitude) ||
+        !Number.isFinite(center.longitude)
+      )
+        throw Error(
+          "That location could not be found. Try a city, neighborhood, address or linked activity.",
+        );
+      const nearby = await google(
+        "https://places.googleapis.com/v1/places:searchNearby",
+        {
+          includedTypes: [input.category],
+          maxResultCount: 8,
+          rankPreference: "DISTANCE",
+          locationRestriction: { circle: { center, radius: input.radius } },
+        },
+        "places.id,places.displayName,places.formattedAddress,places.attributions",
+      );
+      result = {
+        places: nearby.places || [],
+        centerLabel,
+        radius: input.radius,
+      };
     }
     if (body.action === "place") {
       const placeId = z

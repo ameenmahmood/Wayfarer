@@ -1161,7 +1161,8 @@ main {
   margin-top: 20px;
 }
 .inspiration-card > .type-icon {
-  display: flex;
+  display: grid;
+  place-items: center;
   margin-bottom: 14px;
   background: var(--surface);
 }
@@ -3160,4 +3161,104 @@ button.profile {
   .hero-buttons {
     gap: 6px;
   }
+}
+
+.nearby-fields {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+.nearby-categories {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 16px 0;
+}
+.nearby-categories button {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  background: var(--surface);
+  padding: 9px 13px;
+  color: var(--text);
+  font-size: 12px;
+}
+.nearby-categories button[aria-pressed="true"] {
+  border-color: var(--green);
+  background: var(--green-soft);
+  color: var(--green);
+}
+.nearby-search-row {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.nearby-search-row .field {
+  min-width: 130px;
+  flex: 1;
+}
+.nearby-search-row .button {
+  margin-top: 8px;
+}
+.nearby-result-heading {
+  margin: 20px 0 14px;
+}
+.nearby-result-heading .google-attribution {
+  margin: 0;
+}
+.nearby-result-heading p {
+  font-weight: 600;
+  margin: 9px 0 5px;
+}
+.nearby-result-heading small,
+.nearby-note {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.nearby-results {
+  display: grid;
+  gap: 12px;
+}
+.nearby-result {
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+.nearby-result h3 {
+  margin: 0 0 7px;
+  font-size: 16px;
+}
+.nearby-result p {
+  color: var(--muted);
+  font-size: 12px;
+  margin: 5px 0 10px;
+}
+.nearby-result > a {
+  display: inline-flex;
+  gap: 5px;
+  align-items: center;
+  font-size: 12px;
+}
+.nearby-result small {
+  display: block;
+  margin: 6px 0;
+}
+.nearby-result > .pill {
+  display: block;
+  width: fit-content;
+  margin-top: 12px;
+}
+.nearby-result-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+}
+.nearby-note {
+  margin-top: 18px;
 }

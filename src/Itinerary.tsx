@@ -21,7 +21,7 @@ import {
   CalendarDays,
 } from "lucide-react";
 import { days, makeEntity, type Entity, type Trip, type Entry } from "./model";
-import { save, remove, api, demo } from "./store";
+import { save, remove } from "./store";
 import { travel, warnings, entryBounds, formatTime } from "./schedule";
 import { money } from "./money";
 import { EntryForm } from "./Forms";
@@ -36,6 +36,7 @@ import {
 } from "./ui";
 import MapPanel from "./MapPanel";
 import TravelLeg from "./TravelLeg";
+import NearbyPlaces from "./NearbyPlaces";
 import RoutePlanner from "./RoutePlanner";
 export default function Itinerary({
   trip,
@@ -55,8 +56,7 @@ export default function Itinerary({
     [selected, setSelected] = useState(""),
     [editing, setEditing] = useState<Entity<Entry>>(),
     [route, setRoute] = useState(false),
-    [ai, setAi] = useState(false),
-    [suggestions, setSuggestions] = useState<any[]>([]),
+    [nearby, setNearby] = useState(false),
     [moving, setMoving] = useState<Entity<Entry>>(),
     [drag, setDrag] = useState(""),
     [mode, setMode] = useState("WALK"),
@@ -502,18 +502,17 @@ export default function Itinerary({
           />
           <section className="inspiration-card">
             <span className="type-icon">
-              <Sparkles size={20} />
+              <MapPin size={20} />
             </span>
-            <span className="eyebrow">A LITTLE INSPIRATION</span>
-            <h3>Leave space for something unexpected.</h3>
+            <h3>Find your next little detour.</h3>
             <p>
-              Find ideas that fit your interests, your time, and your kind of
-              trip.
+              Browse cafés, food, parks and sights around a destination or a
+              stop on your itinerary.
             </p>
-            <Button disabled={!canEdit} onClick={() => setAi(true)}>
-              Explore activity ideas <ChevronRight size={15} />
+            <Button onClick={() => setNearby(true)}>
+              Find places nearby <ChevronRight size={15} />
             </Button>
-            <small>Optional AI · requires configuration & internet</small>
+            <small>Google Places · internet required</small>
           </section>
           <div className="travel-note">
             <span>✳</span>
@@ -608,106 +607,40 @@ export default function Itinerary({
           </form>
         </Modal>
       )}
-      {ai && (
-        <Modal title="Ideas for your kind of trip" onClose={() => setAi(false)}>
-          <Notice>
-            Suggestions are unverified ideas, not current prices, opening hours,
-            availability, or bookings. They never change your itinerary
-            automatically.
-          </Notice>
-          <form
-            onSubmit={(ev) => {
-              ev.preventDefault();
-              const f = new FormData(ev.currentTarget);
-              a.run(async () => {
-                const r = await api("ai", tripId, {
-                  destination: trip.destinations,
-                  dates: `${trip.start} to ${trip.end}`,
-                  interests: String(f.get("interests")),
-                  budget: String(f.get("budget")),
-                  availableTime: String(f.get("time")),
-                  existing: entries.map((e) => e.data.title).slice(0, 20),
-                });
-                setSuggestions(r.suggestions);
-              });
+      {nearby && (
+        <Modal title="Find places nearby" onClose={() => setNearby(false)} wide>
+          <NearbyPlaces
+            trip={trip}
+            tripId={tripId}
+            entries={entries}
+            selected={selected}
+            date={date}
+            canEdit={canEdit}
+            onPick={(placeId, targetDate, type) => {
+              setNearby(false);
+              setEditing(
+                makeEntity("entry", tripId, {
+                  title: "",
+                  type,
+                  date: targetDate,
+                  endDate: targetDate,
+                  start: targetDate ? "09:00" : "",
+                  end: "",
+                  duration: 60,
+                  zone: trip.zone,
+                  address: "",
+                  notes: "",
+                  link: "",
+                  reservation: "",
+                  cost: 0,
+                  currency: trip.currency,
+                  fixed: false,
+                  order: entries.length,
+                  placeId,
+                }),
+              );
             }}
-          >
-            <Field label="Interests">
-              <input
-                name="interests"
-                required
-                placeholder="Architecture, tiny cafés, long walks…"
-              />
-            </Field>
-            <div className="form-grid">
-              <Field label="Budget">
-                <input name="budget" defaultValue="Modest" />
-              </Field>
-              <Field label="Available time">
-                <input name="time" defaultValue="2 hours" />
-              </Field>
-            </div>
-            <Button className="primary" type="submit" disabled={demo || a.busy}>
-              {a.busy ? "Finding ideas…" : "Suggest activities"}
-            </Button>
-            {demo && (
-              <small>
-                Configure the backend and AI provider to enable suggestions.
-              </small>
-            )}
-          </form>
-          {suggestions.map((s, i) => (
-            <section className="suggestion" key={i}>
-              <h3>{s.title}</h3>
-              <p>{s.reason}</p>
-              {s.placeId && (
-                <p>
-                  <a
-                    target="_blank"
-                    rel="noreferrer"
-                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(s.title)}&query_place_id=${encodeURIComponent(s.placeId)}`}
-                  >
-                    Possible Google Maps match: {s.placeMatch} · verify
-                  </a>
-                  {(s.attributions || []).map((at: any, j: number) => (
-                    <small key={j}> {at.provider}</small>
-                  ))}
-                </p>
-              )}
-              <Button
-                disabled={a.busy}
-                onClick={() =>
-                  a.run(async () => {
-                    await save(
-                      makeEntity("entry", tripId, {
-                        title: s.title,
-                        type: "Activity",
-                        date: "",
-                        endDate: "",
-                        start: "",
-                        end: "",
-                        duration: 60,
-                        zone: trip.zone,
-                        address: "",
-                        notes: `Unverified AI suggestion: ${s.reason}`,
-                        placeId: s.placeId,
-                        link: "",
-                        reservation: "",
-                        cost: 0,
-                        currency: trip.currency,
-                        fixed: false,
-                        order: entries.length,
-                      }),
-                    );
-                    setSuggestions(suggestions.filter((_, j) => j !== i));
-                  })
-                }
-              >
-                Add to saved places
-              </Button>
-            </section>
-          ))}
-          {a.error && <Notice tone="error">{a.error}</Notice>}
+          />
         </Modal>
       )}
     </>

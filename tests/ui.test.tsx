@@ -114,7 +114,7 @@ it("section navigation scrolls to the chosen section and packing controls save, 
   );
 });
 
-it("manual itinerary editing, duplication and removal work, while unavailable AI is explained", async () => {
+it("manual itinerary editing, duplication and removal work, while unavailable nearby search is explained", async () => {
   const u = await openApp();
   await u.click(
     screen.getByRole("button", { name: "Edit Touch down in Tokyo" }),
@@ -139,16 +139,16 @@ it("manual itinerary editing, duplication and removal work, while unavailable AI
       screen.queryByRole("heading", { name: "UI test arrival" }),
     ).toBeNull(),
   );
-  await u.click(screen.getByRole("button", { name: "Explore activity ideas" }));
+  await u.click(screen.getByRole("button", { name: "Find places nearby" }));
   expect(
     (
       dialog().getByRole("button", {
-        name: "Suggest activities",
+        name: "Search nearby",
       }) as HTMLButtonElement
     ).disabled,
   ).toBe(true);
   expect(
-    dialog().getByText(/Configure the backend and AI provider/),
+    dialog().getByText(/Nearby search requires a signed-in account/),
   ).toBeTruthy();
 });
 

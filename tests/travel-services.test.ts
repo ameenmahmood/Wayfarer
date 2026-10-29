@@ -14,7 +14,7 @@ function handler({
   authenticated = true,
 } = {}) {
   let serve: (req: Request) => Promise<Response> = async () => new Response();
-  const google = vi.fn(
+  const google = vi.fn<(...args: any[]) => Promise<Response>>(
     async () =>
       new Response(
         JSON.stringify({
@@ -172,4 +172,116 @@ it("Google rejection details remain actionable while key values are redacted", (
   expect(error).toContain("Website-restricted");
   expect(error).toContain("API_KEY_HTTP_REFERRER_BLOCKED");
   expect(error).not.toContain(key);
+});
+
+function nearbyRequest(over: Record<string, unknown> = {}) {
+  return new Request("https://test.supabase.co/functions/v1/travel-services", {
+    method: "POST",
+    headers: {
+      Origin: local,
+      Authorization: "Bearer test-token",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      action: "nearby",
+      tripId: "11111111-1111-4111-8111-111111111111",
+      category: "cafe",
+      location: "Midtown Manhattan",
+      radius: 1500,
+      ...over,
+    }),
+  });
+}
+it("nearby resolves typed locations and uses bounded, distance-ranked category searches", async () => {
+  const service = handler();
+  service.google
+    .mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          places: [
+            {
+              location: { latitude: 40.75, longitude: -73.98 },
+              displayName: { text: "Midtown Manhattan" },
+            },
+          ],
+        }),
+      ),
+    )
+    .mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          places: [
+            {
+              id: "cafe-1",
+              displayName: { text: "Cafe" },
+              formattedAddress: "New York",
+            },
+          ],
+        }),
+      ),
+    );
+  const r = await service.invoke(nearbyRequest());
+  expect(r.status).toBe(200);
+  expect((await r.json()).centerLabel).toBe("Midtown Manhattan");
+  const [url, opts] = service.google.mock.calls[1];
+  expect(url).toBe("https://places.googleapis.com/v1/places:searchNearby");
+  expect(JSON.parse(opts.body)).toEqual({
+    includedTypes: ["cafe"],
+    maxResultCount: 8,
+    rankPreference: "DISTANCE",
+    locationRestriction: {
+      circle: { center: { latitude: 40.75, longitude: -73.98 }, radius: 1500 },
+    },
+  });
+  expect(opts.headers["X-Goog-FieldMask"]).not.toContain("rating");
+});
+it("nearby can use coordinates without an additional location lookup", async () => {
+  const service = handler();
+  const r = await service.invoke(
+    nearbyRequest({ anchor: { lat: 40.75, lng: -73.98 }, category: "museum" }),
+  );
+  expect(r.status).toBe(200);
+  expect(service.google).toHaveBeenCalledOnce();
+  expect(
+    JSON.parse(service.google.mock.calls[0][1].body).includedTypes,
+  ).toEqual(["museum"]);
+});
+it("nearby resolves a linked activity and handles no results without inventing places", async () => {
+  const service = handler();
+  service.google
+    .mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          location: { latitude: 40.75, longitude: -73.98 },
+          displayName: { text: "Linked stop" },
+        }),
+      ),
+    )
+    .mockResolvedValueOnce(new Response(JSON.stringify({})));
+  const r = await service.invoke(
+    nearbyRequest({ anchor: { placeId: "activity-place" } }),
+  );
+  expect(r.status).toBe(200);
+  expect((await r.json()).places).toEqual([]);
+  expect(service.google.mock.calls[0][0]).toBe(
+    "https://places.googleapis.com/v1/places/activity-place",
+  );
+});
+it.each([
+  { radius: 0 },
+  { radius: 50001 },
+  { category: "invalid" },
+  { anchor: { lat: 91, lng: 0 } },
+  { location: "" },
+])("nearby rejects invalid inputs without calls: %j", async (over) => {
+  const service = handler();
+  expect((await service.invoke(nearbyRequest(over))).status).not.toBe(200);
+  expect(service.google).not.toHaveBeenCalled();
+});
+it("nearby keeps membership and authentication checks", async () => {
+  for (const options of [{ member: false }, { authenticated: false }]) {
+    const service = handler(options);
+    expect((await service.invoke(nearbyRequest())).status).not.toBe(200);
+    expect(service.google).not.toHaveBeenCalled();
+  }
 });

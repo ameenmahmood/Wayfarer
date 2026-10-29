@@ -355,3 +355,42 @@ it("a delayed place response cannot replace results for a newer query", async ()
   await u.click(dlg().getByRole("button", { name: "Search" }));
   await dlg().findByRole("button", { name: "Fresh place" });
 });
+
+it("nearby discovery opens a scheduled draft and saves only the place ID and user's own details", async () => {
+  backend.session = { user: { id: "owner-test", email: "owner@example.test" } };
+  backend.records = seed();
+  backend.api.mockResolvedValue({
+    places: [
+      {
+        id: "coffee-live",
+        displayName: { text: "Google result title" },
+        formattedAddress: "Google result address",
+      },
+    ],
+    centerLabel: "Tokyo",
+  });
+  render(<App />);
+  const u = userEvent.setup();
+  await u.click(
+    await screen.findByRole("button", { name: "Find places nearby" }),
+  );
+  await u.click(dlg().getByRole("button", { name: "Search nearby" }));
+  await dlg().findByRole("heading", { name: "Google result title" });
+  expect(backend.saved).toHaveLength(0);
+  await u.click(dlg().getByRole("button", { name: "Add to day" }));
+  await dlg().findByLabelText("Title");
+  expect((dlg().getByLabelText("Title") as HTMLInputElement).value).toBe("");
+  await u.type(dlg().getByLabelText("Title"), "Our coffee break");
+  await u.click(dlg().getByRole("button", { name: "Save to itinerary" }));
+  await waitFor(() => expect(backend.saved).toHaveLength(1));
+  expect(backend.saved[0].data).toMatchObject({
+    title: "Our coffee break",
+    placeId: "coffee-live",
+    date: "2027-04-12",
+    address: "",
+  });
+  expect(JSON.stringify(backend.saved[0])).not.toContain("Google result title");
+  expect(JSON.stringify(backend.saved[0])).not.toContain(
+    "Google result address",
+  );
+});
