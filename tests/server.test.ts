@@ -69,6 +69,15 @@ beforeAll(async () => {
       "utf8",
     ),
   );
+  await db.exec(
+    readFileSync(
+      new URL(
+        "../supabase/migrations/004_invitation_inbox.sql",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  );
   await actor(owner);
   await change("trip", tripId, {
     title: "Shared Japan",
@@ -115,9 +124,9 @@ describe("actual PostgreSQL permission and sync RPCs", () => {
     expect(
       (await rpc("select public.accept_invitation($1) t", [token])).rows[0].t,
     ).toBe(tripId);
-    await expect(
-      rpc("select public.accept_invitation($1)", [token]),
-    ).rejects.toThrow("Invitation is invalid");
+    expect(
+      (await rpc("select public.accept_invitation($1) t", [token])).rows[0].t,
+    ).toBe(tripId);
   });
   it("owner and editor both edit; reconnect retry is idempotent", async () => {
     const id = randomUUID(),
@@ -456,11 +465,123 @@ it("owner trip deletion tombstones every record, revokes invites and blocks offl
   expect(missing.entity).toBeNull();
   await actor(stranger);
   await expect(rpc("select accept_invitation($1)", [token])).rejects.toThrow(
-    "Trip no longer exists",
+    "Invitation is invalid",
   );
   await actor(owner);
   expect(
     (await rpc("select deleted from entities where id=$1", [tripId])).rows[0]
       .deleted,
   ).toBe(false);
+});
+
+it("recipient inbox exposes only pending safe metadata and joins without the original link", async () => {
+  const id = randomUUID();
+  await actor(owner);
+  await rpc(
+    "insert into entities(id,trip_id,kind,data,updated_by) select $1,$1,'trip',data,$2 from entities where id=$3",
+    [id, owner, tripId],
+  );
+  await rpc(
+    "insert into memberships values($1,$2,'owner@example.test','owner')",
+    [id, owner],
+  );
+  await rpc("select create_invitation($1,'outsider@example.test','viewer')", [
+    id,
+  ]);
+  const invitation = (
+    await rpc("select id from invitations where trip_id=$1", [id])
+  ).rows[0].id;
+  await actor(editor);
+  expect(
+    (await rpc("select * from my_trip_invitations() where id=$1", [invitation]))
+      .rows,
+  ).toHaveLength(0);
+  await expect(
+    rpc("select accept_trip_invitation($1)", [invitation]),
+  ).rejects.toThrow("another email");
+  await actor(stranger);
+  await db.exec("set role authenticated");
+  try {
+    const inbox = (
+      await rpc("select * from my_trip_invitations() where id=$1", [invitation])
+    ).rows;
+    expect(inbox).toHaveLength(1);
+    expect(Object.keys(inbox[0]).sort()).toEqual([
+      "expires_at",
+      "id",
+      "role",
+      "trip_title",
+    ]);
+    expect(
+      (await rpc("select * from entities where id=$1", [id])).rows,
+    ).toHaveLength(0);
+    expect(
+      (await rpc("select accept_trip_invitation($1) t", [invitation])).rows[0]
+        .t,
+    ).toBe(id);
+    expect(
+      (await rpc("select accept_trip_invitation($1) t", [invitation])).rows[0]
+        .t,
+    ).toBe(id);
+    expect(
+      (
+        await rpc("select * from my_trip_invitations() where id=$1", [
+          invitation,
+        ])
+      ).rows,
+    ).toHaveLength(0);
+    expect(
+      (await rpc("select * from entities where id=$1", [id])).rows,
+    ).toHaveLength(1);
+    await expect(
+      rpc("select create_invitation($1,'x@example.test','editor')", [id]),
+    ).rejects.toThrow("Owner access");
+  } finally {
+    await db.exec("reset role");
+  }
+  await actor(owner);
+  await rpc("select manage_member($1,$2,null)", [id, stranger]);
+  await actor(stranger);
+  await expect(
+    rpc("select accept_trip_invitation($1)", [invitation]),
+  ).rejects.toThrow("already used");
+  await actor(owner);
+  for (const state of ["revoked", "expired", "deleted"]) {
+    await rpc("select create_invitation($1,'outsider@example.test','editor')", [
+      id,
+    ]);
+    const pending = (
+      await rpc(
+        "select id from invitations where trip_id=$1 and accepted_at is null and not revoked and expires_at>now() order by id",
+        [id],
+      )
+    ).rows;
+    const next = pending[pending.length - 1].id;
+    if (state === "revoked")
+      await rpc("update invitations set revoked=true where id=$1", [next]);
+    if (state === "expired")
+      await rpc(
+        "update invitations set expires_at=now()-interval '1 second' where id=$1",
+        [next],
+      );
+    if (state === "deleted")
+      await rpc("update entities set deleted=true where id=$1", [id]);
+    await actor(stranger);
+    expect(
+      (await rpc("select * from my_trip_invitations() where id=$1", [next]))
+        .rows,
+    ).toHaveLength(0);
+    await expect(
+      rpc("select accept_trip_invitation($1)", [next]),
+    ).rejects.toThrow();
+    await actor(owner);
+  }
+  await db.exec("set role anon");
+  try {
+    await expect(rpc("select * from my_trip_invitations()")).rejects.toThrow(
+      "permission denied",
+    );
+  } finally {
+    await db.exec("reset role");
+  }
 });

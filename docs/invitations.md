@@ -1,0 +1,11 @@
+# Invitation recovery and inbox
+
+An invitation creates a pending, email-bound record; it does not grant membership until the invited user explicitly joins. Wayfarer does not send invitation emails: the owner can copy and share the link. The invited account also sees pending invitations on the dashboard and My trips after signing in, even if the original link was lost during passwordless sign-in or opened in another tab. Invitation discovery refreshes every 30 seconds, on reconnect, and with Refresh invitations.
+
+Migration `004_invitation_inbox.sql` adds authenticated RPCs `my_trip_invitations()` and `accept_trip_invitation(invitation_id)`. The inbox returns only the matching email’s pending invitation ID, trip title, role, and expiry. It exposes neither tokens nor trip contents. Both acceptance entry points validate the signed-in email, expiry, revocation, and active trip on the server. Trip locks serialize acceptance with deletion. Successful acceptance retries are idempotent, but cannot restore revoked membership. The client waits for an in-flight sync and then fetches fresh records before opening the joined trip; a failed download can be retried without accepting again.
+
+The original invitation token is retained in this tab’s session storage for up to seven days to recover same-tab passwordless sign-in returns. It is cleared after joining. Opening the email in another browser/tab is supported by the recipient inbox without carrying a token through authentication redirects. No redirect allowlist changes or email-provider setup are needed for this fix.
+
+Deploy the migration with `npx supabase db push --linked`, then deploy the frontend. Existing pending, unexpired invitations work without being recreated. Expired/revoked invitations need a new invitation. A different email, including a different Gmail alias, cannot accept an invitation.
+
+Tests use actual migrations in PostgreSQL (PGlite) for recipient isolation, RLS before/after joining, editor/viewer enforcement, invalid/expired/revoked/deleted invitations, and retry behavior. UI/transport tests cover lost query recovery, joining while another trip is open, download retry, and refreshing after an in-flight sync. These do not substitute for a live passwordless login test with two people’s accounts.

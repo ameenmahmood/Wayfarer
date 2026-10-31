@@ -200,29 +200,32 @@ export async function deleteTrip(trip: Entity) {
     tx = db.transaction(["entities", "mutations"], "readwrite");
   for (const e of (await tx.objectStore("entities").getAll()) as Entity[])
     if (e.tripId === trip.id)
-      await tx
-        .objectStore("entities")
-        .put({
-          ...e,
-          deleted: true,
-          updatedAt: new Date().toISOString(),
-          updatedBy: userId,
-        });
+      await tx.objectStore("entities").put({
+        ...e,
+        deleted: true,
+        updatedAt: new Date().toISOString(),
+        updatedBy: userId,
+      });
   for (const m of (await tx.objectStore("mutations").getAll()) as Mutation[])
     if (m.tripId === trip.id) await tx.objectStore("mutations").delete(m.id);
   await tx.done;
   changed();
   if (!demo) void synchronize();
 }
-let running = false;
-export async function synchronize() {
+let syncRun: Promise<void> | null = null;
+export function synchronize(fresh = false): Promise<void> {
+  if (syncRun) return fresh ? syncRun.then(() => synchronize()) : syncRun;
+  syncRun = synchronizeOnce().finally(() => {
+    syncRun = null;
+  });
+  return syncRun;
+}
+async function synchronizeOnce() {
   if (demo) {
     syncStatus = "Saved on this device";
     changed();
     return;
   }
-  if (running) return;
-  running = true;
   syncError = "";
   try {
     const {
@@ -327,7 +330,6 @@ export async function synchronize() {
     syncError = e.message || "Connection failed";
     syncStatus = "Sync failed · retry available";
   } finally {
-    running = false;
     changed();
   }
 }

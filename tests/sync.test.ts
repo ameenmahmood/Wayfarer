@@ -6,6 +6,7 @@ const backend = vi.hoisted(() => ({
   dropResponse: false,
   requests: [] as any[],
   deletions: [] as any[],
+  holdPull: null as null | (() => Promise<void>),
 }));
 vi.stubEnv("VITE_SUPABASE_URL", "https://test.supabase.co");
 vi.stubEnv("VITE_SUPABASE_ANON_KEY", "public-test-key");
@@ -35,7 +36,11 @@ vi.mock("@supabase/supabase-js", () => ({
       }),
     },
     from: () => ({
-      select: async () => ({ data: [...backend.rows.values()], error: null }),
+      select: async () => {
+        const data = [...backend.rows.values()];
+        if (backend.holdPull) await backend.holdPull();
+        return { data, error: null };
+      },
     }),
     rpc: async (_name: string, m: any) => {
       if (_name === "delete_trip") {
@@ -229,4 +234,35 @@ it("a deleted parent cannot be kept visible by an offline trip-settings conflict
     "conflict",
   );
   expect((await all()).find((e) => e.id === trip.id)?.deleted).toBe(true);
+});
+
+it("joining waits for an in-flight sync then fetches newly accessible trip data", async () => {
+  (navigator as any).onLine = true;
+  let release!: () => void;
+  let started!: () => void;
+  const began = new Promise<void>((r) => {
+    started = r;
+  });
+  backend.holdPull = () =>
+    new Promise<void>((r) => {
+      release = r;
+      started();
+    });
+  const first = synchronize();
+  await began;
+  backend.rows.set("newly-joined", {
+    id: "newly-joined",
+    trip_id: "newly-joined",
+    kind: "trip",
+    data: { title: "Joined trip" },
+    version: 1,
+    updated_at: new Date().toISOString(),
+    updated_by: "owner",
+    deleted: false,
+  });
+  const fresh = synchronize(true);
+  backend.holdPull = null;
+  release();
+  await Promise.all([first, fresh]);
+  expect((await all()).some((e) => e.id === "newly-joined")).toBe(true);
 });

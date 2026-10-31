@@ -3501,3 +3501,45 @@ button.profile {
   font-size: 18px;
   margin: 0 0 16px;
 }
+
+.invitation-inbox {
+  padding: 22px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface);
+  margin-bottom: 24px;
+}
+.invitation-inbox h2 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 18px;
+  margin: 0;
+}
+.invitation-inbox-row {
+  display: flex;
+  gap: 18px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 0;
+  border-top: 1px solid var(--border);
+}
+.invitation-inbox-row h3 {
+  margin: 0 0 6px;
+  font-size: 16px;
+}
+.invitation-inbox-row p {
+  color: var(--muted);
+  margin: 0;
+  font-size: 13px;
+}
+.invitation-inbox-row .button {
+  flex-shrink: 0;
+}
+@media (max-width: 600px) {
+  .invitation-inbox-row {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 12px;
+  }
+}

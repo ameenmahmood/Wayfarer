@@ -1,3 +1,5 @@
+import InvitationInbox from "./InvitationInbox";
+import { pendingInvitation, clearInvitation } from "./invitation";
 import CoverPhoto from "./CoverPhoto";
 import { getCover } from "./covers";
 import { useEffect, useState, useRef, lazy } from "react";
@@ -112,9 +114,7 @@ export default function App() {
     [sidebar, setSidebar] = useState(false),
     [status, setStatus] = useState("Loading…"),
     [role, setRole] = useState<Role>("viewer"),
-    [invite, setInvite] = useState(
-      new URLSearchParams(location.search).get("invite") || "",
-    ),
+    [invite, setInvite] = useState(pendingInvitation),
     a = useAsyncAction();
   async function refresh() {
     try {
@@ -469,6 +469,19 @@ export default function App() {
               </Button>
             </Notice>
           )}
+          {!demo && userId && (
+            <InvitationInbox
+              key={userId}
+              token={invite}
+              onJoined={async (id) => {
+                clearInvitation();
+                setInvite("");
+                history.replaceState(null, "", appBasePath);
+                await refresh();
+                openTrip(id);
+              }}
+            />
+          )}
           {loading ? (
             <div className="loading">
               <LoaderCircle className="spin" />
@@ -526,13 +539,13 @@ export default function App() {
                 </span>
                 <span className="eyebrow">YOUR PRIVATE TRAVEL SPACE</span>
                 <h1 id="welcome-title">
-                  {invite && !demo
+                  {invite && !demo && !userId
                     ? "Good company. Great plans."
                     : "Your next trip starts here."}
                 </h1>
                 <p>Keep your places, plans, and people together.</p>
               </div>
-              {invite && !demo ? (
+              {invite && !demo && !userId ? (
                 <div className="welcome-invitation">
                   <span className="invitation-mark">
                     <Users size={23} aria-hidden="true" />
@@ -540,36 +553,15 @@ export default function App() {
                   <div className="invitation-copy">
                     <h2>You’re invited to a trip</h2>
                     <p>
-                      {userId
-                        ? "Join your friends and start planning together."
-                        : "Sign in with the email that received this invitation to join your friends."}
+                      Sign in with the email that received this invitation to
+                      join your friends.
                     </p>
                     <Button
                       className="primary"
-                      disabled={a.busy}
-                      onClick={() => {
-                        if (!userId) {
-                          openSettings("account");
-                          return;
-                        }
-                        a.run(async () => {
-                          const { error } = await supabase!.rpc(
-                            "accept_invitation",
-                            { invite_token: invite },
-                          );
-                          if (error) throw error;
-                          setInvite("");
-                          history.replaceState(null, "", appBasePath);
-                          await synchronize();
-                        });
-                      }}
+                      onClick={() => openSettings("account")}
                     >
-                      {a.busy
-                        ? "Joining…"
-                        : userId
-                          ? "Accept invitation"
-                          : "Sign in to join"}
-                      {!a.busy && <ChevronRight size={16} aria-hidden="true" />}
+                      Sign in to join{" "}
+                      <ChevronRight size={16} aria-hidden="true" />
                     </Button>
                     <small>
                       Private trip · Only invited travelers can join
@@ -602,7 +594,7 @@ export default function App() {
                   </div>
                 </div>
               )}
-              {invite && !demo && (
+              {invite && !demo && !userId && (
                 <div className="welcome-alternative">
                   <span>Planning something of your own?</span>
                   <Button onClick={newTrip}>

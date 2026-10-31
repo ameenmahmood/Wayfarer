@@ -17,6 +17,8 @@ const backend = vi.hoisted(() => ({
   otp: vi.fn(async (_args?: unknown) => ({ error: null })),
   authListeners: [] as any[],
   saved: [] as any[],
+  invitations: [] as any[],
+  rpc: vi.fn(),
   api: vi.fn<(...args: any[]) => Promise<any>>(),
 }));
 vi.mock("../src/store", () => ({
@@ -46,6 +48,7 @@ vi.mock("../src/store", () => ({
   resolveConflict: vi.fn(),
   api: (...args: any[]) => backend.api(...args),
   supabase: {
+    rpc: (...args: any[]) => backend.rpc(...args),
     auth: {
       getSession: async () => ({ data: { session: backend.session } }),
       onAuthStateChange: (fn: any) => {
@@ -103,6 +106,13 @@ beforeEach(() => {
   backend.saved = [];
   backend.authListeners = [];
   backend.otp.mockClear();
+  backend.invitations = [];
+  backend.rpc
+    .mockReset()
+    .mockImplementation(async (name: string) => ({
+      data: name === "my_trip_invitations" ? backend.invitations : null,
+      error: null,
+    }));
   backend.api
     .mockReset()
     .mockRejectedValue(Error("Service is unavailable in the test transport."));
@@ -409,4 +419,54 @@ it("an invited signed-out traveler is asked to sign in before accepting", async 
   } finally {
     history.replaceState(null, "", "/");
   }
+});
+
+it("an invitation survives the sign-in return without its URL query", async () => {
+  history.replaceState(null, "", "/?invite=resume-token");
+  const first = render(<App />);
+  await screen.findByRole("button", { name: "Sign in to join" });
+  first.unmount();
+  history.replaceState(null, "", "/");
+  render(<App />);
+  expect(
+    await screen.findByRole("button", { name: "Sign in to join" }),
+  ).toBeTruthy();
+});
+
+it("a signed-in traveler can find and join invitations even while viewing an existing trip", async () => {
+  backend.session = { user: { id: "owner-test", email: "owner@example.test" } };
+  const own = structuredClone(seed()[0]);
+  own.id = "my-own-trip";
+  own.tripId = own.id;
+  backend.records = [own];
+  backend.invitations = [
+    {
+      id: "invitation-id",
+      trip_title: "Friends in NYC",
+      role: "editor",
+      expires_at: "2028-01-01",
+    },
+  ];
+  backend.rpc.mockImplementation(async (name: string) => {
+    if (name === "my_trip_invitations")
+      return { data: backend.invitations, error: null };
+    const shared = structuredClone(own);
+    shared.id = "shared-trip";
+    shared.tripId = shared.id;
+    shared.data.title = "Friends in NYC";
+    backend.records.push(shared);
+    backend.invitations = [];
+    return { data: "shared-trip", error: null };
+  });
+  render(<App />);
+  await screen.findByRole("heading", { name: "Friends in NYC" });
+  await userEvent
+    .setup()
+    .click(screen.getByRole("button", { name: "Join trip" }));
+  await waitFor(() =>
+    expect(backend.rpc).toHaveBeenCalledWith("accept_trip_invitation", {
+      invitation_id: "invitation-id",
+    }),
+  );
+  await screen.findByRole("heading", { name: "Friends in NYC", level: 1 });
 });

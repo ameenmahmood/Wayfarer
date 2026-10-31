@@ -1,3 +1,4 @@
+import { pendingInvitation, clearInvitation } from "./invitation";
 import { useEffect, useState } from "react";
 import { appBaseUrl, appBasePath } from "./urls";
 import { Mail, UserPlus, ShieldCheck, Copy, Trash2 } from "lucide-react";
@@ -18,9 +19,7 @@ export default function Members({
     [invitations, setInvitations] = useState<any[]>([]),
     [members, setMembers] = useState<any[]>([]),
     [link, setLink] = useState(""),
-    [token, setToken] = useState(
-      new URLSearchParams(location.search).get("invite") || "",
-    ),
+    [token, setToken] = useState(pendingInvitation),
     [message, setMessage] = useState(""),
     a = useAsyncAction();
   async function refresh() {
@@ -271,9 +270,11 @@ export default function Members({
                     invite_token: token,
                   });
                   if (error) throw error;
-                  await synchronize();
+                  await synchronize(true);
                   await refresh();
-                  setMessage("You joined the trip.");
+                  setMessage("You joined the trip. Open it from My trips.");
+                  clearInvitation();
+                  setToken("");
                   history.replaceState(null, "", appBasePath);
                 })
               }
