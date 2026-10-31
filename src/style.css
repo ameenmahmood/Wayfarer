@@ -3950,3 +3950,24 @@ button.profile {
     min-width: 0;
   }
 }
+
+.sign-in-help {
+  margin-top: 18px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.sign-in-help summary {
+  cursor: pointer;
+  color: var(--text);
+}
+.sign-in-help p {
+  line-height: 1.6;
+}
+.auth-error-code {
+  display: block;
+  margin-top: 8px;
+}
+.sign-in-panel .notice p {
+  margin: 8px 0;
+  line-height: 1.6;
+}

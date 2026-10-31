@@ -1,6 +1,18 @@
 project_id = "wayfarer"
 [auth]
 site_url = "https://ameenmahmood.github.io/Wayfarer/"
-additional_redirect_urls = ["https://ameenmahmood.github.io/Wayfarer/**", "https://wayfarer-private-travel-ameen.ameeb.chatgpt.site/**"]
+additional_redirect_urls = ["http://localhost:5173/**", "http://127.0.0.1:5173/**", "http://localhost:5174/**", "http://127.0.0.1:5174/**", "https://ameenmahmood.github.io/Wayfarer/**", "https://wayfarer-private-travel-ameen.ameeb.chatgpt.site/**"]
 [functions.travel-services]
 verify_jwt = true
+
+# Explicit first-time account support; do not disable email verification.
+[auth.email]
+enable_signup = true
+enable_confirmations = true
+max_frequency = "1m0s"
+[auth.email.template.confirmation]
+subject = "Confirm your Wayfarer email"
+content_path = "./supabase/templates/confirmation.html"
+[auth.email.template.magic_link]
+subject = "Your Wayfarer sign-in link"
+content_path = "./supabase/templates/magic-link.html"

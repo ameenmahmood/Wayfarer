@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+  </head>
+  <body
+    style="
+      margin: 0;
+      background: #f4f6f5;
+      color: #27352f;
+      font-family: Arial, sans-serif;
+    "
+  >
+    <main
+      style="
+        max-width: 480px;
+        margin: 32px auto;
+        padding: 32px;
+        background: white;
+        border: 1px solid #e5e9e7;
+        border-radius: 12px;
+      "
+    >
+      <p style="color: #376d5b; font-weight: bold">wayfarer.</p>
+      <h1 style="font-size: 24px">Confirm your Wayfarer email</h1>
+      <p style="line-height: 1.6">
+        Confirm your email address to open your private travel space. You can
+        then accept any trip invitations sent to this address.
+      </p>
+      <p style="margin: 28px 0">
+        <a
+          style="
+            display: inline-block;
+            background: #376d5b;
+            color: white;
+            padding: 14px 20px;
+            border-radius: 7px;
+            text-decoration: none;
+          "
+          href="{{ .ConfirmationURL }}"
+          >Confirm email and sign in</a
+        >
+      </p>
+      <p style="font-size: 13px; line-height: 1.6">
+        Open the newest email link. If you didn’t request it, you can ignore
+        this message. Never share this link with anyone.
+      </p>
+      <p style="font-size: 12px; line-height: 1.6">
+        If the button doesn’t work, copy this complete link into your
+        browser:<br /><a
+          style="overflow-wrap: anywhere"
+          href="{{ .ConfirmationURL }}"
+          >{{ .ConfirmationURL }}</a
+        >
+      </p>
+    </main>
+  </body>
+</html>

@@ -78,6 +78,15 @@ beforeAll(async () => {
       "utf8",
     ),
   );
+  await db.exec(
+    readFileSync(
+      new URL(
+        "../supabase/migrations/005_internal_validation_helpers.sql",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  );
   await actor(owner);
   await change("trip", tripId, {
     title: "Shared Japan",
@@ -584,4 +593,37 @@ it("recipient inbox exposes only pending safe metadata and joins without the ori
   } finally {
     await db.exec("reset role");
   }
+});
+
+it("internal validation helpers cannot be called directly, while authorized changes still validate", async () => {
+  await actor(owner);
+  await db.exec("set role authenticated");
+  try {
+    await expect(
+      rpc("select public.validate_payload('packing','{}'::jsonb,$1)", [tripId]),
+    ).rejects.toThrow("permission denied");
+    await expect(rpc("select public.assert_money(1)")).rejects.toThrow(
+      "permission denied",
+    );
+    const id = randomUUID();
+    const result = await change("packing", id, {
+      title: "Authorized bag",
+      quantity: 1,
+      personal: false,
+    });
+    expect(result.conflict).toBe(false);
+    await expect(
+      change("packing", randomUUID(), {
+        title: "Invalid quantity",
+        quantity: 0,
+        personal: false,
+      }),
+    ).rejects.toThrow("Invalid personal checklist assignment");
+  } finally {
+    await db.exec("reset role");
+  }
+  const grants = await rpc(
+    "select proconfig from pg_proc where oid='public.assert_money(numeric)'::regprocedure",
+  );
+  expect(grants.rows[0].proconfig.join(" ")).toContain("search_path=");
 });
