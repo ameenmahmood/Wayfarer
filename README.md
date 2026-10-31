@@ -1,168 +1,203 @@
 # Wayfarer
 
-A working private trip planner with a React + TypeScript interface, IndexedDB persistence, and an optional Supabase backend. The default installation is a clearly labeled **local demo**. It never simulates successful sign-in, invitations, cloud synchronization, live maps, or AI.
+A private travel planner for you and invited friends. Plan activities, explore a map, split expenses, and organize packing in one shared trip workspace.
 
-**Current hosting:** [ameenmahmood.github.io/Wayfarer](https://ameenmahmood.github.io/Wayfarer/). The login page is publicly reachable; trip records require Supabase email login and membership. No ChatGPT account is required.
+**Live application:** [ameenmahmood.github.io/Wayfarer](https://ameenmahmood.github.io/Wayfarer/)
 
-The GitHub Pages workflow builds and tests every push to `main`. Public browser configuration comes from repository variables `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`; optional `VITE_GOOGLE_MAPS_BROWSER_KEY` is also supported. Server secrets remain in Supabase. Run `node scripts/configure-github-pages.mjs` to copy only these public values from your ignored local environment into repository variables. The workflow requires connected-mode settings and will not silently publish a demo build.
+The website is publicly reachable, but trips require **Supabase email sign-in and trip membership**. No ChatGPT account is required. This is not a travel marketplace: there is no public trip discovery, payment processing, or booking import.
 
-GitHub Pages uses `/Wayfarer/` as the application base. For a matching local production build, set `$env:VITE_BASE_PATH='/Wayfarer/'` before `npm run build`, then visit `/Wayfarer/` on the preview server. Auth callbacks, invitation URLs, legal pages, the manifest, and offline cache paths respect this base.
+## What you can do
+
+| Area                 | Current behavior                                                                                                                                                                                                                       |
+| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Trips                | Create multiple private trips with destinations, dates, travelers, time zones, base currencies, and budgets.                                                                                                                           |
+| Itinerary            | Use daily, whole-trip, and saved-place views. Add activities, restaurants, transport, flights, lodging, and notes through a simplified form with optional details. Times display in 12-hour format.                                    |
+| Reordering           | Drag an activity’s three-bar handle, use its up/down arrow keys, or use the move buttons. Reordering changes display order without changing reservation times. Move or duplicate plans between days.                                   |
+| Travel between stops | Choose walking, driving, cycling, or public transit. Calculate a live estimate when available, or enter travel minutes manually. Rough estimates are labeled.                                                                          |
+| Map                  | Open a dedicated, nearly full-window map without the activity list or sidebar. Change day, trip scope, and transport; select a stop to view its details and edit it when permitted. Returning to Itinerary preserves the selected day. |
+| Nearby places        | Find cafés, restaurants, attractions, parks, and museums around a destination or itinerary stop. Search radii use miles. Review results before adding a place to a day or saving it for later.                                         |
+| Route proposals      | Preview a suggested stop order, travel estimates, savings, and conflicts before applying changes. Fixed reservations and supported opening windows constrain the proposal.                                                             |
+| Expenses             | Track budgets, categories, planned costs, actual spending, itemized splits, currencies, repayments, balances, and suggested settlements. Export expenses as CSV.                                                                       |
+| Packing              | Maintain shared or personal lists with categories, quantities, assignments, notes, packed status, and reusable templates.                                                                                                              |
+| Members              | Owners invite editors or viewers, change access, and revoke invitations or membership. Signed-in recipients see pending invitations even without the original link.                                                                    |
+| Appearance           | Follow the system theme or remember an explicit Light/Dark choice. Signed-out accounts use person icons and clear Sign in labels.                                                                                                      |
+
+Owners can customize the trip banner using **Change cover**. Curated city and landscape presets include suggestions based on local keyword matches, such as NYC → New York skyline. This is a preset catalog, not a live image-search service. Photos require internet and have a gradient fallback.
+
+To delete a trip, an owner opens **Edit trip → Delete trip** and confirms the named trip. Connected deletion requires internet and no pending/conflicted edits for that trip. It removes the trip from the app for all travelers and revokes invitations. Records remain tombstoned for synchronization; there is no in-app undo or physical database purge.
+
+The former **Adjust schedule** button and its reminders have been removed. The internal scheduling module and its tests remain in the source. **Optimize day** remains available for supported daily plans. Nearby-place discovery replaced the AI recommendation interface; no AI key is needed for the current interface.
 
 ## Run locally
 
-Requires Node.js 22.12+ (verified here with Node 24).
+Use **Node.js 24**, matching the GitHub Actions build.
 
-```powershell
-cd "C:\Users\ameen\OneDrive\Documents\ChatGPT\TravelPlanner\wayfarer"
+```sh
+git clone https://github.com/ameenmahmood/Wayfarer.git
+cd Wayfarer
 npm ci
 npm run dev -- --port 5174
 ```
 
-Open http://127.0.0.1:5174. To verify the production/offline build:
+Open [http://127.0.0.1:5174/](http://127.0.0.1:5174/).
 
-```powershell
+Without Supabase configuration, the app starts a clearly labeled **local demo** with a separate Japan sample trip. Demo travelers, maps, and route estimates are illustrative; it does not simulate successful authentication, invitations, or collaboration. To connect to your backend, copy `.env.example` to `.env.local` and configure both Supabase variables below. Restart after changing environment variables.
+
+```sh
 npm test
 npm run build
 npm run preview -- --port 4173
 ```
 
-Visit http://127.0.0.1:4173 once while online. The production service worker precaches the application shell and every bundled JS/CSS asset. Development mode intentionally does not register it. Browser storage quotas, private browsing, and eviction policies can affect offline persistence. External photography and fonts may fall back offline; Google tiles are never cached.
+The preview opens at [http://127.0.0.1:4173/](http://127.0.0.1:4173/) with the default base path. The production service worker is enabled in builds, not during Vite development.
 
-## Why this stack
+## Architecture
 
-- **React, TypeScript, Vite:** a small client application, portable static hosting, established tooling. Components are separated by product area, with pure money and scheduling modules.
-- **IndexedDB / idb:** persistent records plus an immutable operation queue, stored together in a transaction. The app saves locally before making network requests.
-- **Supabase:** one managed Postgres database, email-link Auth, Realtime invalidations, and one Edge Function. No separate custom application server, password database, message broker, payment provider, or external queue is needed.
-- **Temporal polyfill:** explicit IANA zones, cross-zone flights, and rejection of ambiguous/nonexistent daylight-saving times.
-- **Integer minor units + BigInt intermediate arithmetic:** exact deterministic reconciliation across currency precisions.
+- **React + TypeScript + Vite:** responsive interface and a static build that GitHub Pages can serve continuously without a running development computer.
+- **IndexedDB + idb:** local trip records and a persistent, versioned mutation queue. Edits are saved locally before synchronization.
+- **Supabase:** passwordless Auth, Postgres with row-level security, Realtime invalidations, and the `travel-services` Edge Function. Membership and role checks run on the server.
+- **Temporal polyfill:** IANA time zones, cross-zone arrival times, and daylight-saving validation.
+- **Integer minor units + BigInt intermediate arithmetic:** deterministic expense splitting and currency conversion.
 
-The source includes the migration and Edge Function. Supabase is now configured on the hosted build. The installed migration, Auth endpoint, CORS, and rejection of anonymous data/function requests were verified live. The owner also confirmed successful email sign-in. Google Maps, AI, and automatic exchange rates remain unconfigured; manual planning and manual rate snapshots remain available.
+Google Maps and place lookup are configured on the hosted installation. A fresh clone needs its own service configuration. Automatic exchange rates require a separately configured provider; manual rate snapshots remain available.
 
-## Connect the backend
+## Service configuration
 
-1. Create a Supabase project. In Authentication, enable email magic links, configure an SMTP sender for reliable delivery, and allow your exact local and deployed redirect URLs. Auth handles link expiry and email verification; this app never manages passwords.
-2. Copy `.env.example` to `.env.local`. Set `VITE_SUPABASE_URL` and the public `VITE_SUPABASE_ANON_KEY`. The anon key is designed for browser use; the service-role key must never be placed here. Rebuild/restart after changing Vite variables.
-3. Apply `supabase/migrations/001_private_trips.sql` using the SQL editor, or the Supabase CLI:
+### Browser environment
 
-   ```text
-   supabase login
-   supabase link --project-ref YOUR_PROJECT_REF
-   supabase db push --linked
-   supabase functions deploy travel-services
+Keep `.env.local` out of Git. The example contains no secrets.
+
+| Variable                             | Purpose                                                                         |
+| ------------------------------------ | ------------------------------------------------------------------------------- |
+| `VITE_SUPABASE_URL`                  | Supabase project URL.                                                           |
+| `VITE_SUPABASE_ANON_KEY`             | Public browser anon key. Server authorization remains mandatory.                |
+| `VITE_GOOGLE_MAPS_BROWSER_KEY`       | Optional browser-visible Google Maps key, restricted by website origin and API. |
+| `VITE_PRIVACY_URL`, `VITE_TERMS_URL` | Public legal-page URLs; default to the bundled `privacy.html` and `terms.html`. |
+| `VITE_BASE_PATH`                     | Deployment base path; the Pages workflow sets `/Wayfarer/`.                     |
+
+Never put a Supabase service-role key, SMTP password, Google server key, AI key, or exchange-provider secret in a `VITE_` variable.
+
+### Supabase
+
+1. Create a project and enable email sign-in and first-time account creation. Keep email verification enabled. Configure a custom SMTP sender and exact deployed/local redirect URLs.
+2. Link the project and apply **all migrations**, in order:
+
+   ```sh
+   npx supabase login
+   npx supabase link --project-ref YOUR_PROJECT_REF
+   npx supabase db push --linked
+   npx supabase functions deploy travel-services
    ```
 
-4. Configure Edge Function secrets through the Supabase dashboard. `SUPABASE_URL` and `SUPABASE_ANON_KEY` are supplied by Supabase. Set `ALLOWED_ORIGIN` to exact allowed origins separated by commas. The current Pages origin is `https://ameenmahmood.github.io` (no path). For local development, include the exact origin you open, such as `http://localhost:5173` and `http://127.0.0.1:5173` (and port 5174 if used). Production and localhost origins can coexist in the comma-separated allowlist. The default when unset is `http://127.0.0.1:5173`. The function retains the Supabase SDK CORS header list, including retry/tracing headers. Redirect URLs, by contrast, include the application path: `https://ameenmahmood.github.io/Wayfarer/`. The checked-in Auth config contains this production Site URL and callback allowlist.
-5. Sign in from **Settings & account**. Create a new trip. The local sample trip is not uploaded into connected mode. Keep demo data in a separate browser profile if switching modes; there is no automatic conversion of fake sample members into real accounts.
-6. Under **Members**, the owner creates an email-bound editor/viewer invitation and copies its link. Share that link yourself. The recipient signs in with the matching email, then accepts it. Invitation creation does **not** email the friend. The link expires after seven days, is single-use, and can be revoked by the owner.
+3. Review `supabase/config.toml` for your own deployment. It includes the current Pages Site URL, development callbacks, a one-minute email interval, and branded confirmation/magic-link templates. Preview before applying:
 
-The earlier Sites host remains available during migration, but its ChatGPT gate was removed at the owner's request. The primary GitHub Pages deployment uses Supabase email login only. Public frontend access does not grant trip access; Supabase independently checks membership and role.
+   ```sh
+   npx supabase config diff --project-ref YOUR_PROJECT_REF
+   npx supabase config push --project-ref YOUR_PROJECT_REF
+   ```
 
-If you apply the initial SQL through the dashboard before using the CLI, inspect the complete schema first, then mark that existing migration with `supabase migration repair 001 --status applied --linked`. This updates tracking only. Verify with `supabase migration list --linked` and `supabase db push --linked --dry-run`. Do not reset the database to solve an already-existing-table error.
+   Configure SMTP credentials in Supabase, not in this repository. The two HTML templates preserve Supabase’s secure `{{ .ConfirmationURL }}`. Authentication settings and templates are **not** deployed by the Pages workflow.
 
-The migration enables RLS on every application table. Direct REST writes are denied. `apply_change` checks membership, role, personal-list ownership, immutable record identity, money/split validity and record version. Trip settings/budgets/base currency are owner-managed. Editors change plans, expenses, repayments and shared lists; viewers read. Memberships are authoritative; archived participant IDs remain in financial history after revocation.
+4. Set Edge Function secrets in Supabase. Set `ALLOWED_ORIGIN` to the exact allowed origins, separated by commas, such as `https://ameenmahmood.github.io,http://127.0.0.1:5174,http://localhost:5174`. Origins have no path; Auth redirect URLs include the application path.
+5. Add the browser environment variables, restart, and sign in. Connected mode does not upload the demo trip or convert its sample travelers into real members.
 
-The app fetches visible records on sign-in/reconnect, after mutations, every 30 seconds, and on Realtime invalidations. With no network, previously loaded data stays in IndexedDB. This is a small-group design: synchronization currently performs a bounded-by-your-data full pull rather than cursor-based pagination. Keep the Supabase API row limit above the number of records in your workspace until pagination is added.
+| Migration                             | Purpose                                                                                          |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `001_private_trips.sql`               | Tables, RLS, membership, validation, mutation receipts, and invitation RPCs.                     |
+| `002_delete_trips.sql`                | Owner-only deletion, trip-wide tombstones, and deletion-aware invitation/mutation checks.        |
+| `003_missing_conflict_entity.sql`     | Correct JSON null for conflicts involving a missing record.                                      |
+| `004_invitation_inbox.sql`            | Recipient-only invitation discovery, acceptance by ID, and safe acceptance retries.              |
+| `005_internal_validation_helpers.sql` | Restrict direct execution of internal validation helpers and pin the money helper’s search path. |
 
-## Google Maps configuration and billing
+All five migrations are installed on the current hosted backend. If an existing database was initialized manually, verify its schema and migration history before using migration repair. **Do not reset the database to fix an “already exists” error.**
 
-1. Enable billing and **Maps JavaScript API**, **Places API (New)**, and **Routes API** in Google Cloud.
-2. Create a browser key restricted by exact HTTP referrers and Maps JavaScript API. Put only that key in `VITE_GOOGLE_MAPS_BROWSER_KEY`.
-3. In Supabase **Edge Functions → Secrets**, set **Name** to `GOOGLE_MAPS_SERVER_KEY` and **Value** to a separate Google server API key, restricted to Places API (New) and Routes API. Use the restrictions appropriate to your server environment. Never put it in a `VITE_` variable. Use quotas, budget alerts, and billing controls.
-4. Before enabling Google in production, make the supplied `public/privacy.html` and `public/terms.html` available on a **publicly accessible** legal-pages host and set `VITE_PRIVACY_URL` / `VITE_TERMS_URL` to those URLs. A private Sites access gate also protects its static legal pages; that alone does not meet Google's public-policy requirement. Adjust the privacy page to identify your installation's operator and contact route.
-5. Rebuild/redeploy the client and deploy the Edge Function. Errors for missing configuration, quota, billing and unavailable routes are displayed; the saved itinerary continues working.
+### Sign-in and invitations
 
-Map markers and polylines use Google Maps. The unconfigured demo renders an **illustrative area sketch**, with no actual navigational geometry, and labels it accordingly. It never presents this as Google Maps or live directions. Itinerary selection highlights the corresponding marker; marker selection highlights/scrolls the entry. External Google directions links can be used independently.
+The account popup contains one introduction and the email form. First-time users receive an email confirmation; returning users receive a sign-in link. The form normalizes addresses, prevents immediate repeat requests, shows a resend countdown, and explains request failures. A successful request is not an inbox-delivery guarantee. Check Spam/Junk/Promotions and open the newest email; requesting another link can invalidate an earlier one. See [the email delivery audit](docs/auth-delivery.md) and [Supabase’s delivery troubleshooting](https://supabase.com/kb/troubleshooting/not-receiving-auth-emails-from-the-supabase-project-OFSNzw).
 
-Place search retains only a linked **place ID**. Names, addresses, coordinates, notes and hours in saved records are traveler-authored (or explicitly labeled sample/AI content), not copied place search results. Google places, coordinates, hours, route matrices and polylines are fetched live into component memory and are not stored in IndexedDB, the backend, or the service worker cache. Accepting a route saves the traveler's chosen ordering/times, preserving their original authored opening-hours field. Do not copy provider content into durable records in future changes without reviewing current terms. Google's and third-party attributions remain visible. Review EEA terms if applicable to your billing address.
+A signed-out user can draft a trip, but must sign in before saving it. Drafts survive reloads in the same tab through session storage; save/cancel clears them. Open the sign-in link in that same tab to retain a draft.
 
-Route requests use the current Routes API. Transit does not support intermediate waypoints, so the app uses pairwise routes and a matrix, including for other modes. It **does not assume Google's waypoint optimizer solves appointment or opening-hour constraints**. Matrix queries are chunked to at most 96 elements per request, with up to 12 total points (10 stops plus endpoints).
+Under **Members**, owners create email-bound editor/viewer invitations. Wayfarer does **not** send invitation emails: copy and share the invitation link yourself. After signing in with the exact invited email, the recipient can choose **Trip invitations → Join trip**, including when already viewing another trip. Pending invitations refresh on reconnect, on request, and every 30 seconds. Links remain valid for seven days unless accepted or revoked. Acceptance retries for an existing member are safe; a used invitation cannot restore revoked membership. See [invitation behavior](docs/invitations.md).
 
-### Route scheduling boundaries
+### Google Maps, Places, and Routes
 
-- Bounded insertion heuristic, at most 10 single-day stops, not a guaranteed mathematical optimum.
-- Fixed appointments keep their local start times. Flexible stops are inserted into feasible slots with supplied/regular opening windows and leg estimates; start/end locations, departure time and durations affect feasibility.
-- Multi-day hotel stays are displayed across days and excluded from stop optimization. Cross-zone flights are supported in the itinerary with separate arrival zones; optimize one destination-local zone at a time.
-- Google regular opening windows are used transiently when simple enough. Missing, complex, overnight, holiday and split hours need manual verification. Unknown hours are not a promise that a venue is open.
-- The matrix is one departure snapshot; traffic and transit durations may differ at actual per-leg departure times. Recheck transit schedules before travel. A feasible proposal is approximate, not a booking or timetable guarantee.
-- A proposal shows estimated travel, savings (or additional travel required), and conflicts; the original remains unchanged until accepted. Acceptance saves individual versioned records; it is not a cross-record transaction. Concurrent edits can require per-record conflict resolution.
-- Local demo estimates use great-circle distance and assumed speeds with a small buffer; they do not model streets, traffic or transit timetables. They are labeled **LOCAL DEMO**, not live Google estimates.
+1. Enable Google Cloud billing and **Maps JavaScript API**, **Places API (New)**, and **Routes API**.
+2. Restrict the browser key to Maps JavaScript API and the allowed websites. Include the production URL `https://ameenmahmood.github.io/Wayfarer/` and the local development URLs you use. A `RefererNotAllowedMapError` points to the browser key’s website restrictions.
+3. Set **`GOOGLE_MAPS_SERVER_KEY`** in Supabase Edge Function secrets. Use a separate key restricted to Places API (New) and Routes API, with application restrictions appropriate for the server environment. A website-restricted browser key cannot serve server requests with no HTTP referrer.
+4. Deploy `travel-services`, set the browser key, and rebuild the frontend. Place search and route calculations require a signed-in trip member and a matching CORS origin. A Places-enabled browser key alone does not configure the server function.
+5. Publish and review the bundled privacy/terms pages, including your operator/contact details. Keep Google and third-party attribution visible.
+
+Place lookup and nearby discovery retain only a linked **place ID**, plus the traveler’s own entered plan fields. Google result names, addresses, coordinates, opening hours, matrices, and polylines are fetched into UI memory and are not stored in IndexedDB, Postgres, or the service-worker cache. Map errors leave the itinerary usable. **Offline Google map tiles are not provided.**
+
+Route optimization uses supported pairwise estimates and a bounded scheduling heuristic, rather than assuming Google’s waypoint optimization handles every mode and scheduling constraint. Transit does not support intermediate waypoints. The app limits a proposal to 10 single-day stops plus optional endpoints and chunks matrix requests to at most 96 elements.
+
+Fixed reservations retain their times; flexible stops use supplied/supported opening windows. Unknown, complex, overnight, or exceptional opening hours need manual checking. Multi-day stays are excluded from stop optimization. Transit and traffic estimates use a departure snapshot and may differ at travel time. A proposal is approximate, **not a mathematical optimum or a booking guarantee**. Nothing is applied until accepted. Applying a proposal synchronizes separate versioned records; the remote changes are not one trip-wide transaction.
+
+### Other optional services
+
+`EXCHANGE_RATE_URL` can point to an HTTPS provider accepting `base` and `symbols` and returning a date/rates object. `EXCHANGE_RATE_KEY` is sent server-side as a Bearer token. Adapt the provider response if needed; no public rate feed is assumed. Each expense saves its own rate snapshot and date.
+
+The Edge Function retains a legacy AI action for older clients. The current nearby-place interface does not call it, and **does not require an OpenAI key or AI billing**. Any optional provider secrets remain server-side.
 
 ## Money rules
 
-- All amounts are integer minor units; currency precision comes from `Intl.NumberFormat` (e.g. USD 2, JPY 0, KWD 3).
-- Equal, weighted and percentage splits use largest-remainder allocation. Remainder ties use participant ID order. Percentages are stored as integer basis points, totaling 10,000.
-- Exact shares are minor-unit amounts of the subtotal, excluding tax/tip/fees. Shares must sum exactly. Itemized splits allocate each item only among its selected participants. **Items + tax + tip + fees must equal the stated total**. Extras are allocated equally or in proportion to subtotal/item shares exactly once.
-- Exchange snapshots are positive rational numbers (numerator/denominator), with date and source saved on the expense. Conversion adjusts source/base precision and uses half-up rounding. Base-currency participant shares are allocated from the rounded base total, so totals reconcile. Later market changes do not change records. Editing a rate is an explicit expense edit subject to conflict checks.
-- Actual spending excludes estimates and repayments. Planned itinerary costs are listed separately in original currencies. Expense linkage does not automatically delete an estimate.
-- Suggested settlements preserve net balances. Recording repayments changes balances, not spending. Partial repayments are supported; delete an erroneous repayment and enter its correction. No payments are processed.
-- The trip base currency is immutable after creation to prevent silent reinterpretation of existing budgets and repayments.
-- CSV exports actual expenses with original and converted minor amounts and rate snapshot details; fields are quoted and spreadsheet formula injection is neutralized. Repayments are shown separately in the UI.
+- Amounts use currency minor units, including zero- and three-decimal currencies. Equal, weighted, and percentage splits use largest-remainder allocation, with participant-ID tie breaking. Percentages total 10,000 basis points.
+- Exact subtotal shares must reconcile. Itemized expenses assign each item once; **items + tax + tips + fees must equal the total**. Extras are allocated equally or proportionally to subtotal/item shares.
+- Saved positive rational exchange rates convert amounts using half-up rounding; base-currency participant shares reconcile to the rounded converted total. Market movements do not silently change saved balances.
+- Planned itinerary estimates, actual expenses, and repayments are separate. Repayments reduce balances without increasing spending. Suggested settlements preserve net balances; no payment is processed.
+- Trip base currency is immutable after creation. Editing/deleting expenses recalculates balances. CSV exports quote fields and neutralize spreadsheet-formula injection.
 
-## Optional exchange rates and AI
+## Offline access, synchronization, and privacy
 
-Set `EXCHANGE_RATE_URL` to an HTTPS endpoint accepting `base` and `symbols` query parameters and returning `{"date":"YYYY-MM-DD","rates":{"USD":0.0067}}`. `EXCHANGE_RATE_KEY` is sent as a server-side Bearer token. Rates are fetched only on request and persisted as expense snapshots. Manual entry always remains available. This adapter must be matched to your provider's schema; no public rate feed is assumed.
+Production builds cache the application shell and bundled JS/CSS after an online visit. Previously loaded trip data and queued edits remain in IndexedDB. Live maps, place search, route calculations, initial sign-in, and collaboration updates require internet. Fonts and external cover photos can fall back offline. Storage quotas, private browsing, eviction, and browser policies can limit persistence.
 
-For optional AI, set server-only `AI_API_KEY` and optionally `AI_MODEL` (default `gpt-4.1-mini`, replace with a model available to your account). The function validates output and limits each signed-in user to four AI requests per minute; other service actions are limited to 20 per minute. Limits are stored in Postgres. No provider secret enters the browser.
+Every mutation carries an immutable operation ID and expected record version. Server receipts prevent retrying a committed expense or repayment from creating a duplicate. Concurrent financial edits require explicit conflict resolution in the **Sync status** dialog, opened from the status control in the top bar. Deletions use tombstones and take precedence over stale edits. Personal packing lists are protected by assignment/ownership checks. Failed, pending, and conflicting edits remain visible for recovery.
 
-The request includes only destination, dates, interests, budget, available time, and up to 20 existing activity titles. Suggestions are unverified, never bookings, and never auto-added. When a Google server key is present, possible place matches are fetched for review; this does not verify current availability or opening hours. Add selected ideas to saved places, then confirm the details yourself. Manual planning works with AI disabled.
+Owners manage trip settings, budgets, invitations, and access. Editors change plans, expenses, repayments, and shared packing; viewers have read access. Application tables use RLS and reject direct client writes. Internal validation helpers are not exposed as callable client RPCs. The public website does not grant access to trip records.
 
-## Offline, conflicts, and privacy
+Synchronization uses a full pull of visible records after sign-in, reconnect, and changes, with Realtime invalidations and a 30-second fallback. **Pagination is not implemented**: keep the Supabase API row limit above your visible workspace record count. Another account cannot reuse a connected browser cache; use separate browser profiles for separate travelers.
 
-Each edit and its immutable operation are committed in one IndexedDB transaction. Operations are ordered and carry a unique ID plus expected server version. Retrying a committed operation returns its receipt instead of adding a second expense/repayment. Another edit made while an acknowledgment is lost gets its own operation and expected version. The queue survives reloads and reconnects.
+**Clearing browser storage can remove unsynchronized changes. Revoking access cannot erase copies already downloaded by another traveler.** IndexedDB is not encrypted by this application. Trip deletion has no in-app recovery and retains database tombstones. See [deletion details](docs/trip-deletion.md).
 
-Concurrent changes return the server version for comparison. Financial edits are never automatically merged. **Settings** shows local/server JSON and lets you keep the server version or explicitly reapply your latest version. Remote deletions are tombstones; they cannot be silently resurrected. Pending/failed/conflicting changes stay visible. Revoked users cannot replay old receipts to obtain new server access. Failed unauthorized changes remain local for review; they are not silently uploaded.
+## Deployment
 
-Personal packing records and personal templates are filtered by owner at the database level. Shared lists are available to trip members. Templates reset packed state and respect the destination list's personal/shared scope.
+GitHub Pages serves the static app at `/Wayfarer/`. The Supabase backend handles authentication and shared data separately. No development computer needs to remain running.
 
-**Clearing storage can destroy unsynchronized edits. Remote access revocation cannot erase previously downloaded copies.** IndexedDB is not encrypted by this app; use a protected device/browser profile. Signing out hides cached connected trip records; another account cannot reuse that cache. Use a separate browser profile for a different account. Offline access depends on a locally retained auth session; initial sign-in needs internet.
+Every push to `main` runs `.github/workflows/pages.yml`: install dependencies, run tests, build with the Pages base path, precache the shell, and deploy after successful checks. Set repository **variables** `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, and optionally `VITE_GOOGLE_MAPS_BROWSER_KEY`. Only these public browser values enter the build. `scripts/configure-github-pages.mjs` can copy them from an ignored local environment using GitHub CLI. The workflow rejects a missing connected-mode configuration rather than publishing a demo accidentally.
 
-## Verification
+Backend migrations, SMTP/templates, and Edge Function changes need their own Supabase deployment. For a Pages-shaped local build in PowerShell:
 
-`npm test`: **34 tests passing** across six files. GitHub Actions runs these tests and the production build before deployment. See [the live backend verification report](docs/backend-verification.md) for the production checks and their limits.
+```powershell
+$env:VITE_BASE_PATH = '/Wayfarer/'
+npm run build
+npm run preview -- --port 4173
+```
 
-- Money: deterministic rounding, randomized allocations, JPY/KWD precision, item assignments, equal/exact/percentage/weighted splits, invalid splits, rate snapshots/conversion, balance reconciliation, editing/deletion, repayments, CSV safety.
-- Time: cross-zone instants and flights, DST gaps/ambiguity, multi-day lodging, overlap/unavailable-route/opening-hour checks, fixed appointments, infeasible proposals, endpoint legs and 10-stop bounds.
-- Browser storage: idempotent initialization, offline creation/edit/deletion and persistence. Connected-client tests use a fake transport plus real IndexedDB behavior to check ordered queue replay, lost acknowledgment, conflict review, and tombstones.
-- PostgreSQL: the **actual migration and RPCs execute in embedded Postgres/PGlite**, with test auth helpers and test-only substitutes for `pgcrypto` token generation/hashing. Tests cover invitation acceptance/wrong email/reuse/revocation, both members editing, version conflicts, duplicate operation receipts, itemized settlement, viewer/direct-write denial, personal-list isolation and revoked-access receipt replay. These tests do not validate Supabase's hosted auth, SMTP, network Realtime, or cryptographic entropy.
-- Service worker: actual script precaches production asset paths, serves the shell on failed navigation, and never intercepts Google requests. A browser-level network disconnect/reload was not available through the preview tools; no live two-device offline-sync test is claimed.
-- Browser QA: desktop dashboard, 390px phone layout, route preview/apply, sample itemized split editor, repayment recalculation without spending increase, and theme persistence were checked interactively. Dark theme computed colors and no horizontal document overflow were confirmed. System appearance uses the native `prefers-color-scheme` media query; there was no system-theme emulation control in the browser tool, so both OS states were not driven automatically.
+Visit `http://127.0.0.1:4173/Wayfarer/`. Invitation URLs, callbacks, legal links, the manifest, and offline caches respect the base path. Refresh after a production deployment if the browser still shows an older cached interface.
 
-### Demonstration
+Google Maps/Places/Routes usage, Supabase usage beyond plan allowances, SMTP delivery, and any configured exchange provider can incur charges. Set quotas and alerts appropriate to your accounts; this repository does not provision paid subscriptions or quote current prices.
 
-In local demo, open the Japan sample. Choose **Optimize day**, set departure to **07:00** and driving, preview the labeled approximate proposal, then accept it. In **Expenses**, inspect the itemized izakaya dinner, then record Maya's suggested repayment: actual spending stays $80.40 while her remaining balance reaches $0.00. Packing changes and manual plans persist across reloads.
+## Verification and remaining limits
 
-For the full connected owner/friend/offline workflow, configure services above, then:
+**Latest verified suite: 141 passing tests across 18 files.** GitHub Actions runs the full suite and production build before deployment.
 
-1. Owner signs in and creates a trip. Under Members, create an editor invitation for the friend's email.
-2. Friend uses a separate browser profile, signs in with that email, and accepts the link. Both add/edit different plans; verify last-editor stamps and Realtime refresh (30-second fallback).
-3. Disconnect the friend's device, edit a plan and shared packing item, reload offline, reconnect and click sync. Pending operations should clear exactly once.
-4. Both edit the same expense while disconnected. Reconnect: one version wins the compare-and-swap; the other displays a conflict. Compare/reapply deliberately. Delete an entry remotely and ensure old offline edits cannot resurrect it.
-5. Enter a two-item expense with different participants and extras, choose a rate snapshot if needed, review reconciled shares, then record suggested repayments. Actual spending remains unchanged.
-6. Fetch a live route matrix, review savings/conflicts, and accept the proposal. Revoke the friend's access and verify future API access fails. Already downloaded copies can still exist.
+- Money tests cover currency precision, rounding, invalid and itemized splits, saved rates, balance reconciliation, settlements, repayments, edits/deletions, and CSV safety.
+- Time/route tests cover time zones, daylight-saving gaps/ambiguity, fixed reservations, multi-day lodging, conflicts, endpoints, unavailable routes, and proposal bounds.
+- Real IndexedDB behavior with a controlled sync transport covers offline queues, lost responses, idempotent retries, concurrent changes, deletion precedence, and fresh downloads after invitation acceptance.
+- Actual migration/RPC SQL runs in embedded PostgreSQL/PGlite. Tests cover roles, wrong-email invitations, recipient isolation, revocation, deletion, raw-write denial, personal packing, and internal helper permissions. Test-only crypto substitutes do not validate hosted token entropy or SMTP delivery.
+- UI tests cover signed-out navigation, trip drafts, invitation recovery, map/day preservation, expanded map rendering, drag and keyboard reordering, account dialogs, resend cooldowns, and error recovery. Google SDK/API tests use controlled responses.
+- Browser checks have covered desktop and phone layouts, light/dark settings, map-only navigation, stop details/editing, activity ordering across reloads, covers, expense/packing workflows, and the simplified signed-out/sign-in interface.
 
-These scenarios are exercised at the domain/transport/Postgres level in the tests. Production SQL smoke tests also passed in a rolled-back transaction. A live two-account browser demonstration still requires a second invited traveler; it has not been claimed as verified.
+The owner confirmed live passwordless sign-in, invitation joining, Google Maps, and place search. A reported missing confirmation email was found in Spam. A complete two-device Realtime/offline/conflicting-expense demonstration remains separately unverified; automated transport/database coverage is not a claim that this live workflow was performed. Browser storage and mail delivery remain subject to the browser/provider.
 
-## Likely billable services
-
-Google Maps loads, Places searches/details, Routes queries and matrix **elements** can incur usage-based charges. Supabase database/storage/egress, Realtime, Edge Functions, email delivery and hosting may incur charges beyond included allowances. Optional AI token usage and the chosen exchange-rate provider can also be billable. No subscriptions or paid services were provisioned for this implementation. Set project quotas/alerts before enabling keys; this README does not quote prices or free-tier amounts.
+For connected end-to-end verification: create a disposable owner trip, invite a distinct second account, join and edit from separate browser profiles, edit offline and reconnect, deliberately conflict on an expense, split an itemized expense and settle it, preview/apply a live route, then verify access revocation. Never use private live trips as disposable test data.
 
 ## Official integration references
 
-- [Supabase passwordless email links](https://supabase.com/docs/guides/auth/auth-email-passwordless)
-- [Supabase row-level security](https://supabase.com/docs/guides/database/postgres/row-level-security)
-- [Supabase Postgres changes / Realtime](https://supabase.com/docs/guides/realtime/postgres-changes)
-- [Google Routes waypoint optimization and restrictions](https://developers.google.com/maps/documentation/routes/opt-way)
-- [Transit routes do not support intermediate waypoints](https://developers.google.com/maps/documentation/routes/transit-route)
-- [Compute Route Matrix](https://developers.google.com/maps/documentation/routes/compute_route_matrix)
-- [Places policies: caching and attribution](https://developers.google.com/maps/documentation/places/web-service/policies)
-- [Routes policies: display, caching and attribution](https://developers.google.com/maps/documentation/routes/policies)
-- [Google Maps API security practices](https://developers.google.com/maps/api-security-best-practices)
+- [Supabase passwordless email](https://supabase.com/docs/guides/auth/auth-email-passwordless), [SMTP](https://supabase.com/docs/guides/auth/auth-smtp), [email templates](https://supabase.com/docs/guides/auth/auth-email-templates), and [Auth rate limits](https://supabase.com/docs/guides/auth/rate-limits)
+- [Supabase row-level security](https://supabase.com/docs/guides/database/postgres/row-level-security) and [Realtime Postgres changes](https://supabase.com/docs/guides/realtime/postgres-changes)
+- [Google Maps key security](https://developers.google.com/maps/api-security-best-practices)
+- [Places Text Search](https://developers.google.com/maps/documentation/places/web-service/text-search), [Nearby Search](https://developers.google.com/maps/documentation/places/web-service/nearby-search), and [storage/attribution policies](https://developers.google.com/maps/documentation/places/web-service/policies)
+- [Routes waypoint optimization](https://developers.google.com/maps/documentation/routes/opt-way), [transit restrictions](https://developers.google.com/maps/documentation/routes/transit-route), [route matrices](https://developers.google.com/maps/documentation/routes/compute_route_matrix), and [Routes policies](https://developers.google.com/maps/documentation/routes/policies)
 
-No email/file booking imports, marketplace, payment processing or public trip discovery are included.
-
-
-### Button destinations and signed-out planning
-
-My trips and the workspace control open the trip library, including its empty state. Trip dashboard opens the selected trip or an explicit empty dashboard. All create-trip buttons open the trip form, even before signing in. The form requires passwordless sign-in before saving a private trip; its draft survives reloads in the same tab using session storage and is removed on save or cancellation. When following an email sign-in link, paste it in that same tab to retain the draft. Account, appearance, synchronization, and privacy controls have separate focused dialogs. Server authorization remains required for private data and live services.
-
-Place search runs through the authenticated `travel-services` Edge Function using Places API (New), not through the browser map key. A Places-enabled browser key alone does not configure this server function. Check the server secret, exact CORS origin, signed-in trip membership, billing and API restrictions. Search errors and empty results appear beside the Search button; Enter searches without submitting the itinerary form. See [Supabase CORS](https://supabase.com/docs/guides/functions/cors), [Places Text Search](https://developers.google.com/maps/documentation/places/web-service/text-search), and [Google key restrictions](https://developers.google.com/maps/api-security-best-practices).
+Further implementation notes: [invitations](docs/invitations.md), [email delivery](docs/auth-delivery.md), [covers](docs/trip-covers.md), [nearby discovery](docs/nearby-places.md), and [trip deletion](docs/trip-deletion.md). Older verification reports in `docs/` describe their own snapshots and should not be read as current test counts or additional live verification claims.
