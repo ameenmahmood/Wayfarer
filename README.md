@@ -4,7 +4,7 @@ A private travel planner for you and invited friends. Plan activities, explore a
 
 **Live application:** [ameenmahmood.github.io/Wayfarer](https://ameenmahmood.github.io/Wayfarer/)
 
-The website is publicly reachable, but trips require **Supabase email sign-in and trip membership**. This is not a travel marketplace: there is no public trip discovery, payment processing, or booking import.
+Anyone can open Wayfarer. Sign in by email to create and save your own trips. Each trip is private to its owner and invited members.. This is not a travel marketplace: there is no public trip discovery, payment processing, or booking import.
 
 ## What you can do
 
