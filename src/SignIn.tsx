@@ -12,8 +12,10 @@ import { Button, Field, Notice, useAsyncAction } from "./ui";
 /** Also works inside the trip form without nesting HTML forms. */
 export default function SignIn({
   purpose = "Open your private trips and collaborate with invited friends.",
+  plain = false,
 }: {
   purpose?: string;
+  plain?: boolean;
 }) {
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
@@ -67,8 +69,8 @@ export default function SignIn({
     });
   }
   return (
-    <section className="inset sign-in-panel">
-      <h3>Sign in with email</h3>
+    <section className={"sign-in-panel " + (plain ? "plain" : "inset")}>
+      {!plain && <h3>Sign in with email</h3>}
       <p>{purpose}</p>
       <Field label="Email">
         <input

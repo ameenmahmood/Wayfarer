@@ -48,7 +48,14 @@ export default function Settings({
           </Field>
         </>
       )}
-      {(section === "account" || section === "connections") && (
+      {section === "account" && !demo && !userEmail && (
+        <SignIn
+          plain
+          purpose="Enter your email and we’ll send you a secure sign-in link."
+        />
+      )}
+      {(section === "connections" ||
+        (section === "account" && (demo || userEmail))) && (
         <section className="inset">
           <h3>
             {demo ? (

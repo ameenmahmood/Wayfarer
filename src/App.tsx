@@ -795,7 +795,7 @@ export default function App() {
             }[settings]
           }
           onClose={() => setSettings(null)}
-          wide
+          wide={settings !== "account" || demo || !!userId}
         >
           <LazyPanel>
             <Settings

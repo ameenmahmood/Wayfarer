@@ -3971,3 +3971,28 @@ button.profile {
   margin: 8px 0;
   line-height: 1.6;
 }
+
+.sign-in-panel.plain {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+.sign-in-panel.plain > p {
+  margin: 0 0 22px;
+  color: var(--muted);
+  line-height: 1.6;
+  font-size: 13px;
+}
+.sign-in-panel.plain .field {
+  margin-bottom: 16px;
+}
+.sign-in-panel.plain input {
+  min-height: 44px;
+}
+.sign-in-panel.plain > .button {
+  min-height: 42px;
+}
+.sign-in-panel.plain .sign-in-help {
+  margin-top: 20px;
+}
