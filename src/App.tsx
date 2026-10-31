@@ -265,7 +265,12 @@ export default function App() {
     );
   };
   return (
-    <div className="app-shell">
+    <div
+      className={
+        "app-shell" +
+        (!overview && trip && tab === "map" ? " map-workspace" : "")
+      }
+    >
       <aside className={"sidebar " + (sidebar ? "open" : "")}>
         <a
           className="brand"

@@ -1,3 +1,4 @@
+import MapWorkspace from "./MapWorkspace";
 import { useRef, useState } from "react";
 import {
   Plus,
@@ -153,6 +154,43 @@ export default function Itinerary({
         : type === "Restaurant"
           ? Utensils
           : Footprints;
+  const entryEditor = editing && (
+    <Modal
+      title={
+        editing.version ? "Edit your plan" : "A new plan, a new possibility"
+      }
+      onClose={() => setEditing(undefined)}
+      wide
+    >
+      <EntryForm
+        entity={editing}
+        trip={trip}
+        onDone={() => setEditing(undefined)}
+      />
+    </Modal>
+  );
+  if (mapOnly)
+    return (
+      <>
+        <MapWorkspace
+          entries={filtered}
+          tripId={tripId}
+          date={date}
+          dates={dayList}
+          view={view}
+          selected={selected}
+          mode={mode}
+          canEdit={canEdit}
+          onDate={setDate}
+          onView={setView}
+          onSelect={setSelected}
+          onMode={setMode}
+          onAdd={() => add(view === "saved" ? "" : date)}
+          onEdit={setEditing}
+        />
+        {entryEditor}
+      </>
+    );
   return (
     <>
       <div className="content-heading itinerary-heading">
@@ -608,21 +646,7 @@ export default function Itinerary({
         </aside>
       </div>
       {a.error && <Notice tone="error">{a.error}</Notice>}
-      {editing && (
-        <Modal
-          title={
-            editing.version ? "Edit your plan" : "A new plan, a new possibility"
-          }
-          onClose={() => setEditing(undefined)}
-          wide
-        >
-          <EntryForm
-            entity={editing}
-            trip={trip}
-            onDone={() => setEditing(undefined)}
-          />
-        </Modal>
-      )}
+      {entryEditor}
       {route && (
         <Modal
           title="A smoother way through your day"

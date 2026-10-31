@@ -48,12 +48,14 @@ export default function MapPanel({
   onSelect,
   tripId,
   mode = "WALK",
+  expanded = false,
 }: {
   entries: Entity<Entry>[];
   selected: string;
   onSelect: (id: string) => void;
   tripId: string;
   mode?: string;
+  expanded?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null),
     map = useRef<any>(null),
@@ -211,15 +213,20 @@ export default function MapPanel({
       markers.current.get(entry.id)?.setTitle(entry.data.title);
   }, [entries.map((e) => `${e.id}:${e.data.title}`).join()]);
   return (
-    <section className="map-card">
-      <div className="section-head">
-        <h3>Your day, on the map</h3>
-        <MapPin size={18} />
-      </div>
+    <section
+      className={"map-card" + (expanded ? " expanded" : "")}
+      aria-label="Trip locations map"
+    >
+      {!expanded && (
+        <div className="section-head">
+          <h3>Your day, on the map</h3>
+          <MapPin size={18} />
+        </div>
+      )}
       {configured ? (
         <>
           <div ref={ref} className="google-map" />
-          {!ready && !error && (
+          {!ready && !error && navigator.onLine && (
             <div className="notice">Loading live Google map…</div>
           )}
         </>

@@ -251,13 +251,17 @@ it("switching between itinerary and map preserves the selected trip day", async 
   ).toBe("true");
   await u.click(screen.getByRole("button", { name: "Map" }));
   await screen.findByRole("heading", { name: "Every place, in one view" });
-  expect(
-    screen.getByRole("button", { name: /^DAY 2/ }).getAttribute("aria-pressed"),
-  ).toBe("true");
+  expect((screen.getByLabelText("Map day") as HTMLSelectElement).value).toBe(
+    "2027-04-13",
+  );
+  expect(screen.queryByRole("button", { name: /^Reorder / })).toBeNull();
+  expect(document.querySelector(".app-shell.map-workspace")).toBeTruthy();
+  expect(document.querySelector(".timeline")).toBeNull();
+  await u.selectOptions(screen.getByLabelText("Map day"), "2027-04-14");
   await u.click(screen.getByRole("button", { name: "Itinerary" }));
   await screen.findByRole("heading", { name: "Itinerary" });
   expect(
-    screen.getByRole("button", { name: /^DAY 2/ }).getAttribute("aria-pressed"),
+    screen.getByRole("button", { name: /^DAY 3/ }).getAttribute("aria-pressed"),
   ).toBe("true");
 });
 

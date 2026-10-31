@@ -189,3 +189,28 @@ it("draws each leg with its saved transport method", async () => {
     ),
   );
 });
+
+it("expanded maps keep the live Google canvas and selectable stops without the side-card heading", async () => {
+  const stop = entry("Mapped stop", "place-one");
+  const selected = vi.fn();
+  const { container } = render(
+    <MapPanel
+      expanded
+      entries={[stop]}
+      selected=""
+      onSelect={selected}
+      tripId="trip"
+    />,
+  );
+  await waitFor(() => expect(markers).toHaveLength(1));
+  expect(
+    container.querySelector(".map-card.expanded .google-map"),
+  ).toBeTruthy();
+  expect(
+    screen.queryByRole("heading", { name: "Your day, on the map" }),
+  ).toBeNull();
+  await act(async () => {
+    markers[0].listener();
+  });
+  expect(selected).toHaveBeenCalledWith(stop.id);
+});

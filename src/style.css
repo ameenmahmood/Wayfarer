@@ -3681,3 +3681,272 @@ button.profile {
     padding-left: 38px;
   }
 }
+
+/* A dedicated map canvas, with compact navigation instead of a second itinerary. */
+.map-workspace .sidebar:not(.open),
+.map-workspace .trip-hero,
+.map-workspace .trip-overview,
+.map-workspace .app-footer,
+.map-workspace .invitation-inbox {
+  display: none;
+}
+.map-workspace .main-shell {
+  margin-left: 0;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+.map-workspace .topbar {
+  height: 48px;
+  flex-shrink: 0;
+  padding-left: 22px;
+  padding-right: 22px;
+}
+.map-workspace main {
+  flex: 1;
+  min-height: 0;
+  max-width: none;
+  width: 100%;
+  margin: 0;
+  padding: 0 18px 14px;
+  display: flex;
+  flex-direction: column;
+}
+.map-workspace main > .scroll-rail {
+  flex-shrink: 0;
+}
+.map-workspace .tabs {
+  margin: 0;
+}
+.map-workspace .tab-content {
+  padding-top: 12px;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.map-workspace .demo-banner {
+  flex-shrink: 0;
+  margin: 8px 0 0;
+  padding: 7px 10px;
+}
+.map-workspace-view {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.map-workspace-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+.map-workspace-heading h2 {
+  margin: 0 0 3px;
+  font-size: 18px;
+  letter-spacing: -0.4px;
+}
+.map-workspace-heading small {
+  font-size: 11px;
+  color: var(--muted);
+}
+.map-workspace-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.map-workspace-controls select {
+  width: auto;
+  min-height: 36px;
+  font-size: 11px;
+  padding: 7px 28px 7px 10px;
+}
+.map-workspace-controls .button {
+  min-height: 36px;
+  font-size: 11px;
+  padding: 8px 12px;
+}
+.map-day-select {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface);
+  padding-left: 10px;
+  color: var(--muted);
+}
+.map-day-select select {
+  border: 0;
+  background-color: transparent;
+}
+.map-workspace-stage {
+  flex: 1;
+  min-height: 230px;
+  display: flex;
+  position: relative;
+}
+.map-card.expanded {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+}
+.map-card.expanded .google-map {
+  flex: 1;
+  height: auto;
+  min-height: 180px;
+}
+.map-card.expanded .sketch {
+  flex: 1;
+  min-height: 0;
+  background: var(--map-bg);
+}
+.map-card.expanded .sketch svg {
+  height: 100%;
+  min-height: 180px;
+  max-height: none;
+}
+.map-card.expanded .map-footer {
+  padding: 9px 14px;
+  flex-shrink: 0;
+}
+.map-card.expanded .map-caption {
+  padding: 0 14px 8px;
+}
+.map-card.expanded > .notice {
+  flex-shrink: 0;
+  max-height: 110px;
+  overflow: auto;
+}
+.map-workspace-empty {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  right: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  max-width: calc(100% - 24px);
+  padding: 10px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 12px;
+  box-shadow: var(--shadow);
+  pointer-events: none;
+}
+.map-stop-detail {
+  position: absolute;
+  bottom: 80px;
+  left: 14px;
+  right: 70px;
+  max-width: 500px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 13px 15px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+}
+.map-stop-detail > div {
+  flex: 1;
+  min-width: 0;
+}
+.map-stop-detail h3 {
+  font-size: 14px;
+  margin: 0 0 4px;
+}
+.map-stop-detail p {
+  font-size: 11px;
+  color: var(--muted);
+  margin: 0;
+}
+.map-stop-detail .button {
+  min-height: 32px;
+  font-size: 11px;
+}
+@media (max-width: 650px) {
+  .map-workspace main {
+    padding: 0 9px 9px;
+  }
+  .map-workspace .topbar {
+    padding: 0 12px;
+  }
+  .map-workspace-toolbar {
+    gap: 9px;
+  }
+  .map-workspace-heading h2 {
+    font-size: 16px;
+  }
+  .map-workspace-controls {
+    gap: 6px;
+    width: 100%;
+  }
+  .map-workspace-controls > select {
+    flex: 1;
+    min-width: 90px;
+  }
+  .map-day-select {
+    flex: 1;
+  }
+  .map-day-select select {
+    width: 100%;
+  }
+  .map-workspace-controls .button {
+    flex: 1;
+  }
+  .map-workspace-stage {
+    min-height: 200px;
+  }
+  .map-stop-detail {
+    left: 8px;
+    right: 8px;
+    bottom: 82px;
+    padding: 10px;
+  }
+}
+
+@media (max-width: 650px) {
+  .map-workspace-heading {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .map-workspace-heading h2 {
+    margin: 0;
+    font-size: 15px;
+  }
+  .map-workspace-heading small {
+    white-space: nowrap;
+    font-size: 10px;
+  }
+  .map-workspace-controls {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .map-workspace-controls > select {
+    width: 100%;
+    min-width: 0;
+  }
+  .map-workspace-controls .button {
+    width: 100%;
+  }
+  .map-day-select {
+    min-width: 0;
+  }
+  .map-day-select select {
+    min-width: 0;
+  }
+}
