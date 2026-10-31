@@ -3996,3 +3996,13 @@ button.profile {
 .sign-in-panel.plain .sign-in-help {
   margin-top: 20px;
 }
+
+.workspace-icon.guest-workspace {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}

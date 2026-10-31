@@ -144,7 +144,7 @@ it.each(["Create a trip", "Plan a new trip"])(
   },
 );
 
-it.each(["My trips0", "My trips", "A My travel spacePrivate workspace"])(
+it.each(["My trips0", "My trips", "My travel spacePrivate workspace"])(
   "signed out: %s opens the trip library",
   async (name) => {
     const u = await openApp();
@@ -157,8 +157,8 @@ it.each(["My trips0", "My trips", "A My travel spacePrivate workspace"])(
 
 it.each([
   ["Settings & account", "Appearance settings"],
-  ["Open account settings", "Your account"],
-  ["A My accountPrivate workspace PRIVATE", "Your account"],
+  ["Sign in to Wayfarer", "Your account"],
+  [/Sign in.*Access your private trips/, "Your account"],
   ["Sign in", "Your account"],
   ["Sign in to synchronize", "Your account"],
   ["Privacy & offline data", "Privacy & offline data"],

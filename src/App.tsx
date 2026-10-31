@@ -13,6 +13,7 @@ import {
   Wallet,
   CheckSquare,
   Users,
+  UserRound,
   Settings as SettingsIcon,
   ArrowUpRight,
   Cloud,
@@ -246,6 +247,7 @@ export default function App() {
       ).spent;
   } catch {}
   const canEdit = role !== "viewer";
+  const signedOut = !demo && !userId;
   const newTrip = () => {
     setSidebar(false);
     const id = uid();
@@ -294,7 +296,11 @@ export default function App() {
           <X size={20} />
         </button>
         <button className="workspace" onClick={showLibrary}>
-          <span className="workspace-icon">A</span>
+          <span
+            className={"workspace-icon" + (signedOut ? " guest-workspace" : "")}
+          >
+            {signedOut ? <Compass size={18} aria-hidden="true" /> : "A"}
+          </span>
           <div>
             <b>My travel space</b>
             <small>Private workspace</small>
@@ -382,12 +388,24 @@ export default function App() {
             Settings & account
           </button>
           <button className="profile" onClick={() => openSettings("account")}>
-            <span className="avatar a0">A</span>
+            <span className="avatar a0">
+              {signedOut ? <UserRound size={18} aria-hidden="true" /> : "A"}
+            </span>
             <div>
-              <b>{demo ? "Local traveler" : "My account"}</b>
-              <small>{demo ? "Demo workspace" : "Private workspace"}</small>
+              <b>
+                {signedOut ? "Sign in" : demo ? "Local traveler" : "My account"}
+              </b>
+              <small>
+                {signedOut
+                  ? "Access your private trips"
+                  : demo
+                    ? "Demo workspace"
+                    : "Private workspace"}
+              </small>
             </div>
-            <span className="pill tiny">{demo ? "LOCAL" : "PRIVATE"}</span>
+            {!signedOut && (
+              <span className="pill tiny">{demo ? "LOCAL" : "PRIVATE"}</span>
+            )}
           </button>
         </div>
       </aside>
@@ -436,10 +454,13 @@ export default function App() {
             </button>
             <button
               className="avatar small-avatar"
-              aria-label="Open account settings"
+              aria-label={
+                signedOut ? "Sign in to Wayfarer" : "Open account settings"
+              }
+              title={signedOut ? "Sign in" : "My account"}
               onClick={() => openSettings("account")}
             >
-              A
+              {signedOut ? <UserRound size={17} aria-hidden="true" /> : "A"}
             </button>
           </div>
         </header>
