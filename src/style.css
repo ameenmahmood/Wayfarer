@@ -4006,3 +4006,361 @@ button.profile {
   justify-content: center;
   flex-shrink: 0;
 }
+
+/* Mobile reflow: keep zoom available; prevent narrow layouts and focus zoom. */
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+.field,
+.panel,
+.metric-card,
+.plan-card,
+.notice,
+.member-row,
+.packing-row,
+.trip-tile,
+.invitation-inbox-row {
+  overflow-wrap: anywhere;
+}
+.form-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+@media (max-width: 650px) {
+  main {
+    padding-inline: 12px;
+  }
+  .topbar {
+    padding-inline: 12px;
+    gap: 8px;
+  }
+  .top-actions {
+    flex-shrink: 0;
+    gap: 6px;
+  }
+  .sync-indicator {
+    max-width: 120px;
+    min-height: 44px;
+  }
+  .sidebar {
+    width: min(290px, calc(100vw - 32px));
+  }
+  .sidebar .nav-item,
+  .sidebar .trip-nav {
+    min-height: 44px;
+  }
+  .sidebar .private-note {
+    display: none;
+  }
+  .button,
+  .icon-button,
+  .plan-actions .icon-button,
+  .content-heading .button-row .button,
+  .hero-buttons button,
+  .map-workspace-controls .button,
+  .map-stop-detail .button,
+  .travel-controls .button,
+  .nearby-categories button {
+    min-height: 44px;
+  }
+  .icon-button,
+  .plan-actions .icon-button {
+    min-width: 44px;
+  }
+  .button {
+    white-space: normal;
+    font-size: 12px;
+  }
+  .field input,
+  .field select,
+  .field textarea,
+  input:not([type="checkbox"]),
+  select,
+  textarea,
+  .travel-controls select,
+  .travel-controls input[type="number"],
+  .map-workspace-controls select {
+    font-size: 16px;
+    min-height: 44px;
+    max-width: 100%;
+  }
+  .field > label,
+  .field > span {
+    font-size: 12px;
+  }
+  .form-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+  .search-row {
+    flex-wrap: wrap;
+  }
+  .search-row > input {
+    flex: 1 1 180px;
+  }
+  .search-row > .button {
+    flex: 1 0 auto;
+  }
+  .content-heading {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .content-heading > div:first-child {
+    flex: 1 1 170px;
+    min-width: 0;
+  }
+  .content-heading .button-row {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+  .content-heading p,
+  .content-heading h2 {
+    max-width: none;
+  }
+  .hero-content {
+    position: relative;
+    inset: auto;
+    padding: 94px 18px 22px;
+  }
+  .trip-hero {
+    height: auto;
+    min-height: 247px;
+  }
+  .hero-content h1 {
+    max-width: none;
+    font-size: clamp(26px, 7vw, 34px);
+  }
+  .hero-content p {
+    align-items: flex-start;
+  }
+  .hero-bottom {
+    font-size: 11px;
+    gap: 8px;
+  }
+  .hero-buttons {
+    top: 12px;
+    right: 12px;
+  }
+  .hero-buttons button,
+  .hero-private {
+    font-size: 11px;
+  }
+  .trip-overview {
+    gap: 14px;
+    padding-block: 18px;
+  }
+  .overview-intro p {
+    font-size: 12px;
+  }
+  .overview-stat small,
+  .travelers-summary small {
+    font-size: 11px;
+  }
+  .scroll-rail {
+    gap: 2px;
+  }
+  .rail-arrow {
+    flex-basis: 32px;
+    min-width: 32px;
+  }
+  .tabs {
+    justify-content: flex-start;
+  }
+  .tabs > button {
+    padding-inline: 12px;
+    font-size: 12px;
+  }
+  .itinerary-toolbar .segmented {
+    flex-wrap: wrap;
+  }
+  .itinerary-toolbar .segmented button {
+    min-height: 44px;
+    font-size: 11px;
+  }
+  .day-strip button {
+    flex-basis: 76px;
+    min-width: 76px;
+  }
+  .day-strip small {
+    font-size: 8px;
+  }
+  .day-strip b {
+    font-size: 13px;
+  }
+  .day-strip span {
+    font-size: 11px;
+  }
+  .plan-main .plan-details,
+  .plan-main .place-address,
+  .plan-main .plan-notes {
+    font-size: 12px;
+  }
+  .plan-details {
+    flex-wrap: wrap;
+  }
+  .plan-top .plan-type {
+    font-size: 11px;
+  }
+  .plan-top .plan-time {
+    font-size: 13px;
+  }
+  .plan-actions {
+    gap: 0;
+  }
+  .plan-actions .updated {
+    flex: 1 1 100%;
+    font-size: 10px;
+    padding-block: 4px;
+  }
+  .plan-actions > div {
+    margin-left: auto;
+  }
+  .activity-drag-handle {
+    width: 36px;
+    height: 44px;
+    top: 2px;
+  }
+  .travel-controls {
+    gap: 8px;
+  }
+  .travel-controls > label:first-child {
+    flex: 1 1 145px;
+  }
+  .travel-controls .check {
+    min-height: 44px;
+    white-space: normal;
+  }
+  .budget-stats {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+  }
+  .metric-card {
+    padding: 16px;
+  }
+  .metric-card strong {
+    font-size: 25px;
+    margin-block: 6px;
+  }
+  .metric-card > small,
+  .metric-card > span,
+  .text-button {
+    font-size: 12px;
+  }
+  .text-button {
+    min-height: 36px;
+  }
+  .expense-row small,
+  .packing-row small,
+  .member-row small {
+    font-size: 11px;
+  }
+  .packing-toolbar {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .packing-toolbar .segmented {
+    flex-wrap: wrap;
+  }
+  .packing-toolbar .segmented button {
+    min-height: 44px;
+    font-size: 12px;
+  }
+  .packing-row {
+    flex-wrap: wrap;
+  }
+  .packing-row > .grow {
+    min-width: 120px;
+  }
+  .settlement > div {
+    flex-wrap: wrap;
+  }
+  .table-scroll {
+    max-width: 100%;
+  }
+  .table-scroll:focus-visible {
+    outline-offset: -3px;
+  }
+  dialog,
+  dialog.wide {
+    width: calc(100% - 16px);
+    max-width: calc(100% - 16px);
+    max-height: calc(100dvh - 24px);
+    margin: auto;
+  }
+  .dialog-head {
+    padding: 12px 14px;
+    gap: 10px;
+  }
+  .dialog-head h2 {
+    font-size: 19px;
+    overflow-wrap: anywhere;
+  }
+  .dialog-body {
+    padding: 16px 14px;
+    scrollbar-gutter: auto;
+  }
+  .dialog-actions,
+  .trip-form-actions {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .theme-options {
+    flex-wrap: wrap;
+  }
+  .theme-options button {
+    flex: 1 1 90px;
+  }
+  .map-workspace .main-shell {
+    height: auto;
+    min-height: 100dvh;
+  }
+  .map-workspace main {
+    flex: 1;
+  }
+  .map-workspace-stage {
+    min-height: max(300px, 48dvh);
+  }
+  .map-workspace-view {
+    min-height: 0;
+  }
+  .map-workspace-heading {
+    flex-wrap: wrap;
+  }
+  .map-workspace-controls select {
+    font-size: 16px;
+  }
+  .map-workspace-controls .button {
+    font-size: 12px;
+  }
+  .map-card.expanded .google-map {
+    min-height: max(300px, 48dvh);
+  }
+  .map-stop-detail {
+    flex-wrap: wrap;
+  }
+  .map-footer {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .map-footer a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+@media (max-width: 380px) {
+  .itinerary-heading {
+    align-items: flex-start;
+  }
+  .itinerary-heading > .button {
+    flex: 1 1 100%;
+  }
+  .map-workspace-controls {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .cover-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

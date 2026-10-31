@@ -100,6 +100,8 @@ export default function MapPanel({
           mapTypeControl: false,
           streetViewControl: false,
           fullscreenControl: false,
+          gestureHandling: "cooperative",
+          zoomControl: true,
         });
         setMapVersion((version) => version + 1);
         setReady(true);

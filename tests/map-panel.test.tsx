@@ -12,15 +12,17 @@ vi.mock("../src/store", () => ({
 }));
 vi.stubEnv("VITE_GOOGLE_MAPS_BROWSER_KEY", "public-test-key");
 import MapPanel from "../src/MapPanel";
-let markers: any[], map: any;
+let markers: any[], map: any, mapOptions: any;
 beforeEach(() => {
   markers = [];
+  mapOptions = undefined;
   service.api.mockReset();
   map = { fitBounds: vi.fn(), setZoom: vi.fn(), setCenter: vi.fn() };
   window.google = {
     maps: {
       Map: class {
-        constructor() {
+        constructor(_element: HTMLElement, options: any) {
+          mapOptions = options;
           return map;
         }
       },
@@ -213,4 +215,16 @@ it("expanded maps keep the live Google canvas and selectable stops without the s
     markers[0].listener();
   });
   expect(selected).toHaveBeenCalledWith(stop.id);
+});
+
+it("keeps page scrolling separate from map gestures with visible zoom controls", async () => {
+  render(
+    <MapPanel entries={[]} selected="" onSelect={() => {}} tripId="trip" />,
+  );
+  await waitFor(() =>
+    expect(mapOptions).toMatchObject({
+      gestureHandling: "cooperative",
+      zoomControl: true,
+    }),
+  );
 });

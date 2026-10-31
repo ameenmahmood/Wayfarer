@@ -262,7 +262,12 @@ export default function Budget({
       </div>
       <section className="panel">
         <h3>Everyone’s share</h3>
-        <div className="table-scroll">
+        <div
+          className="table-scroll"
+          role="region"
+          aria-label="Per-person balances, scroll horizontally for more columns"
+          tabIndex={0}
+        >
           <table>
             <thead>
               <tr>
