@@ -107,12 +107,10 @@ beforeEach(() => {
   backend.authListeners = [];
   backend.otp.mockClear();
   backend.invitations = [];
-  backend.rpc
-    .mockReset()
-    .mockImplementation(async (name: string) => ({
-      data: name === "my_trip_invitations" ? backend.invitations : null,
-      error: null,
-    }));
+  backend.rpc.mockReset().mockImplementation(async (name: string) => ({
+    data: name === "my_trip_invitations" ? backend.invitations : null,
+    error: null,
+  }));
   backend.api
     .mockReset()
     .mockRejectedValue(Error("Service is unavailable in the test transport."));
@@ -227,12 +225,7 @@ it("signed in: every trip section and its creation control opens the right area"
       "Add a plan",
       "A new plan, a new possibility",
     ],
-    [
-      "Itinerary",
-      "A plan with room to wander",
-      "Add a plan",
-      "A new plan, a new possibility",
-    ],
+    ["Itinerary", "Itinerary", "Add a plan", "A new plan, a new possibility"],
     [
       "Expenses",
       "A little clarity for every cost",

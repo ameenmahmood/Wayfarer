@@ -3543,3 +3543,93 @@ button.profile {
     gap: 12px;
   }
 }
+
+/* Keep itinerary navigation and day tools in two predictable groups. */
+.itinerary-heading {
+  margin-bottom: 16px;
+  align-items: center;
+  gap: 16px;
+}
+.itinerary-heading h2 {
+  font-size: 23px;
+  letter-spacing: -0.7px;
+  margin-bottom: 5px;
+}
+.itinerary-heading .button {
+  min-height: 38px;
+  padding: 9px 15px;
+  flex-shrink: 0;
+}
+.itinerary-toolbar {
+  justify-content: flex-start;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+.itinerary-toolbar .segmented {
+  flex: 0 1 auto;
+  justify-content: flex-start;
+  padding: 3px;
+  border-radius: 10px;
+}
+.itinerary-toolbar .segmented button {
+  min-height: 36px;
+  padding: 8px 12px;
+  border-radius: 7px;
+  font-size: 11px;
+}
+.itinerary-tools {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+  align-items: center;
+}
+.itinerary-tools .button {
+  min-height: 36px;
+  padding: 8px 11px;
+  font-size: 11px;
+  background: transparent;
+}
+@media (max-width: 900px) {
+  .itinerary-tools {
+    margin-left: 0;
+  }
+}
+@media (max-width: 650px) {
+  .itinerary-heading {
+    flex-direction: row;
+    align-items: center;
+    margin-bottom: 14px;
+  }
+  .itinerary-heading h2 {
+    font-size: 21px;
+  }
+  .itinerary-heading .button {
+    min-height: 40px;
+    font-size: 11px;
+    padding: 9px 12px;
+  }
+  .itinerary-toolbar {
+    gap: 10px;
+  }
+  .itinerary-toolbar .segmented {
+    flex: 1 1 100%;
+    justify-content: space-between;
+  }
+  .itinerary-toolbar .segmented button {
+    flex: 1;
+    justify-content: center;
+    min-height: 40px;
+    padding: 8px 6px;
+    font-size: 10px;
+  }
+  .itinerary-tools {
+    width: 100%;
+    gap: 8px;
+  }
+  .itinerary-tools .button {
+    flex: 1;
+    min-height: 40px;
+    font-size: 11px;
+  }
+}

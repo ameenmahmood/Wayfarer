@@ -150,17 +150,13 @@ export default function Itinerary({
           : Footprints;
   return (
     <>
-      <div className="content-heading">
+      <div className="content-heading itinerary-heading">
         <div>
-          <h2>
-            {mapOnly
-              ? "Every place, in one view"
-              : "A plan with room to wander"}
-          </h2>
+          <h2>{mapOnly ? "Every place, in one view" : "Itinerary"}</h2>
           <p>
             {mapOnly
               ? "Pick a stop to connect your map and itinerary."
-              : "The big moments, the little detours, and everything in between."}
+              : `${entries.filter((e) => e.data.date).length} plans · ${dayList.length} ${dayList.length === 1 ? "day" : "days"}`}
           </p>
         </div>
         {canEdit && (
@@ -174,8 +170,9 @@ export default function Itinerary({
         )}
       </div>
       <div className="itinerary-toolbar">
-        <div className="segmented">
+        <div className="segmented" role="group" aria-label="Itinerary view">
           <button
+            aria-pressed={view === "day"}
             className={view === "day" ? "active" : ""}
             onClick={() => setView("day")}
           >
@@ -183,12 +180,14 @@ export default function Itinerary({
             Daily plan
           </button>
           <button
+            aria-pressed={view === "all"}
             className={view === "all" ? "active" : ""}
             onClick={() => setView("all")}
           >
             Whole trip
           </button>
           <button
+            aria-pressed={view === "saved"}
             className={view === "saved" ? "active" : ""}
             onClick={() => setView("saved")}
           >
@@ -197,29 +196,28 @@ export default function Itinerary({
             <span>{entries.filter((e) => !e.data.date).length}</span>
           </button>
         </div>
-        <Button
-          disabled={!canEdit || view !== "day" || !dayEntries.length}
-          onClick={() => setAdjusting({ date })}
-        >
-          <Clock size={16} />
-          Adjust schedule
-        </Button>
-        <Button
-          disabled={!canEdit || !dayEntries.length || view !== "day"}
-          title={
-            !canEdit
-              ? "Editor access is required"
-              : view !== "day"
-                ? "Choose Daily plan to optimize a day"
-                : !dayEntries.length
-                  ? "Add a single-day activity first"
-                  : "Preview a route before applying changes"
-          }
-          onClick={() => setRoute(true)}
-        >
-          <Route size={16} />
-          Optimize day
-        </Button>
+        {canEdit && view === "day" && dayEntries.length > 0 && (
+          <div
+            className="itinerary-tools"
+            role="group"
+            aria-label="Day planning tools"
+          >
+            <Button
+              onClick={() => setAdjusting({ date })}
+              title="Preview changes to activity times"
+            >
+              <Clock size={15} />
+              Adjust schedule
+            </Button>
+            <Button
+              onClick={() => setRoute(true)}
+              title="Preview a route before applying changes"
+            >
+              <Route size={15} />
+              Optimize day
+            </Button>
+          </div>
+        )}
       </div>
       {scheduleHint && canEdit && (
         <Notice>

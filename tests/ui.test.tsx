@@ -255,7 +255,7 @@ it("switching between itinerary and map preserves the selected trip day", async 
     screen.getByRole("button", { name: /^DAY 2/ }).getAttribute("aria-pressed"),
   ).toBe("true");
   await u.click(screen.getByRole("button", { name: "Itinerary" }));
-  await screen.findByRole("heading", { name: "A plan with room to wander" });
+  await screen.findByRole("heading", { name: "Itinerary" });
   expect(
     screen.getByRole("button", { name: /^DAY 2/ }).getAttribute("aria-pressed"),
   ).toBe("true");
