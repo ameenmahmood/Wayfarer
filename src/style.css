@@ -1779,21 +1779,120 @@ td {
   overflow: auto;
 }
 .welcome {
-  max-width: 660px;
-  padding: 90px 20px;
+  width: 100%;
+  max-width: 620px;
+  padding: 58px 16px;
   margin: auto;
 }
-.welcome > svg {
+.welcome-heading {
+  margin-bottom: 28px;
+}
+.welcome-mark {
+  width: 52px;
+  height: 52px;
+  display: grid;
+  place-items: center;
   color: var(--green);
-  margin-bottom: 22px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  margin-bottom: 24px;
+}
+.welcome .eyebrow {
+  font-size: 10px;
+  letter-spacing: 1.8px;
 }
 .welcome h1 {
-  font-size: 38px;
-  letter-spacing: -1.5px;
-  line-height: 1.3;
+  font-size: clamp(28px, 3vw, 36px);
+  letter-spacing: -1.2px;
+  line-height: 1.16;
+  margin: 12px 0;
 }
 .welcome p {
   color: var(--muted);
+  line-height: 1.65;
+  margin: 0;
+  font-size: 14px;
+}
+.welcome-invitation {
+  display: flex;
+  align-items: flex-start;
+  gap: 18px;
+  padding: 26px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--surface);
+  box-shadow: 0 10px 32px rgb(0 0 0 / 3%);
+}
+.invitation-mark {
+  flex: 0 0 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  background: var(--surface2);
+  color: var(--green);
+  border-radius: 13px;
+}
+.invitation-copy {
+  min-width: 0;
+}
+.invitation-copy h2 {
+  margin: 0 0 8px;
+  font-size: 20px;
+  letter-spacing: -0.4px;
+}
+.invitation-copy .button {
+  margin-top: 20px;
+}
+.invitation-copy small {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.6;
+  margin-top: 13px;
+}
+.welcome-alternative {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 20px;
+  padding: 0 2px;
+}
+.welcome-alternative > span {
+  color: var(--muted);
+  font-size: 12px;
+}
+.welcome-alternative .button {
+  background: transparent;
+  min-height: 38px;
+  font-size: 12px;
+}
+.welcome-start {
+  border-top: 1px solid var(--border);
+  padding-top: 24px;
+}
+.welcome-start .button-row {
+  margin-top: 20px;
+}
+@media (max-width: 600px) {
+  .welcome-invitation {
+    padding: 20px;
+    gap: 12px;
+  }
+  .invitation-mark {
+    flex-basis: 36px;
+    height: 36px;
+    border-radius: 10px;
+  }
+  .invitation-copy h2 {
+    font-size: 18px;
+  }
+  .welcome-alternative {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 10px;
+  }
 }
 .suggestion {
   padding: 18px 0;

@@ -519,44 +519,99 @@ export default function App() {
               </div>
             </section>
           ) : !trip ? (
-            <div className="welcome">
-              <Compass size={42} />
-              <h1>Trip dashboard</h1>
-              <p>
-                {!demo && !userId
-                  ? "Sign in to open your private dashboard, or draft a new trip below."
-                  : "Choose a trip from My trips, or create one to get started."}
-              </p>
-              <div className="button-row">
-                <Button className="primary" onClick={newTrip}>
-                  <Plus size={17} />
-                  Create a trip
-                </Button>
-                <Button onClick={() => openSettings("account")}>Sign in</Button>
+            <section className="welcome" aria-labelledby="welcome-title">
+              <div className="welcome-heading">
+                <span className="welcome-mark">
+                  <Compass size={26} aria-hidden="true" />
+                </span>
+                <span className="eyebrow">YOUR PRIVATE TRAVEL SPACE</span>
+                <h1 id="welcome-title">
+                  {invite && !demo
+                    ? "Good company. Great plans."
+                    : "Your next trip starts here."}
+                </h1>
+                <p>Keep your places, plans, and people together.</p>
               </div>
+              {invite && !demo ? (
+                <div className="welcome-invitation">
+                  <span className="invitation-mark">
+                    <Users size={23} aria-hidden="true" />
+                  </span>
+                  <div className="invitation-copy">
+                    <h2>You’re invited to a trip</h2>
+                    <p>
+                      {userId
+                        ? "Join your friends and start planning together."
+                        : "Sign in with the email that received this invitation to join your friends."}
+                    </p>
+                    <Button
+                      className="primary"
+                      disabled={a.busy}
+                      onClick={() => {
+                        if (!userId) {
+                          openSettings("account");
+                          return;
+                        }
+                        a.run(async () => {
+                          const { error } = await supabase!.rpc(
+                            "accept_invitation",
+                            { invite_token: invite },
+                          );
+                          if (error) throw error;
+                          setInvite("");
+                          history.replaceState(null, "", appBasePath);
+                          await synchronize();
+                        });
+                      }}
+                    >
+                      {a.busy
+                        ? "Joining…"
+                        : userId
+                          ? "Accept invitation"
+                          : "Sign in to join"}
+                      {!a.busy && <ChevronRight size={16} aria-hidden="true" />}
+                    </Button>
+                    <small>
+                      Private trip · Only invited travelers can join
+                    </small>
+                  </div>
+                </div>
+              ) : (
+                <div className="welcome-start">
+                  <p>
+                    {!demo && !userId
+                      ? "Sign in to see your trips, or start planning a new one."
+                      : "Choose a trip from My trips, or start something new."}
+                  </p>
+                  <div className="button-row">
+                    {!demo && !userId && (
+                      <Button
+                        className="primary"
+                        onClick={() => openSettings("account")}
+                      >
+                        Sign in <ChevronRight size={16} />
+                      </Button>
+                    )}
+                    <Button
+                      className={demo || userId ? "primary" : ""}
+                      onClick={newTrip}
+                    >
+                      <Plus size={17} />
+                      Create a trip
+                    </Button>
+                  </div>
+                </div>
+              )}
               {invite && !demo && (
-                <div className="panel">
-                  <h3>You have a trip invitation</h3>
-                  <p>Sign in with the invited email first, then join.</p>
-                  <Button
-                    onClick={() =>
-                      a.run(async () => {
-                        const { error } = await supabase!.rpc(
-                          "accept_invitation",
-                          { invite_token: invite },
-                        );
-                        if (error) throw error;
-                        setInvite("");
-                        history.replaceState(null, "", appBasePath);
-                        await synchronize();
-                      })
-                    }
-                  >
-                    Accept invitation
+                <div className="welcome-alternative">
+                  <span>Planning something of your own?</span>
+                  <Button onClick={newTrip}>
+                    <Plus size={16} />
+                    Create a trip
                   </Button>
                 </div>
               )}
-            </div>
+            </section>
           ) : (
             <>
               <section className="trip-hero">

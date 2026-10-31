@@ -112,7 +112,7 @@ beforeEach(() => {
 afterEach(cleanup);
 async function openApp() {
   render(<App />);
-  await screen.findByRole("heading", { name: "Trip dashboard" });
+  await screen.findByRole("heading", { name: "Your next trip starts here." });
   return userEvent.setup();
 }
 const dlg = () => within(screen.getByRole("dialog"));
@@ -393,4 +393,20 @@ it("nearby discovery opens a scheduled draft and saves only the place ID and use
   expect(JSON.stringify(backend.saved[0])).not.toContain(
     "Google result address",
   );
+});
+
+it("an invited signed-out traveler is asked to sign in before accepting", async () => {
+  history.replaceState(null, "", "/?invite=preview-token");
+  try {
+    render(<App />);
+    const join = await screen.findByRole("button", { name: "Sign in to join" });
+    expect(
+      screen.queryByRole("button", { name: "Accept invitation" }),
+    ).toBeNull();
+    await userEvent.setup().click(join);
+    expect(await dlg().findByLabelText("Email")).toBeTruthy();
+    expect(location.search).toBe("?invite=preview-token");
+  } finally {
+    history.replaceState(null, "", "/");
+  }
 });
