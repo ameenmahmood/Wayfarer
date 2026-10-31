@@ -336,42 +336,69 @@ it("previews, cancels and saves a suggested trip cover with persistent framing",
   await u.click(dialog().getByRole("button", { name: "Cancel" }));
 });
 
-it("a day adjustment can be previewed and applied to actual local itinerary records", async () => {
+it("activity handles reorder by drag and keyboard without changing reservation times", async () => {
   localStorage.setItem("wayfarer-trip", "demo-japan");
-  const u = await openApp();
-  await u.click(screen.getByRole("button", { name: "Adjust schedule" }));
-  await dialog().findByRole("heading", { name: "Adjust your day" });
-  const { fireEvent } = await import("@testing-library/react");
-  fireEvent.change(dialog().getByLabelText("Buffer per travel leg · minutes"), {
-    target: { value: "10" },
-  });
+  await openApp();
+  expect(screen.queryByRole("button", { name: "Adjust schedule" })).toBeNull();
   const { all } = await import("../src/store");
   const before = (await all()).filter(
     (e) => e.kind === "entry" && e.tripId === "demo-japan",
   );
-  const button = dialog().getByRole("button", { name: /^Apply [1-9]/ });
-  expect((button as HTMLButtonElement).disabled).toBe(false);
-  await u.click(button);
-  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  const handles = screen.getAllByRole("button", { name: /^Reorder / });
+  const source = handles[handles.length - 1];
+  const sourceName = source.getAttribute("aria-label");
+  const targetName = handles[0].getAttribute("aria-label");
+  const target = handles[0].closest("article")!;
+  const { fireEvent } = await import("@testing-library/react");
+  const previousHitTest = document.elementFromPoint;
+  document.elementFromPoint = vi.fn(() => target);
+  // jsdom needs a PointerEvent constructor with mouse coordinates.
+  const previousPointerEvent = window.PointerEvent;
+  window.PointerEvent = MouseEvent as any;
+  try {
+    fireEvent.pointerDown(source, {
+      button: 0,
+      clientX: 10,
+      clientY: 10,
+      pointerId: 1,
+    });
+    fireEvent.pointerMove(source, { clientX: 20, clientY: 40, pointerId: 1 });
+    fireEvent.pointerUp(source, { clientX: 20, clientY: 40, pointerId: 1 });
+  } finally {
+    document.elementFromPoint = previousHitTest;
+    window.PointerEvent = previousPointerEvent;
+  }
+  await waitFor(() =>
+    expect(
+      screen
+        .getAllByRole("button", { name: /^Reorder / })[0]
+        .getAttribute("aria-label"),
+    ).toBe(sourceName),
+  );
+  await waitFor(() =>
+    expect(
+      screen
+        .getAllByRole("button", { name: /^Reorder / })[0]
+        .getAttribute("aria-disabled"),
+    ).toBe("false"),
+  );
+  const u = userEvent.setup();
+  screen.getAllByRole("button", { name: /^Reorder / })[0].focus();
+  await u.keyboard("{ArrowDown}");
+  await waitFor(() =>
+    expect(
+      screen
+        .getAllByRole("button", { name: /^Reorder / })[0]
+        .getAttribute("aria-label"),
+    ).toBe(targetName),
+  );
   const after = (await all()).filter(
     (e) => e.kind === "entry" && e.tripId === "demo-japan",
   );
-  expect(
-    after.some(
-      (e) =>
-        JSON.stringify(e.data) !==
-        JSON.stringify(before.find((b) => b.id === e.id)?.data),
-    ),
-  ).toBe(true);
-  for (const fixed of before.filter((e) => e.data.fixed))
-    expect(after.find((e) => e.id === fixed.id)?.data.start).toBe(
-      fixed.data.start,
+  for (const entry of before)
+    expect(after.find((e) => e.id === entry.id)?.data.start).toBe(
+      entry.data.start,
     );
-  const manualChecks = screen.getAllByRole("checkbox", {
-    name: "Set time manually",
-  });
-  await u.click(manualChecks[manualChecks.length - 1]);
-  await screen.findByRole("button", { name: "Review schedule" });
 });
 
 it("Edit trip contains red deletion controls, cancel keeps the trip and confirm returns to the library", async () => {

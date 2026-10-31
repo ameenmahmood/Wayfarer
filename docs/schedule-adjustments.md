@@ -1,6 +1,8 @@
-# Smart schedule adjustments
+# Schedule adjustment engine (retained internally)
 
-Choose Adjust schedule from a daily itinerary. Select an activity to start from, set its start and duration when flexible, and optionally add a per-leg buffer or close later gaps. The preview keeps itinerary order. By default later flexible entries only move later; close gaps explicitly permits earlier starts. Fixed reservations and flights retain their original times, duration and order. Opening windows supplied by users are respected; unknown hours remain review notes. Multiday stays remain unchanged and their travel connections need separate review.
+The Adjust schedule button and Review schedule prompts have been removed from the itinerary UI. Reorder activities with their three-bar handles, a focused handle’s arrow keys, or the existing move buttons. Reordering changes display order without changing activity times. The following notes describe the retained internal scheduling engine and its tests, rather than a currently available menu action.
+
+Previously, users could choose Adjust schedule from a daily itinerary. Select an activity to start from, set its start and duration when flexible, and optionally add a per-leg buffer or close later gaps. The preview keeps itinerary order. By default later flexible entries only move later; close gaps explicitly permits earlier starts. Fixed reservations and flights retain their original times, duration and order. Opening windows supplied by users are respected; unknown hours remain review notes. Multiday stays remain unchanged and their travel connections need separate review.
 
 Saving an activity time/duration/end change or changing per-leg travel settings offers a Review schedule reminder. It does not silently move later entries. Duration edits in the activity form also update an existing explicit end/arrival time, including destination time zones and daylight-saving changes.
 

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   Plus,
   ArrowDown,
@@ -14,9 +14,8 @@ import {
   Footprints,
   Bookmark,
   Route,
-  Sparkles,
   ChevronRight,
-  GripVertical,
+  Menu as DragHandleIcon,
   ExternalLink,
   CalendarDays,
 } from "lucide-react";
@@ -38,7 +37,6 @@ import MapPanel from "./MapPanel";
 import TravelLeg from "./TravelLeg";
 import NearbyPlaces from "./NearbyPlaces";
 import RoutePlanner from "./RoutePlanner";
-import ScheduleAdjustments from "./ScheduleAdjustments";
 export default function Itinerary({
   trip,
   tripId,
@@ -52,19 +50,22 @@ export default function Itinerary({
   canEdit: boolean;
   mapOnly?: boolean;
 }) {
+  const pointerDrag = useRef<{
+    id: string;
+    x: number;
+    y: number;
+    active: boolean;
+  } | null>(null);
   const [date, setDate] = useState(trip.start),
     [view, setView] = useState("day"),
     [selected, setSelected] = useState(""),
     [editing, setEditing] = useState<Entity<Entry>>(),
     [route, setRoute] = useState(false),
     [nearby, setNearby] = useState(false),
-    [adjusting, setAdjusting] = useState<{ date: string; anchorId?: string }>(),
-    [scheduleHint, setScheduleHint] = useState<{
-      date: string;
-      anchorId?: string;
-    }>(),
     [moving, setMoving] = useState<Entity<Entry>>(),
     [drag, setDrag] = useState(""),
+    [dropTarget, setDropTarget] = useState(""),
+    [reorderMessage, setReorderMessage] = useState(""),
     [mode, setMode] = useState("WALK"),
     [showWarnings, setShowWarnings] = useState(false),
     a = useAsyncAction();
@@ -130,6 +131,7 @@ export default function Itinerary({
       }),
     );
   async function reorder(id: string, target: string) {
+    if (!canEdit || view !== "day") return;
     const list = [...filtered],
       from = list.findIndex((e) => e.id === id),
       to = list.findIndex((e) => e.id === target);
@@ -139,6 +141,9 @@ export default function Itinerary({
     for (let i = 0; i < list.length; i++)
       if (list[i].data.order !== i)
         await save({ ...list[i], data: { ...list[i].data, order: i } });
+    setReorderMessage(
+      `${item.data.title} moved to position ${to + 1}. Activity times have not changed.`,
+    );
   }
   const Icon = (type: string) =>
     type === "Flight"
@@ -203,13 +208,6 @@ export default function Itinerary({
             aria-label="Day planning tools"
           >
             <Button
-              onClick={() => setAdjusting({ date })}
-              title="Preview changes to activity times"
-            >
-              <Clock size={15} />
-              Adjust schedule
-            </Button>
-            <Button
               onClick={() => setRoute(true)}
               title="Preview a route before applying changes"
             >
@@ -219,21 +217,9 @@ export default function Itinerary({
           </div>
         )}
       </div>
-      {scheduleHint && canEdit && (
-        <Notice>
-          Timing changed. Review how it affects the rest of the day.{" "}
-          <Button onClick={() => setAdjusting(scheduleHint)}>
-            Review schedule
-          </Button>
-          <button
-            className="icon-button"
-            aria-label="Dismiss schedule reminder"
-            onClick={() => setScheduleHint(undefined)}
-          >
-            ×
-          </button>
-        </Notice>
-      )}
+      <span className="visually-hidden" role="status" aria-live="polite">
+        {reorderMessage}
+      </span>
       {view === "day" && (
         <ScrollRail className="day-strip" label="Trip days">
           {dayList.map((d, i) => (
@@ -330,6 +316,11 @@ export default function Itinerary({
                 : "Add your first plan. Keep it flexible or lock in a reservation."}
             </Empty>
           )}
+          <span id="activity-reorder-help" className="visually-hidden">
+            Drag the three-bar handle to change activity order. With the handle
+            focused, press the up or down arrow key, or use the move buttons
+            below. Reordering does not change activity times.
+          </span>
           <div className="timeline">
             {filtered.map((e, i) => {
               const EIcon = Icon(e.data.type),
@@ -345,31 +336,86 @@ export default function Itinerary({
                         entry={e}
                         mode={mode}
                         canEdit={canEdit}
-
-                        onScheduleChange={() => {
-                          if (
-                            previous.data.date &&
-                            (!previous.data.endDate ||
-                              previous.data.endDate === previous.data.date)
-                          )
-                            setScheduleHint({
-                              date: previous.data.date,
-                              anchorId: previous.id,
-                            });
-                        }}
                       />
                     )}
                   <article
                     id={e.id}
-                    draggable={canEdit && view === "day"}
-                    onDragStart={() => setDrag(e.id)}
-                    onDragOver={(ev) => ev.preventDefault()}
-                    onDrop={(ev) => {
-                      ev.preventDefault();
-                      a.run(() => reorder(drag, e.id));
-                    }}
-                    className={`plan-card ${selected === e.id ? "selected" : ""}`}
+                    className={`plan-card ${canEdit && view === "day" ? "can-reorder" : ""} ${drag === e.id ? "is-dragging" : ""} ${dropTarget === e.id && drag !== e.id ? "drop-target" : ""} ${selected === e.id ? "selected" : ""}`}
                   >
+                    {canEdit && view === "day" && (
+                      <button
+                        className="activity-drag-handle"
+                        aria-label={`Reorder ${e.data.title}`}
+                        aria-describedby="activity-reorder-help"
+                        title="Drag to reorder · or use the up/down arrows"
+                        draggable={false}
+                        aria-disabled={a.busy}
+                        onPointerDown={(ev) => {
+                          if (a.busy || ev.button !== 0) return;
+                          pointerDrag.current = {
+                            id: e.id,
+                            x: ev.clientX,
+                            y: ev.clientY,
+                            active: false,
+                          };
+                          ev.currentTarget.setPointerCapture?.(ev.pointerId);
+                        }}
+                        onPointerMove={(ev) => {
+                          const moving = pointerDrag.current;
+                          if (!moving) return;
+                          if (
+                            !moving.active &&
+                            Math.hypot(
+                              ev.clientX - moving.x,
+                              ev.clientY - moving.y,
+                            ) < 6
+                          )
+                            return;
+                          ev.preventDefault();
+                          moving.active = true;
+                          setDrag(moving.id);
+                          const target = document
+                            .elementFromPoint(ev.clientX, ev.clientY)
+                            ?.closest<HTMLElement>(".plan-card");
+                          setDropTarget(target?.id || "");
+                        }}
+                        onPointerUp={(ev) => {
+                          const moving = pointerDrag.current;
+                          pointerDrag.current = null;
+                          if (
+                            ev.currentTarget.hasPointerCapture?.(ev.pointerId)
+                          )
+                            ev.currentTarget.releasePointerCapture(
+                              ev.pointerId,
+                            );
+                          const target = document
+                            .elementFromPoint(ev.clientX, ev.clientY)
+                            ?.closest<HTMLElement>(".plan-card");
+                          if (moving?.active && target)
+                            void a.run(() => reorder(moving.id, target.id));
+                          setDrag("");
+                          setDropTarget("");
+                        }}
+                        onPointerCancel={() => {
+                          pointerDrag.current = null;
+                          setDrag("");
+                          setDropTarget("");
+                        }}
+                        onKeyDown={(ev) => {
+                          if (ev.key !== "ArrowUp" && ev.key !== "ArrowDown")
+                            return;
+                          ev.preventDefault();
+                          ev.stopPropagation();
+                          if (a.busy) return;
+                          const target =
+                            filtered[i + (ev.key === "ArrowUp" ? -1 : 1)];
+                          if (target)
+                            void a.run(() => reorder(e.id, target.id));
+                        }}
+                      >
+                        <DragHandleIcon size={16} aria-hidden="true" />
+                      </button>
+                    )}
                     <div className="timeline-dot">{i + 1}</div>
                     <div
                       className="plan-main"
@@ -573,38 +619,7 @@ export default function Itinerary({
           <EntryForm
             entity={editing}
             trip={trip}
-            onDone={(saved) => {
-              if (
-                saved &&
-                editing.version > 0 &&
-                saved.data.date &&
-                saved.data.date === editing.data.date &&
-                (saved.data.start !== editing.data.start ||
-                  saved.data.duration !== editing.data.duration ||
-                  saved.data.end !== editing.data.end)
-              )
-                setScheduleHint({ date: saved.data.date, anchorId: saved.id });
-              setEditing(undefined);
-            }}
-          />
-        </Modal>
-      )}
-      {adjusting && (
-        <Modal
-          title="Adjust your day"
-          onClose={() => setAdjusting(undefined)}
-          wide
-        >
-          <ScheduleAdjustments
-            entries={entries}
-            date={adjusting.date}
-            anchorId={adjusting.anchorId}
-            mode={mode}
-            canEdit={canEdit}
-            onDone={() => {
-              setAdjusting(undefined);
-              setScheduleHint(undefined);
-            }}
+            onDone={() => setEditing(undefined)}
           />
         </Modal>
       )}
