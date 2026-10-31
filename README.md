@@ -4,7 +4,7 @@ A private travel planner for you and invited friends. Plan activities, explore a
 
 **Live application:** [ameenmahmood.github.io/Wayfarer](https://ameenmahmood.github.io/Wayfarer/)
 
-The website is publicly reachable, but trips require **Supabase email sign-in and trip membership**. No ChatGPT account is required. This is not a travel marketplace: there is no public trip discovery, payment processing, or booking import.
+The website is publicly reachable, but trips require **Supabase email sign-in and trip membership**. This is not a travel marketplace: there is no public trip discovery, payment processing, or booking import.
 
 ## What you can do
 
