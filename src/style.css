@@ -5406,3 +5406,110 @@ html {
     scroll-margin-top: 128px;
   }
 }
+
+/* Compact activity expansion and secondary actions. */
+.plan-card .plan-actions {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 5px 10px;
+}
+.activity-action,
+.activity-more > summary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 6px 10px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.activity-action:hover,
+.activity-more > summary:hover {
+  background: var(--green-soft);
+  color: var(--green);
+}
+.activity-more {
+  min-width: 0;
+}
+.activity-more > summary {
+  list-style: none;
+}
+.activity-more > summary::-webkit-details-marker {
+  display: none;
+}
+.activity-more[open] {
+  flex: 1 1 100%;
+}
+.activity-more[open] > summary {
+  display: flex;
+  width: fit-content;
+  margin-left: auto;
+}
+.activity-more-content {
+  padding-top: 4px;
+  border-top: 1px solid var(--border);
+}
+.activity-more-buttons {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 2px;
+}
+.activity-more-buttons .activity-action {
+  justify-content: flex-start;
+  text-align: left;
+}
+.activity-action.danger {
+  color: var(--red, #b54e48);
+}
+.activity-updated {
+  display: block;
+  padding: 5px 10px;
+  color: var(--muted);
+  font-size: 11px;
+}
+@media (max-width: 650px) {
+  .plan-card.selected {
+    border-color: var(--border);
+    box-shadow: none;
+  }
+  .plan-card.is-expanded .plan-secondary:not(.has-detail-content),
+  .plan-card .plan-details .desktop-duration {
+    display: none;
+  }
+  .plan-card.is-expanded .plan-secondary.has-detail-content {
+    margin-top: 8px;
+    padding-top: 8px;
+  }
+  .plan-card .plan-details:empty {
+    display: none;
+  }
+  .plan-card .plan-details-toggle {
+    width: 40px;
+    min-width: 40px;
+    padding: 11px;
+    background: transparent;
+  }
+  .plan-card .plan-details-toggle svg {
+    width: 15px;
+    height: 15px;
+  }
+  .plan-card .plan-main {
+    padding-bottom: 10px;
+  }
+  .plan-card .plan-actions {
+    padding: 2px 6px;
+  }
+  .activity-action,
+  .activity-more > summary {
+    min-height: 44px;
+    font-size: 13px;
+  }
+}

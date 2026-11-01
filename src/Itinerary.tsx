@@ -20,6 +20,7 @@ import {
   ChevronDown,
   ExternalLink,
   CalendarDays,
+  MoreHorizontal,
 } from "lucide-react";
 import { days, makeEntity, type Entity, type Trip, type Entry } from "./model";
 import { save, remove } from "./store";
@@ -526,7 +527,7 @@ export default function Itinerary({
                         )}
                       </div>
                       <div
-                        className="plan-secondary"
+                        className={`plan-secondary ${e.data.address || e.data.notes || e.data.cost > 0 || e.data.reservation || e.data.link || e.data.endDate > e.data.date ? "has-detail-content" : ""}`}
                         id={`plan-details-${e.id}`}
                       >
                         {view === "all" && <small>{e.data.date}</small>}
@@ -540,7 +541,7 @@ export default function Itinerary({
                           <p className="plan-notes">{e.data.notes}</p>
                         )}
                         <div className="plan-details">
-                          <span>
+                          <span className="desktop-duration">
                             <Clock size={13} />
                             {e.data.duration} min
                           </span>
@@ -588,56 +589,92 @@ export default function Itinerary({
                     </button>
                     {canEdit && (
                       <div className="plan-actions">
-                        <span className="updated">
-                          Changed {new Date(e.updatedAt).toLocaleDateString()} ·{" "}
-                          {trip.people.find((p) => p.id === e.updatedBy)
-                            ?.name || "Traveler"}
-                        </span>
-                        <div>
-                          <button
-                            className="icon-button"
-                            aria-label={`Move ${e.data.title} up`}
-                            disabled={i === 0 || view !== "day"}
-                            onClick={() =>
-                              a.run(() => reorder(e.id, filtered[i - 1].id))
+                        <button
+                          className="activity-action"
+                          aria-label={`Edit ${e.data.title}`}
+                          onClick={() => setEditing(e)}
+                        >
+                          <Pencil size={15} /> Edit
+                        </button>
+                        <details
+                          className="activity-more"
+                          onKeyDown={(ev) => {
+                            if (ev.key === "Escape") {
+                              ev.currentTarget.open = false;
+                              ev.currentTarget
+                                .querySelector("summary")
+                                ?.focus();
                             }
+                          }}
+                        >
+                          <summary
+                            aria-label={`More actions for ${e.data.title}`}
                           >
-                            <ArrowUp size={14} />
-                          </button>
-                          <button
-                            className="icon-button"
-                            aria-label={`Move ${e.data.title} down`}
-                            disabled={
-                              i === filtered.length - 1 || view !== "day"
-                            }
-                            onClick={() =>
-                              a.run(() => reorder(e.id, filtered[i + 1].id))
-                            }
-                          >
-                            <ArrowDown size={14} />
-                          </button>
-                          <button
-                            className="icon-button"
-                            aria-label={`Edit ${e.data.title}`}
-                            onClick={() => setEditing(e)}
-                          >
-                            <Pencil size={14} />
-                          </button>
-                          <button
-                            className="icon-button"
-                            aria-label={`Move or duplicate ${e.data.title}`}
-                            onClick={() => setMoving(e)}
-                          >
-                            <Copy size={14} />
-                          </button>
-                          <button
-                            className="icon-button"
-                            aria-label={`Delete ${e.data.title}`}
-                            onClick={() => a.run(() => remove(e))}
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
+                            <MoreHorizontal size={17} /> More
+                          </summary>
+                          <div className="activity-more-content">
+                            <div className="activity-more-buttons">
+                              <button
+                                className="activity-action"
+                                aria-label={`Move ${e.data.title} up`}
+                                disabled={a.busy || i === 0 || view !== "day"}
+                                onClick={() =>
+                                  a.run(() => reorder(e.id, filtered[i - 1].id))
+                                }
+                              >
+                                <ArrowUp size={15} /> Move up
+                              </button>
+                              <button
+                                className="activity-action"
+                                aria-label={`Move ${e.data.title} down`}
+                                disabled={
+                                  a.busy ||
+                                  i === filtered.length - 1 ||
+                                  view !== "day"
+                                }
+                                onClick={() =>
+                                  a.run(() => reorder(e.id, filtered[i + 1].id))
+                                }
+                              >
+                                <ArrowDown size={15} /> Move down
+                              </button>
+                              <button
+                                className="activity-action"
+                                aria-label={`Move or duplicate ${e.data.title}`}
+                                onClick={(ev) => {
+                                  ev.currentTarget.closest("details")!.open =
+                                    false;
+                                  setMoving(e);
+                                }}
+                              >
+                                <Copy size={15} /> Move / duplicate
+                              </button>
+                              <button
+                                className="activity-action danger"
+                                aria-label={`Delete ${e.data.title}`}
+                                disabled={a.busy}
+                                onClick={() => a.run(() => remove(e))}
+                              >
+                                <Trash2 size={15} /> Delete
+                              </button>
+                            </div>
+                            <small className="activity-updated">
+                              Updated{" "}
+                              <time
+                                dateTime={e.updatedAt}
+                                title={new Date(e.updatedAt).toLocaleString()}
+                              >
+                                {new Date(e.updatedAt).toLocaleDateString(
+                                  "en-US",
+                                  { month: "short", day: "numeric" },
+                                )}
+                              </time>{" "}
+                              ·{" "}
+                              {trip.people.find((p) => p.id === e.updatedBy)
+                                ?.name || "Traveler"}
+                            </small>
+                          </div>
+                        </details>
                       </div>
                     )}
                   </article>
