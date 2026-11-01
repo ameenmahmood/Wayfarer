@@ -336,13 +336,7 @@ export default function Itinerary({
                       })}
               </h3>
               <small className="day-context">
-                {filtered.length} plans ·{" "}
-                <span className="zone-full">
-                  {trip.zone.replaceAll("_", " ")}
-                </span>
-                <span className="zone-compact">
-                  {trip.zone.split("/").at(-1)?.replaceAll("_", " ")} time
-                </span>
+                {filtered.length} {filtered.length === 1 ? "plan" : "plans"}
               </small>
             </div>
             {alerts.length > 0 && view === "day" && (
@@ -536,12 +530,6 @@ export default function Itinerary({
                           <span className="compact-fixed">Fixed</span>
                         )}
                       </div>
-                      {e.data.zone !== trip.zone && (
-                        <div className="compact-zone">
-                          {e.data.zone.split("/").at(-1)?.replaceAll("_", " ")}{" "}
-                          time
-                        </div>
-                      )}
                       <div
                         className="plan-secondary"
                         id={`plan-details-${e.id}`}
@@ -557,12 +545,6 @@ export default function Itinerary({
                           <p className="plan-notes">{e.data.notes}</p>
                         )}
                         <div className="plan-details">
-                          <span>
-                            {e.data.zone}
-                            {e.data.endZone && e.data.endZone !== e.data.zone
-                              ? " → " + e.data.endZone
-                              : ""}
-                          </span>
                           <span>
                             <Clock size={13} />
                             {e.data.duration} min

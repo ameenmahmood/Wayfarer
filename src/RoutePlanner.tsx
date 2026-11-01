@@ -41,7 +41,7 @@ export default function RoutePlanner({
       )
     )
       throw Error(
-        "Optimize stops in the trip default time zone only. Cross-zone entries remain visible in the itinerary; review those legs separately.",
+        "These stops use different local-time settings and can’t be optimized together. Review those travel legs separately.",
       );
     if (new Set(candidates.map((e) => e.data.title)).size !== candidates.length)
       throw Error("Give each route stop a unique title before optimizing.");

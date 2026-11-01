@@ -91,7 +91,9 @@ export function TripForm({
             !Intl.supportedValuesOf("timeZone").includes(t.zone) &&
             t.zone !== "UTC"
           )
-            throw Error("Choose a valid IANA time zone.");
+            throw Error(
+              "This trip’s saved timing settings are invalid. Reopen the trip and try again.",
+            );
           let next = t;
           if (supabase) {
             const {
@@ -143,14 +145,6 @@ export function TripForm({
             type="date"
             value={t.end}
             onChange={(e) => setT({ ...t, end: e.target.value })}
-          />
-        </Field>
-        <Field label="Default time zone">
-          <input
-            required
-            list="zones"
-            value={t.zone}
-            onChange={(e) => setT({ ...t, zone: e.target.value })}
           />
         </Field>
         <Field label="Base currency">
@@ -210,11 +204,6 @@ export function TripForm({
           Save trip
         </Button>
       </div>
-      <datalist id="zones">
-        {Intl.supportedValuesOf("timeZone").map((z) => (
-          <option key={z}>{z}</option>
-        ))}
-      </datalist>
     </form>
   );
 }
@@ -436,12 +425,9 @@ export function EntryForm({
         />
       </Field>
       <details className="optional-details">
-        <summary>
-          More details · reservation, cost, time zones &amp; coordinates
-        </summary>
+        <summary>More details · reservation, cost &amp; coordinates</summary>
         <p className="muted">
-          Optional. Your trip time zone is used by default. Google place details
-          are fetched live; only the place ID is saved.
+          Google place details are fetched live; only the place ID is saved.
         </p>
         <div className="form-grid">
           <Field label="End date">
@@ -460,20 +446,6 @@ export function EntryForm({
             />
           </Field>
         </div>
-        <Field label="Destination time zone (IANA)">
-          <input
-            required
-            value={v.zone}
-            onChange={(e) => change("zone", e.target.value)}
-          />
-        </Field>
-        <Field label="End / arrival time zone (optional)">
-          <input
-            placeholder={v.zone}
-            value={v.endZone || ""}
-            onChange={(e) => change("endZone", e.target.value || undefined)}
-          />
-        </Field>
         <label className="check">
           <input
             type="checkbox"
