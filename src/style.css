@@ -4364,3 +4364,151 @@ html {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* A shared board for possibilities, separate from scheduled plans. */
+.ideas-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.ideas-toolbar > select {
+  width: auto;
+  max-width: 100%;
+  min-height: 40px;
+}
+.ideas-statuses {
+  flex-wrap: wrap;
+}
+.ideas-statuses button {
+  min-height: 36px;
+  font-size: 12px;
+}
+.ideas-hint {
+  color: var(--muted);
+  font-size: 12px;
+  margin: 14px 0 22px;
+  max-width: 760px;
+}
+.ideas-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+  gap: 16px;
+  align-items: start;
+}
+.idea-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.idea-card-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 15px;
+}
+.idea-category {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  font-size: 11px;
+  color: var(--muted);
+}
+.idea-card h3 {
+  font-size: 18px;
+  margin: 0 0 9px;
+}
+.idea-status {
+  font-size: 10px;
+}
+.idea-status.status-approved {
+  color: var(--green);
+  background: var(--green-soft);
+}
+.idea-status.status-passed {
+  opacity: 0.75;
+}
+.idea-location {
+  font-size: 12px;
+  color: var(--muted);
+  margin: 0 0 10px;
+}
+.idea-estimate {
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+.idea-estimate small {
+  font-size: 11px;
+  font-weight: 400;
+}
+.idea-notes {
+  font-size: 13px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  margin: 0 0 14px;
+}
+.idea-link {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  font-size: 12px;
+  min-height: 32px;
+}
+.idea-updated {
+  display: block;
+  margin: 14px 0;
+  font-size: 10px;
+}
+.idea-card-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+.idea-edit-actions {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+}
+.idea-delete {
+  padding-top: 12px;
+  margin-top: 12px;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+}
+@media (max-width: 650px) {
+  .ideas-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+  .idea-card {
+    padding: 16px;
+  }
+  .ideas-toolbar > select {
+    width: 100%;
+  }
+  .ideas-statuses {
+    width: 100%;
+  }
+  .ideas-statuses button {
+    flex: 1 1 auto;
+    min-height: 44px;
+    padding-inline: 9px;
+  }
+  .idea-updated {
+    font-size: 11px;
+  }
+  .idea-link {
+    min-height: 44px;
+  }
+}

@@ -1,6 +1,6 @@
 export type Role = "owner" | "editor" | "viewer";
 export type Kind =
-  "trip" | "entry" | "expense" | "repayment" | "packing" | "template";
+  "trip" | "entry" | "expense" | "repayment" | "packing" | "template" | "idea";
 export type Person = { id: string; name: string; email?: string; role: Role };
 export type Trip = {
   cover?: { id: string; position: number };
@@ -15,7 +15,19 @@ export type Trip = {
   people: Person[];
   description: string;
 };
+export type Idea = {
+  title: string;
+  category:
+    "Activity" | "Restaurant" | "Hotel" | "Flight" | "Transport" | "Other";
+  status: "Considering" | "Passed" | "Approved";
+  link: string;
+  location: string;
+  notes: string;
+  cost?: number;
+  currency: string;
+};
 export type Entry = {
+  sourceIdeaId?: string;
   title: string;
   type: string;
   date: string;

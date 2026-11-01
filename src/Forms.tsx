@@ -53,8 +53,8 @@ export function TripForm({
       <section className="delete-trip-confirmation">
         <h3>Delete “{entity.data.title}”?</h3>
         <Notice tone="error">
-          This removes the trip and its itinerary, expenses, repayments and
-          packing lists for everyone. Pending invitations will stop working.
+          This removes the trip and its ideas, itinerary, expenses, repayments
+          and packing lists for everyone. Pending invitations will stop working.
           There is no undo in the app. Copies already downloaded by others
           cannot be erased remotely.
         </Notice>
@@ -222,10 +222,12 @@ export function EntryForm({
   entity,
   trip,
   onDone,
+  persist = save,
 }: {
   entity: Entity<Entry>;
   trip: Trip;
   onDone: (saved?: Entity<Entry>) => void;
+  persist?: (entry: Entity<Entry>) => Promise<Entity<Entry>>;
 }) {
   const [v, setV] = useState(entity.data),
     [q, setQ] = useState(""),
@@ -268,7 +270,7 @@ export function EntryForm({
             throw Error("Links must start with https:// or http://.");
           if ((v.lat == null) !== (v.lng == null))
             throw Error("Supply both latitude and longitude.");
-          const saved = await save({
+          const saved = await persist({
             ...entity,
             data: {
               ...v,

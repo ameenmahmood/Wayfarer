@@ -266,3 +266,34 @@ it("joining waits for an in-flight sync then fetches newly accessible trip data"
   await Promise.all([first, fresh]);
   expect((await all()).some((e) => e.id === "newly-joined")).toBe(true);
 });
+
+it("offline idea changes reconnect and retry without duplicating a saved option", async () => {
+  await synchronize();
+  (navigator as any).onLine = false;
+  const idea = await save(
+    makeEntity("idea", "ideas-sync-trip", {
+      title: "Evening food tour",
+      category: "Activity",
+      status: "Considering",
+      currency: "USD",
+      link: "",
+      notes: "Compare options",
+      location: "Kyoto",
+    }),
+  );
+  await synchronize();
+  expect((await pending()).some((m) => m.entityId === idea.id)).toBe(true);
+  backend.dropResponse = true;
+  (navigator as any).onLine = true;
+  await synchronize();
+  await synchronize();
+  expect((await pending()).filter((m) => m.entityId === idea.id)).toHaveLength(
+    0,
+  );
+  expect(
+    [...backend.rows.values()].filter((r) => r.id === idea.id),
+  ).toHaveLength(1);
+  expect((await all()).find((e) => e.id === idea.id)?.data.title).toBe(
+    "Evening food tour",
+  );
+});

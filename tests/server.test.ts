@@ -87,6 +87,12 @@ beforeAll(async () => {
       "utf8",
     ),
   );
+  await db.exec(
+    readFileSync(
+      new URL("../supabase/migrations/006_trip_ideas.sql", import.meta.url),
+      "utf8",
+    ),
+  );
   await actor(owner);
   await change("trip", tripId, {
     title: "Shared Japan",
@@ -626,4 +632,131 @@ it("internal validation helpers cannot be called directly, while authorized chan
     "select proconfig from pg_proc where oid='public.assert_money(numeric)'::regprocedure",
   );
   expect(grants.rows[0].proconfig.join(" ")).toContain("search_path=");
+});
+
+it("ideas enforce membership, validation, stale-edit conflicts, and one active itinerary plan per idea", async () => {
+  const t = randomUUID(),
+    id = randomUUID();
+  const write = async (
+    kind: string,
+    eid: string,
+    data: any,
+    version = 0,
+    deleted = false,
+    op = randomUUID(),
+  ) =>
+    (
+      await rpc("select public.apply_change($1,$2,$3,$4,$5,$6::jsonb,$7) r", [
+        op,
+        eid,
+        t,
+        kind,
+        version,
+        JSON.stringify(data),
+        deleted,
+      ])
+    ).rows[0].r;
+  await actor(owner);
+  await write("trip", t, {
+    title: "Ideas test",
+    destinations: "Kyoto",
+    start: "2027-04-12",
+    end: "2027-04-20",
+    zone: "Asia/Tokyo",
+    currency: "USD",
+    budget: 0,
+    categoryBudgets: {},
+    people: [],
+  });
+  const idea = {
+    title: "Hotel option",
+    category: "Hotel",
+    status: "Considering",
+    cost: 12345,
+    currency: "USD",
+    link: "https://example.com",
+    notes: "Compare",
+    location: "Kyoto",
+  };
+  await write("idea", id, idea);
+  for (const patch of [
+    { status: "Booked" },
+    { category: "Invalid" },
+    { cost: -1 },
+    { cost: 1.1 },
+    { link: "javascript:alert(1)" },
+    { title: " " },
+  ]) {
+    await expect(
+      write("idea", randomUUID(), { ...idea, ...patch }),
+    ).rejects.toThrow();
+  }
+  for (const [who, email, role] of [
+    [editor, "friend@example.test", "editor"],
+    [viewer, "viewer@example.test", "viewer"],
+  ]) {
+    await actor(owner);
+    const token = (
+      await rpc("select public.create_invitation($1,$2,$3) r", [t, email, role])
+    ).rows[0].r.token;
+    await actor(who);
+    await rpc("select public.accept_invitation($1)", [token]);
+  }
+  await actor(viewer);
+  await expect(write("idea", randomUUID(), idea)).rejects.toThrow(
+    "Editor access required",
+  );
+  await actor(stranger);
+  await expect(write("idea", randomUUID(), idea)).rejects.toThrow(
+    "Editor access required",
+  );
+  await db.exec("set role authenticated");
+  try {
+    expect(
+      (await rpc("select id from entities where id=$1", [id])).rows,
+    ).toHaveLength(0);
+  } finally {
+    await db.exec("reset role");
+  }
+  await actor(editor);
+  await db.exec("set role authenticated");
+  try {
+    expect(
+      (await rpc("select id from entities where id=$1", [id])).rows,
+    ).toHaveLength(1);
+  } finally {
+    await db.exec("reset role");
+  }
+  await write("idea", id, { ...idea, status: "Approved" }, 1);
+  await actor(owner);
+  expect(
+    (await write("idea", id, { ...idea, status: "Passed" }, 1)).conflict,
+  ).toBe(true);
+  const planId = randomUUID(),
+    op = randomUUID();
+  const plan = {
+    title: "Hotel",
+    type: "Lodging",
+    duration: 60,
+    zone: "Asia/Tokyo",
+    cost: 12345,
+    link: "",
+    date: "2027-04-12",
+    sourceIdeaId: id,
+  };
+  const added = await write("entry", planId, plan, 0, false, op);
+  expect(await write("entry", planId, plan, 0, false, op)).toEqual(added);
+  expect((await write("entry", randomUUID(), plan)).conflict).toBe(true);
+  expect(
+    (
+      await rpc(
+        "select id from entities where trip_id=$1 and kind='entry' and not deleted",
+        [t],
+      )
+    ).rows,
+  ).toHaveLength(1);
+  await write("entry", planId, plan, 1, true);
+  expect((await write("entry", randomUUID(), plan)).conflict).toBe(false);
+  await write("idea", id, idea, 2, true);
+  expect((await write("idea", id, idea, 2)).conflict).toBe(true);
 });

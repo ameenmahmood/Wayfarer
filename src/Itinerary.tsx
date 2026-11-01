@@ -44,12 +44,14 @@ export default function Itinerary({
   entries,
   canEdit,
   mapOnly = false,
+  initialDate,
 }: {
   trip: Trip;
   tripId: string;
   entries: Entity<Entry>[];
   canEdit: boolean;
   mapOnly?: boolean;
+  initialDate?: string;
 }) {
   const pointerDrag = useRef<{
     id: string;
@@ -57,7 +59,7 @@ export default function Itinerary({
     y: number;
     active: boolean;
   } | null>(null);
-  const [date, setDate] = useState(trip.start),
+  const [date, setDate] = useState(initialDate || trip.start),
     [view, setView] = useState("day"),
     [selected, setSelected] = useState(""),
     [editing, setEditing] = useState<Entity<Entry>>(),

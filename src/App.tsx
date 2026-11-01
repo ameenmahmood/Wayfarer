@@ -24,6 +24,7 @@ import {
   RefreshCw,
   Plane,
   Bookmark,
+  Lightbulb,
   LayoutGrid,
   MoreHorizontal,
   LoaderCircle,
@@ -56,6 +57,7 @@ import {
 import { report, money } from "./money";
 const Itinerary = lazy(() => import("./Itinerary"));
 const Budget = lazy(() => import("./Budget"));
+const Ideas = lazy(() => import("./Ideas"));
 const Packing = lazy(() => import("./Packing"));
 const Members = lazy(() => import("./Members"));
 const CoverPicker = lazy(() => import("./CoverPicker"));
@@ -76,6 +78,7 @@ import {
 const tabs = [
   ["itinerary", "Itinerary", CalendarDays],
   ["map", "Map", MapPin],
+  ["ideas", "Ideas", Lightbulb],
   ["expenses", "Expenses", Wallet],
   ["packing", "Packing list", CheckSquare],
   ["members", "Members", Users],
@@ -85,6 +88,7 @@ export default function App() {
     [queue, setQueue] = useState<Mutation[]>([]),
     [tripId, setTripId] = useState(localStorage.getItem("wayfarer-trip") || ""),
     [tab, setTab] = useState("itinerary"),
+    [ideaPlanDate, setIdeaPlanDate] = useState<string>(),
     [choosingCover, setChoosingCover] = useState(false),
     [overview, setOverview] = useState(false),
     [loading, setLoading] = useState(true),
@@ -220,6 +224,7 @@ export default function App() {
     setTripId(id);
     setOverview(false);
     setTab("itinerary");
+    setIdeaPlanDate(undefined);
     setSidebar(false);
   }
   function openSettings(section: NonNullable<typeof settings> = "appearance") {
@@ -747,7 +752,7 @@ export default function App() {
                 {!canEdit && (
                   <Notice>
                     You have viewer access. Ask the trip owner for editor access
-                    to add or change plans, expenses, and packing items.
+                    to add or change plans, ideas, expenses, and packing items.
                   </Notice>
                 )}
                 <LazyPanel resetKey={`${tid}:${tab}`}>
@@ -759,8 +764,23 @@ export default function App() {
                       entries={entries}
                       canEdit={canEdit}
                       mapOnly={tab === "map"}
+                      initialDate={ideaPlanDate}
                     />
                   )}{" "}
+                  {tab === "ideas" && (
+                    <Ideas
+                      key={tid}
+                      trip={trip}
+                      tripId={tid!}
+                      ideas={scoped.filter((e) => e.kind === "idea")}
+                      entries={entries}
+                      canEdit={canEdit}
+                      onViewEntry={(entry) => {
+                        setIdeaPlanDate(entry.data.date || trip.start);
+                        setTab("itinerary");
+                      }}
+                    />
+                  )}
                   {tab === "expenses" && (
                     <Budget
                       canManageBudget={role === "owner"}
