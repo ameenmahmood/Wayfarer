@@ -198,11 +198,6 @@ export default function Itinerary({
       <div className="content-heading itinerary-heading">
         <div>
           <h2>{mapOnly ? "Map" : "Itinerary"}</h2>
-          <p>
-            {mapOnly
-              ? "Pick a stop to connect your map and itinerary."
-              : `${entries.filter((e) => e.data.date).length} plans · ${dayList.length} ${dayList.length === 1 ? "day" : "days"}`}
-          </p>
         </div>
         {canEdit && (
           <Button

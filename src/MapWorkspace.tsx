@@ -44,8 +44,7 @@ export default function MapWorkspace({
         <div className="map-workspace-heading">
           <h2>Map</h2>
           <small>
-            {located.length} {located.length === 1 ? "stop" : "stops"} on the
-            map
+            {located.length} {located.length === 1 ? "stop" : "stops"}
           </small>
         </div>
         <div className="map-workspace-controls">
@@ -72,10 +71,10 @@ export default function MapWorkspace({
                   onSelect("");
                 }}
               >
-                {dates.map((d, i) => (
+                {dates.map((d) => (
                   <option key={d} value={d}>
-                    Day {i + 1} ·{" "}
                     {new Date(d + "T12:00:00").toLocaleDateString("en-US", {
+                      weekday: "short",
                       month: "short",
                       day: "numeric",
                     })}

@@ -8,6 +8,7 @@ import {
   Compass,
   Plus,
   ChevronRight,
+  ChevronDown,
   CalendarDays,
   MapPin,
   Wallet,
@@ -88,6 +89,7 @@ export default function App() {
     [queue, setQueue] = useState<Mutation[]>([]),
     [tripId, setTripId] = useState(localStorage.getItem("wayfarer-trip") || ""),
     [tab, setTab] = useState("itinerary"),
+    [tripDetails, setTripDetails] = useState(false),
     [ideaPlanDate, setIdeaPlanDate] = useState<string>(),
     [choosingCover, setChoosingCover] = useState(false),
     [overview, setOverview] = useState(false),
@@ -179,6 +181,13 @@ export default function App() {
       active = false;
     };
   }, [tid, status, queue.length]);
+  useEffect(() => setTripDetails(false), [tid, tab]);
+  useEffect(() => {
+    if (tripDetails)
+      document
+        .getElementById("trip-banner")
+        ?.scrollIntoView({ block: "start" });
+  }, [tripDetails]);
   const sectionRef = useRef<HTMLDivElement>(null);
   const firstSection = useRef(true);
   useEffect(() => {
@@ -275,7 +284,11 @@ export default function App() {
     <div
       className={
         "app-shell" +
-        (!overview && trip && tab === "map" ? " map-workspace" : "")
+        (!overview && trip && tab === "map" ? " map-workspace" : "") +
+        (!overview && trip && !["itinerary", "map"].includes(tab)
+          ? " secondary-section"
+          : "") +
+        (tripDetails ? " show-trip-details" : "")
       }
     >
       <aside className={"sidebar " + (sidebar ? "open" : "")}>
@@ -423,7 +436,21 @@ export default function App() {
               My trips
             </button>
             <ChevronRight size={14} />
-            <b>{trip?.title || "Your next adventure"}</b>
+            <b className="breadcrumb-title">
+              {trip?.title || "Your next adventure"}
+            </b>
+            {!overview && trip && !["itinerary", "map"].includes(tab) && (
+              <button
+                className="mobile-trip-title"
+                aria-label={`Trip details for ${trip.title}`}
+                aria-expanded={tripDetails}
+                aria-controls="trip-banner trip-summary"
+                onClick={() => setTripDetails((v) => !v)}
+              >
+                <span>{trip.title}</span>
+                <ChevronDown size={14} />
+              </button>
+            )}
           </div>
           <div className="top-actions">
             <button
@@ -462,8 +489,8 @@ export default function App() {
               <span className="demo-dot" />
               <b>Local demo</b>
               <span>
-                Make it your own. Changes are saved in this browser;
-                collaboration and live services require setup.
+                Changes are saved only in this browser. Collaboration and live
+                services require setup.
               </span>
               <button onClick={() => openSettings("connections")}>
                 Connection settings <ArrowUpRight size={13} />
@@ -622,7 +649,7 @@ export default function App() {
             </section>
           ) : (
             <>
-              <section className="trip-hero">
+              <section className="trip-hero" id="trip-banner">
                 <CoverPhoto
                   key={trip.cover?.id || "tokyo"}
                   cover={getCover(trip.cover?.id)}
@@ -670,7 +697,7 @@ export default function App() {
                   <span className="pill hero-private">Invitation only</span>
                 </div>
               </section>
-              <section className="trip-overview">
+              <section className="trip-overview" id="trip-summary">
                 <div className="overview-stat">
                   <span className="stat-icon">
                     <MapPin size={19} />
@@ -705,16 +732,26 @@ export default function App() {
                   </small>
                 </button>
               </section>
-              <ScrollRail className="tabs" label="Trip sections">
+              <ScrollRail
+                className="tabs"
+                containerClassName="section-navigation"
+                label="Trip sections"
+              >
                 {tabs.map(([id, label, Icon]) => (
                   <button
+                    aria-label={
+                      id === "members" ? `Members ${trip.people.length}` : label
+                    }
                     aria-current={tab === id ? "page" : undefined}
                     key={id}
                     onClick={() => setTab(id)}
                     className={tab === id ? "active" : ""}
                   >
                     <Icon size={17} />
-                    {label}
+                    <span className="tab-label-full">{label}</span>
+                    <span className="tab-label-short" aria-hidden="true">
+                      {id === "packing" ? "Packing" : label}
+                    </span>
                     {id === "members" && <span>{trip.people.length}</span>}
                   </button>
                 ))}
@@ -724,8 +761,7 @@ export default function App() {
               <div className="tab-content" ref={sectionRef}>
                 {!canEdit && (
                   <Notice>
-                    You have viewer access. Ask the trip owner for editor access
-                    to add or change plans, ideas, expenses, and packing items.
+                    View-only access. Ask the owner for edit permission.
                   </Notice>
                 )}
                 <LazyPanel resetKey={`${tid}:${tab}`}>

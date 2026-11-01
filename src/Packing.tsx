@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Trash2, PackageCheck, Bookmark, Pencil } from "lucide-react";
+import { Plus, Trash2, Bookmark, Pencil } from "lucide-react";
 import {
   makeEntity,
   type Entity,
@@ -96,32 +96,57 @@ export default function Packing({
                 .filter((e) => e.data.category === c)
                 .map((e) => (
                   <div className="packing-row" key={e.id}>
-                    <input
-                      aria-label={`Mark ${e.data.title} packed`}
-                      type="checkbox"
-                      checked={e.data.packed}
-                      disabled={!canEdit || a.busy}
-                      onChange={(ev) =>
-                        a.run(() =>
-                          save({
-                            ...e,
-                            data: { ...e.data, packed: ev.target.checked },
-                          }),
-                        )
-                      }
-                    />
+                    <label className="packing-check">
+                      <input
+                        aria-label={`Mark ${e.data.title} packed`}
+                        type="checkbox"
+                        checked={e.data.packed}
+                        disabled={!canEdit || a.busy}
+                        onChange={(ev) =>
+                          a.run(() =>
+                            save({
+                              ...e,
+                              data: { ...e.data, packed: ev.target.checked },
+                            }),
+                          )
+                        }
+                      />
+                    </label>
                     <div className="grow">
                       <b className={e.data.packed ? "struck" : ""}>
                         {e.data.title}
                       </b>
+                      {(e.data.quantity > 1 ||
+                        (scope === "shared" && e.data.assigned) ||
+                        e.data.notes) && (
+                        <small>
+                          {[
+                            e.data.quantity > 1 ? `${e.data.quantity}×` : "",
+                            scope === "shared" && e.data.assigned
+                              ? trip.people.find(
+                                  (p) => p.id === e.data.assigned,
+                                )?.name
+                              : "",
+                            e.data.notes,
+                          ]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        </small>
+                      )}
                       <small>
-                        {e.data.quantity} × ·{" "}
-                        {trip.people.find((p) => p.id === e.data.assigned)
-                          ?.name || "Anyone"}
-                        {e.data.notes ? " · " + e.data.notes : ""}
-                      </small>
-                      <small>
-                        Changed {new Date(e.updatedAt).toLocaleString()}
+                        Updated{" "}
+                        <time
+                          dateTime={e.updatedAt}
+                          title={new Date(e.updatedAt).toLocaleString()}
+                        >
+                          {new Date(e.updatedAt).toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                          })}
+                        </time>{" "}
+                        ·{" "}
+                        {trip.people.find((p) => p.id === e.updatedBy)?.name ||
+                          "Traveler"}
                       </small>
                     </div>
                     {canEdit && (
@@ -149,65 +174,72 @@ export default function Packing({
           ))}
         </section>
         <div className="stack">
-          <section className="panel template-panel">
-            <PackageCheck size={28} />
-            <h3>Templates</h3>
-            <p>Reuse this checklist with packed status reset.</p>
-            <Button
-              disabled={!canEdit || !visible.length || a.busy}
-              onClick={() =>
-                a.run(async () => {
-                  await save(
-                    makeEntity("template", tripId, {
-                      title: `${scope === "shared" ? "Shared" : "Personal"} essentials · ${new Date().toLocaleDateString()}`,
-                      personal: scope === "personal",
-                      assigned: scope === "personal" ? userId : "",
-                      items: visible.map((e) => ({ ...e.data, packed: false })),
-                    }),
-                  );
-                })
-              }
-            >
-              <Bookmark size={16} />
-              Save as template
-            </Button>
-            {templates.map((t) => (
-              <div className="template-row" key={t.id}>
-                <span>{t.data.title}</span>
-                <Button
-                  disabled={!canEdit || a.busy}
-                  onClick={() =>
-                    a.run(async () => {
-                      for (const item of t.data.items)
-                        await save(
-                          makeEntity("packing", tripId, {
-                            ...item,
-                            personal: scope === "personal",
-                            assigned: scope === "personal" ? userId : "",
-                            packed: false,
-                          }),
-                        );
-                    })
-                  }
-                >
-                  Use list
-                </Button>
-                <button
-                  className="icon-button"
-                  aria-label={`Delete template ${t.data.title}`}
-                  disabled={!canEdit || a.busy}
-                  onClick={() => a.run(() => remove(t))}
-                >
-                  <Trash2 size={14} />
-                </button>
-              </div>
-            ))}
-          </section>
-          <Notice>
-            Personal items belong to your account. In connected mode, other
-            travelers cannot read or change them. Shared items synchronize with
-            the group.
-          </Notice>
+          <details className="panel template-panel">
+            <summary>Templates</summary>
+            <div className="template-content">
+              <p>Reuse this checklist with packed status reset.</p>
+              <Button
+                disabled={!canEdit || !visible.length || a.busy}
+                onClick={() =>
+                  a.run(async () => {
+                    await save(
+                      makeEntity("template", tripId, {
+                        title: `${scope === "shared" ? "Shared" : "Personal"} essentials · ${new Date().toLocaleDateString()}`,
+                        personal: scope === "personal",
+                        assigned: scope === "personal" ? userId : "",
+                        items: visible.map((e) => ({
+                          ...e.data,
+                          packed: false,
+                        })),
+                      }),
+                    );
+                  })
+                }
+              >
+                <Bookmark size={16} />
+                Save as template
+              </Button>
+              {templates.map((t) => (
+                <div className="template-row" key={t.id}>
+                  <span>{t.data.title}</span>
+                  <Button
+                    disabled={!canEdit || a.busy}
+                    onClick={() =>
+                      a.run(async () => {
+                        for (const item of t.data.items)
+                          await save(
+                            makeEntity("packing", tripId, {
+                              ...item,
+                              personal: scope === "personal",
+                              assigned: scope === "personal" ? userId : "",
+                              packed: false,
+                            }),
+                          );
+                      })
+                    }
+                  >
+                    Use list
+                  </Button>
+                  <button
+                    className="icon-button"
+                    aria-label={`Delete template ${t.data.title}`}
+                    disabled={!canEdit || a.busy}
+                    onClick={() => a.run(() => remove(t))}
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </details>
+          <details className="section-help">
+            <summary>Shared &amp; personal lists</summary>
+            <Notice>
+              Personal items belong to your account. In connected mode, other
+              travelers cannot read or change them. Shared items synchronize
+              with the group.
+            </Notice>
+          </details>
         </div>
       </div>
       {a.error && <Notice tone="error">{a.error}</Notice>}

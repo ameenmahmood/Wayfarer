@@ -85,6 +85,7 @@ it("section navigation scrolls to the chosen section and packing controls save, 
   await u.type(dialog().getByLabelText("Item name"), "UI test camera updated");
   await u.click(dialog().getByRole("button", { name: /Save/ }));
   await screen.findByText("UI test camera updated");
+  await u.click(screen.getByText("Templates", { selector: "summary" }));
   await u.click(screen.getByRole("button", { name: "Save as template" }));
   await screen.findByRole("button", { name: "Use list" });
   await u.click(screen.getByRole("button", { name: "My personal list" }));
@@ -450,4 +451,29 @@ it("compact activity details expand by keyboard, preserve edit actions, and coll
   await u.click(dialog().getByRole("button", { name: "Close dialog" }));
   await u.click(toggle);
   expect(toggle.getAttribute("aria-expanded")).toBe("false");
+});
+
+it("trip context can expand on secondary screens and resets when switching sections", async () => {
+  localStorage.setItem("wayfarer-trip", "demo-japan");
+  const u = await openApp();
+  await u.click(screen.getByRole("button", { name: "Ideas" }));
+  const toggle = await screen.findByRole("button", {
+    name: "Trip details for A little lost in Japan",
+  });
+  expect(toggle.getAttribute("aria-expanded")).toBe("false");
+  await u.click(toggle);
+  expect(toggle.getAttribute("aria-expanded")).toBe("true");
+  expect(
+    document
+      .querySelector(".app-shell")
+      ?.classList.contains("show-trip-details"),
+  ).toBe(true);
+  await u.click(screen.getByRole("button", { name: "Packing list" }));
+  await screen.findByRole("heading", { name: "Packing list" });
+  expect(
+    screen
+      .getByRole("button", { name: "Trip details for A little lost in Japan" })
+      .getAttribute("aria-expanded"),
+  ).toBe("false");
+  expect(document.querySelector(".section-navigation")).toBeTruthy();
 });

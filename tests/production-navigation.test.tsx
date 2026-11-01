@@ -81,6 +81,8 @@ vi.mock("../src/store", () => ({
   },
 }));
 import App from "../src/App";
+import Members from "../src/Members";
+import type { Entity, Trip } from "../src/model";
 import { seed } from "../src/seed";
 beforeAll(() => {
   vi.stubGlobal(
@@ -234,7 +236,7 @@ it("signed in: every trip section and its creation control opens the right area"
     await u.click(dlg().getByRole("button", { name: "Close dialog" }));
   }
   await u.click(screen.getByRole("button", { name: /^Members/ }));
-  await screen.findByRole("heading", { name: "Trip members" });
+  await screen.findByRole("heading", { name: "Members" });
   expect(
     screen.getByRole("button", { name: "Create private invitation" }),
   ).toBeTruthy();
@@ -447,4 +449,22 @@ it("a signed-in traveler can find and join invitations even while viewing an exi
     }),
   );
   await screen.findByRole("heading", { name: "Friends in NYC", level: 1 });
+});
+
+it("viewers do not receive a disabled invitation form and can still read permission guidance", async () => {
+  backend.session = { user: { id: "owner-test", email: "owner@example.test" } };
+  const entity = seed()[0] as Entity<Trip>;
+  render(<Members trip={entity.data} entity={entity} role="viewer" />);
+  await screen.findByRole("heading", { name: "Members" });
+  expect(screen.queryByLabelText("Friend’s email")).toBeNull();
+  expect(
+    screen.queryByRole("button", { name: "Create private invitation" }),
+  ).toBeNull();
+  expect(
+    screen.getByText("Only the trip owner can invite people or change access."),
+  ).toBeTruthy();
+  await userEvent.click(
+    screen.getByText("Permissions", { selector: "summary" }),
+  );
+  expect(screen.getByText("Viewer", { selector: "b" })).toBeTruthy();
 });

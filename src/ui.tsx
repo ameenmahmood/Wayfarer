@@ -200,10 +200,12 @@ export function ScrollRail({
   children,
   label,
   className = "",
+  containerClassName = "",
 }: {
   children: ReactNode;
   label: string;
   className?: string;
+  containerClassName?: string;
 }) {
   const rail = useRef<HTMLDivElement>(null);
   const [edges, setEdges] = useState({ start: true, end: true });
@@ -230,7 +232,7 @@ export function ScrollRail({
       behavior: "smooth",
     });
   return (
-    <div className="scroll-rail">
+    <div className={`scroll-rail ${containerClassName}`}>
       <button
         className="icon-button rail-arrow"
         aria-label={`Scroll ${label} left`}

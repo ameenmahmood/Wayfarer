@@ -49,36 +49,31 @@ export default function Members({
     <>
       <div className="content-heading">
         <div>
-          <h2>Members</h2>
+          <h2>
+            Members{" "}
+            <span className="count" aria-hidden="true">
+              {people.length}
+            </span>
+          </h2>
         </div>
         <ShieldCheck size={25} />
       </div>
       {demo && (
         <Notice>
-          LOCAL DEMO · travelers below are sample data. Invitations, sign-in and
-          collaborative updates are not live. Configure Supabase to enable them.
+          Sample members · invitations require a connected account.
         </Notice>
       )}
       <div className="two-columns">
         <section className="panel">
-          <div className="section-head">
-            <h3>Trip members</h3>
-            <span className="count">{people.length}</span>
-          </div>
           {people.map((p, i) => (
             <div className="member-row" key={p.id}>
               <span className={`avatar a${i % 3}`}>{p.name?.slice(0, 1)}</span>
               <div className="grow">
                 <b>{p.name}</b>
-                <small>
-                  {p.id === userId
-                    ? "You"
-                    : demo
-                      ? "Demo traveler"
-                      : "Invited member"}
-                </small>
               </div>
-              <span className="pill">{p.role}</span>
+              {!(role === "owner" && p.id !== userId && p.role !== "owner") && (
+                <span className="pill">{p.role}</span>
+              )}
               {role === "owner" && p.id !== userId && p.role !== "owner" && (
                 <>
                   <select
@@ -120,97 +115,110 @@ export default function Members({
               )}
             </div>
           ))}
-          <div className="role-notes">
-            <p>
-              <b>Owner</b> manages members, invites, and all plans.
-            </p>
-            <p>
-              <b>Editor</b> can edit the itinerary, expenses, and shared
-              packing.
-            </p>
-            <p>
-              <b>Viewer</b> can view shared trip information.
-            </p>
-          </div>
+          <details className="section-help">
+            <summary>Permissions</summary>
+            <div className="role-notes">
+              <p>
+                <b>Owner</b> manages members, invites, and all plans.
+              </p>
+              <p>
+                <b>Editor</b> can edit the itinerary, expenses, and shared
+                packing.
+              </p>
+              <p>
+                <b>Viewer</b> can view shared trip information.
+              </p>
+            </div>
+          </details>
         </section>
         <div className="stack">
-          <section className="panel">
-            <UserPlus size={24} />
-            <h3>Invite a friend</h3>
-            <p>
-              Create an email-bound invitation. Copy the link and share it
-              yourself; Wayfarer does not send an invitation email.
-            </p>
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                a.run(async () => {
-                  const { data, error } = await supabase!.rpc(
-                    "create_invitation",
-                    {
-                      target_trip: entity.id,
-                      target_email: email,
-                      invite_role: inviteRole,
-                    },
-                  );
-                  if (error) throw error;
-                  setLink(
-                    `${appBaseUrl}?invite=${encodeURIComponent(data.token)}`,
-                  );
-                  await refresh();
-                });
-              }}
-            >
-              <Field label="Friend’s email">
-                <input
-                  type="email"
-                  required
-                  disabled={demo || role !== "owner"}
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
-              </Field>
-              <Field label="Access">
-                <select
-                  disabled={demo || role !== "owner"}
-                  value={inviteRole}
-                  onChange={(e) => setInviteRole(e.target.value)}
-                >
-                  <option value="editor">Editor</option>
-                  <option value="viewer">Viewer</option>
-                </select>
-              </Field>
-              <Button
-                className="primary"
-                type="submit"
-                disabled={demo || role !== "owner" || a.busy}
+          {role === "owner" ? (
+            <section className="panel">
+              <h3 className="invite-heading">
+                <UserPlus size={18} /> Invite a friend
+              </h3>
+              <p>
+                Share the link with your friend. Invitations aren’t emailed
+                automatically.
+              </p>
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  a.run(async () => {
+                    const { data, error } = await supabase!.rpc(
+                      "create_invitation",
+                      {
+                        target_trip: entity.id,
+                        target_email: email,
+                        invite_role: inviteRole,
+                      },
+                    );
+                    if (error) throw error;
+                    setLink(
+                      `${appBaseUrl}?invite=${encodeURIComponent(data.token)}`,
+                    );
+                    await refresh();
+                  });
+                }}
               >
-                <Mail size={16} />
-                Create private invitation
-              </Button>
-            </form>
-            {link && (
-              <div className="inset">
-                <input aria-label="Invitation link" readOnly value={link} />
+                <Field label="Friend’s email">
+                  <input
+                    type="email"
+                    required
+                    disabled={demo || role !== "owner"}
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                  />
+                </Field>
+                <Field label="Access">
+                  <select
+                    disabled={demo || role !== "owner"}
+                    value={inviteRole}
+                    onChange={(e) => setInviteRole(e.target.value)}
+                  >
+                    <option value="editor">Editor</option>
+                    <option value="viewer">Viewer</option>
+                  </select>
+                </Field>
                 <Button
-                  onClick={() =>
-                    a.run(async () => {
-                      await navigator.clipboard.writeText(link);
-                      setMessage("Invitation link copied.");
-                    })
-                  }
+                  className="primary"
+                  type="submit"
+                  disabled={demo || role !== "owner" || a.busy}
                 >
-                  <Copy size={15} />
-                  Copy invitation link
+                  <Mail size={16} />
+                  Create private invitation
                 </Button>
-              </div>
-            )}
-          </section>
-          <Notice>
-            Clearing browser storage can remove unsynchronized changes. Revoking
-            access prevents future server access; it cannot erase copies already
-            downloaded by someone else.
-          </Notice>
+              </form>
+              {link && (
+                <div className="inset">
+                  <input aria-label="Invitation link" readOnly value={link} />
+                  <Button
+                    onClick={() =>
+                      a.run(async () => {
+                        await navigator.clipboard.writeText(link);
+                        setMessage("Invitation link copied.");
+                      })
+                    }
+                  >
+                    <Copy size={15} />
+                    Copy invitation link
+                  </Button>
+                </div>
+              )}
+            </section>
+          ) : (
+            <Notice>
+              Only the trip owner can invite people or change access.
+            </Notice>
+          )}
+          <details className="section-help">
+            <summary>Privacy &amp; offline data</summary>
+            <Notice>
+              Clearing browser storage can remove unsynchronized changes.
+              Revoking access prevents future server access; it cannot erase
+              copies already downloaded by someone else.
+            </Notice>
+          </details>
         </div>
       </div>
       {role === "owner" && invitations.length > 0 && (
@@ -253,39 +261,41 @@ export default function Members({
         </section>
       )}
       {!demo && (
-        <section className="panel">
-          <h3>Have an invitation?</h3>
-          <div className="search-row">
-            <input
-              aria-label="Invitation token"
-              value={token}
-              onChange={(e) => setToken(e.target.value)}
-            />
-            <Button
-              disabled={!token || a.busy}
-              onClick={() =>
-                a.run(async () => {
-                  const { error } = await supabase!.rpc("accept_invitation", {
-                    invite_token: token,
-                  });
-                  if (error) throw error;
-                  await synchronize(true);
-                  await refresh();
-                  setMessage("You joined the trip. Open it from My trips.");
-                  clearInvitation();
-                  setToken("");
-                  history.replaceState(null, "", appBasePath);
-                })
-              }
-            >
-              Join trip
-            </Button>
+        <details className="panel manual-invitation">
+          <summary>Join using an invitation code</summary>
+          <div className="manual-invitation-content">
+            <div className="search-row">
+              <input
+                aria-label="Invitation token"
+                value={token}
+                onChange={(e) => setToken(e.target.value)}
+              />
+              <Button
+                disabled={!token || a.busy}
+                onClick={() =>
+                  a.run(async () => {
+                    const { error } = await supabase!.rpc("accept_invitation", {
+                      invite_token: token,
+                    });
+                    if (error) throw error;
+                    await synchronize(true);
+                    await refresh();
+                    setMessage("You joined the trip. Open it from My trips.");
+                    clearInvitation();
+                    setToken("");
+                    history.replaceState(null, "", appBasePath);
+                  })
+                }
+              >
+                Join trip
+              </Button>
+            </div>
+            <small>
+              Sign in as the email the invitation was issued to (
+              {userEmail || "not signed in"}).
+            </small>
           </div>
-          <small>
-            Sign in as the email the invitation was issued to (
-            {userEmail || "not signed in"}).
-          </small>
-        </section>
+        </details>
       )}
       {message && <Notice>{message}</Notice>}
       {a.error && <Notice tone="error">{a.error}</Notice>}

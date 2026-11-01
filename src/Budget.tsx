@@ -90,27 +90,6 @@ export default function Budget({
           )}
         </div>
       </div>
-      <section className="planned-costs notice">
-        <b>Planned estimates · separate from actual spending</b>
-        <div className="button-row">
-          {Object.entries(
-            entries.reduce(
-              (totals, e) => {
-                totals[e.data.currency] =
-                  (totals[e.data.currency] || 0) + e.data.cost;
-                return totals;
-              },
-              {} as Record<string, number>,
-            ),
-          ).map(([currency, total]) => (
-            <span key={currency}>{money(total, currency)}</span>
-          ))}
-        </div>
-        <small>
-          Shown in original currencies. Adding an actual expense does not
-          automatically remove the linked estimate.
-        </small>
-      </section>
       <div className="budget-stats">
         <div className="metric-card">
           <small>Actual spending</small>
@@ -137,7 +116,7 @@ export default function Budget({
         </div>
         <div className="metric-card">
           <small>
-            {trip.budget - r.spent >= 0 ? "Left to explore" : "Over budget"}
+            {trip.budget - r.spent >= 0 ? "Remaining" : "Over budget"}
           </small>
           <strong>
             {money(Math.abs(trip.budget - r.spent), trip.currency)}
@@ -145,6 +124,32 @@ export default function Budget({
           <span>Base currency · {trip.currency}</span>
         </div>
       </div>
+      <details className="planned-costs compact-disclosure">
+        <summary>
+          Planned costs <span className="pill">Estimates</span>
+        </summary>
+        <div className="planned-cost-content">
+          <div className="button-row">
+            {Object.entries(
+              entries.reduce(
+                (totals, e) => {
+                  if (!e.data.cost) return totals;
+                  totals[e.data.currency] =
+                    (totals[e.data.currency] || 0) + e.data.cost;
+                  return totals;
+                },
+                {} as Record<string, number>,
+              ),
+            ).map(([currency, total]) => (
+              <span key={currency}>{money(total, currency)}</span>
+            ))}
+          </div>
+          <small>
+            Shown in original currencies. Adding an actual expense does not
+            automatically remove the linked estimate.
+          </small>
+        </div>
+      </details>
       <div className="two-columns">
         <section className="panel">
           <div className="section-head">
@@ -167,14 +172,17 @@ export default function Budget({
                   {e.data.date} · {e.data.category} · paid by{" "}
                   {name(e.data.payer)}
                 </small>
-                <small>
-                  {e.data.items.length ? "Itemized" : "Split " + e.data.mode} ·{" "}
-                  {e.data.rate.source}, {e.data.rate.date}
-                </small>
-                <small>
-                  Changed {new Date(e.updatedAt).toLocaleString()} ·{" "}
-                  {name(e.updatedBy)}
-                </small>
+                <details className="record-details">
+                  <summary>Details</summary>
+                  <small>
+                    {e.data.items.length ? "Itemized" : "Split " + e.data.mode}{" "}
+                    · {e.data.rate.source}, {e.data.rate.date}
+                  </small>
+                  <small>
+                    Changed {new Date(e.updatedAt).toLocaleString()} ·{" "}
+                    {name(e.updatedBy)}
+                  </small>
+                </details>
               </div>
               <b>{money(e.data.total, e.data.currency)}</b>
               {canEdit && (
@@ -224,8 +232,7 @@ export default function Budget({
               ))
             )}
             <p className="muted small">
-              Suggestions preserve everyone’s net balance. Recording a repayment
-              does not add to trip spending.
+              Repayments settle balances without adding to spending.
             </p>
           </section>
           <section className="panel">
