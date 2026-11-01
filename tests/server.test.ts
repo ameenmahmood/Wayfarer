@@ -93,6 +93,15 @@ beforeAll(async () => {
       "utf8",
     ),
   );
+  await db.exec(
+    readFileSync(
+      new URL(
+        "../supabase/migrations/007_backend_audit_hardening.sql",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  );
   await actor(owner);
   await change("trip", tripId, {
     title: "Shared Japan",

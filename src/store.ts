@@ -1,4 +1,5 @@
 import { openDB } from "idb";
+import { fetchVisibleEntities } from "./syncPull";
 import { createClient } from "@supabase/supabase-js";
 import {
   makeEntity,
@@ -305,20 +306,28 @@ async function synchronizeOnce() {
       }
       await tx.done;
     }
-    const { data, error } = await supabase!.from("entities").select("*");
-    if (error) throw error;
-    const localPending = await pending(),
-      blocked = new Set(localPending.map((m) => m.entityId));
-    const tx = db.transaction("entities", "readwrite"),
+    const data = await fetchVisibleEntities(supabase!);
+    const { data: currentAuth } = await supabase!.auth.getSession();
+    if (currentAuth.session?.user.id !== session.user.id)
+      throw Error(
+        "Your account changed during synchronization. Sign in again to continue.",
+      );
+    const tx = db.transaction(["entities", "mutations"], "readwrite");
+    const entitiesStore = tx.objectStore("entities");
+    // Read pending edits and merge the pull under the same lock, including other tabs' edits.
+    const localPending = (await tx
+      .objectStore("mutations")
+      .getAll()) as Mutation[];
+    const blocked = new Set(localPending.map((m) => m.entityId)),
       remoteIds = new Set<string>();
     for (const e of data || []) {
       remoteIds.add(e.id);
-      if (!blocked.has(e.id)) await tx.store.put(fromRemote(e));
+      if (!blocked.has(e.id)) await entitiesStore.put(fromRemote(e));
     }
-    const existing = (await tx.store.getAll()) as Entity[];
+    const existing = (await entitiesStore.getAll()) as Entity[];
     for (const e of existing)
       if (!remoteIds.has(e.id) && !blocked.has(e.id))
-        await tx.store.delete(e.id);
+        await entitiesStore.delete(e.id);
     await tx.done;
     const remaining = await pending();
     syncStatus = remaining.some((m) => m.state === "conflict")

@@ -152,3 +152,28 @@ describe("money and splits", () => {
     expect(expenseCSV([expense({ title: 'a"b' })], "USD")).toContain('"a""b"');
   });
 });
+
+it("refuses aggregate overflow instead of silently rounding financial balances", () => {
+  const large = expense({
+    total: Number.MAX_SAFE_INTEGER,
+    participants: ["a"],
+  });
+  expect(() =>
+    report([large, expense({ total: 1 })], [], "USD", ["a", "b", "c"]),
+  ).toThrow("supported exact amount");
+  expect(() =>
+    report(
+      [large],
+      [{ from: "a", to: "b", amount: 1, date: "2027-04-12", notes: "" }],
+      "USD",
+      ["a", "b"],
+    ),
+  ).not.toThrow();
+});
+it("CSV export neutralizes formulas hidden behind whitespace and control characters", () => {
+  for (const title of ["=SUM(1,2)", " \t=1+1", "\r@SUM(1,2)", "\n+1+1"]) {
+    expect(expenseCSV([expense({ title })], "USD")).toContain(
+      "\"'" + title.replace(/"/g, '""') + '"',
+    );
+  }
+});

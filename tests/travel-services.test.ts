@@ -5,6 +5,10 @@ import { z } from "zod";
 import { corsHeaders } from "@supabase/supabase-js/cors";
 import { it, expect, vi } from "vitest";
 import { serviceCors } from "../supabase/functions/_shared/cors";
+import {
+  readRequestText,
+  redactSecrets,
+} from "../supabase/functions/_shared/request";
 import { googleFailure } from "../supabase/functions/_shared/google-error";
 const local = "http://localhost:5173",
   production = "https://ameenmahmood.github.io";
@@ -13,6 +17,8 @@ function handler({
   member = true,
   authenticated = true,
   deleted = false,
+  role = "owner",
+  limited = false,
 } = {}) {
   let serve: (req: Request) => Promise<Response> = async () => new Response();
   const google = vi.fn<(...args: any[]) => Promise<Response>>(
@@ -27,7 +33,7 @@ function handler({
   const membership: any = {
     select: () => membership,
     eq: () => membership,
-    maybeSingle: async () => ({ data: member ? { role: "owner" } : null }),
+    maybeSingle: async () => ({ data: member ? { role } : null }),
   };
   const createClient = () => ({
     auth: {
@@ -48,13 +54,15 @@ function handler({
             }),
           }
         : membership,
-    rpc: async () => ({ data: true, error: null }),
+    rpc: async () => ({ data: !limited, error: null }),
   });
   const context = vm.createContext({
     z,
     corsHeaders,
     serviceCors,
     googleFailure,
+    readRequestText,
+    redactSecrets,
     createClient,
     fetch: google,
     Request,
@@ -303,4 +311,76 @@ it("online services reject deleted trips before calling Google", async () => {
   const r = await service.invoke(request());
   expect(r.status).toBe(403);
   expect(service.google).not.toHaveBeenCalled();
+});
+
+it("rejects oversized bodies before an upstream call, including multibyte input", async () => {
+  const service = handler();
+  const large = new Request(
+    "https://test.supabase.co/functions/v1/travel-services",
+    {
+      method: "POST",
+      headers: { Origin: local, Authorization: "Bearer test" },
+      body: "界".repeat(11000),
+    },
+  );
+  const response = await service.invoke(large);
+  expect(response.status).toBe(400);
+  expect((await response.json()).error).toBe("Request too large");
+  expect(service.google).not.toHaveBeenCalled();
+});
+it("fails closed on exhausted service quotas", async () => {
+  const service = handler({ limited: true });
+  expect((await service.invoke(request())).status).toBe(429);
+  expect(service.google).not.toHaveBeenCalled();
+});
+it("viewers cannot invoke the optional AI endpoint", async () => {
+  const service = handler({ role: "viewer" });
+  const body = new Request(
+    "https://test.supabase.co/functions/v1/travel-services",
+    {
+      method: "POST",
+      headers: { Origin: local, Authorization: "Bearer test" },
+      body: JSON.stringify({
+        action: "ai",
+        tripId: "11111111-1111-4111-8111-111111111111",
+      }),
+    },
+  );
+  expect((await (await service.invoke(body)).json()).error).toContain(
+    "Editor access required",
+  );
+  expect(service.google).not.toHaveBeenCalled();
+});
+it("redacts server keys even when a transport error includes credentials", async () => {
+  const service = handler();
+  service.google.mockRejectedValueOnce(
+    Error("Fetch failed using test-server-key"),
+  );
+  const error = (await (await service.invoke(request())).json()).error;
+  expect(error).toContain("[redacted]");
+  expect(error).not.toContain("test-server-key");
+});
+it("request decoding rejects a declared oversize body and handles split UTF-8 bytes", async () => {
+  await expect(
+    readRequestText(
+      new Request("https://example.test", {
+        method: "POST",
+        headers: { "content-length": "999999" },
+        body: "a",
+      }),
+    ),
+  ).rejects.toThrow("too large");
+  const bytes = new TextEncoder().encode("Kyoto · 京都");
+  const stream = new ReadableStream({
+    start(controller) {
+      for (const b of bytes) controller.enqueue(new Uint8Array([b]));
+      controller.close();
+    },
+  });
+  const req = new Request("https://example.test", {
+    method: "POST",
+    body: stream,
+    duplex: "half",
+  } as RequestInit);
+  expect(await readRequestText(req)).toBe("Kyoto · 京都");
 });

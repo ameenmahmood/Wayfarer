@@ -2,6 +2,7 @@ import "fake-indexeddb/auto";
 import { it, expect, vi } from "vitest";
 const backend = vi.hoisted(() => ({
   rows: new Map<string, any>(),
+  pageCap: 500,
   receipts: new Map<string, any>(),
   dropResponse: false,
   requests: [] as any[],
@@ -35,13 +36,35 @@ vi.mock("@supabase/supabase-js", () => ({
         },
       }),
     },
-    from: () => ({
-      select: async () => {
-        const data = [...backend.rows.values()];
-        if (backend.holdPull) await backend.holdPull();
-        return { data, error: null };
-      },
-    }),
+    from: () => {
+      let cursor = "";
+      let limit = 500;
+      const chain: any = {
+        select: () => chain,
+        order: () => chain,
+        limit: (n: number) => {
+          limit = n;
+          return chain;
+        },
+        gt: (_column: string, id: string) => {
+          cursor = id;
+          return chain;
+        },
+        then: async (resolve: any, reject: any) => {
+          try {
+            const data = [...backend.rows.values()]
+              .filter((r) => r.id > cursor)
+              .sort((a, b) => (a.id < b.id ? -1 : 1))
+              .slice(0, Math.min(limit, backend.pageCap));
+            if (backend.holdPull) await backend.holdPull();
+            return resolve({ data, error: null });
+          } catch (error) {
+            return reject(error);
+          }
+        },
+      };
+      return chain;
+    },
     rpc: async (_name: string, m: any) => {
       if (_name === "delete_trip") {
         backend.deletions.push(m);
@@ -296,4 +319,64 @@ it("offline idea changes reconnect and retry without duplicating a saved option"
   expect((await all()).find((e) => e.id === idea.id)?.data.title).toBe(
     "Evening food tour",
   );
+});
+
+it("synchronization downloads every page even when the API caps responses below the requested size", async () => {
+  backend.pageCap = 2;
+  for (let i = 0; i < 7; i++)
+    backend.rows.set(`page-${i}`, {
+      id: `page-${i}`,
+      trip_id: "page-trip",
+      kind: "idea",
+      data: { title: `Idea ${i}` },
+      version: 1,
+      updated_by: "owner",
+      updated_at: new Date().toISOString(),
+      deleted: false,
+    });
+  await synchronize();
+  expect((await all()).filter((e) => e.tripId === "page-trip")).toHaveLength(7);
+  await synchronize();
+  expect((await all()).filter((e) => e.tripId === "page-trip")).toHaveLength(7);
+  backend.pageCap = 500;
+});
+
+it("a local edit made while a remote pull is in flight remains queued and visible", async () => {
+  (navigator as any).onLine = false;
+  const e = await save(
+    makeEntity("idea", "inflight-trip", {
+      title: "Original",
+      status: "Considering",
+    }),
+  );
+  (navigator as any).onLine = true;
+  await synchronize();
+  let release!: () => void, began!: () => void;
+  const started = new Promise<void>((r) => {
+    began = r;
+  });
+  backend.holdPull = () => {
+    backend.holdPull = null;
+    began();
+    return new Promise<void>((r) => {
+      release = r;
+    });
+  };
+  const pull = synchronize();
+  await started;
+  (navigator as any).onLine = false;
+  const current = (await all()).find((x) => x.id === e.id)!;
+  await save({
+    ...current,
+    data: { ...current.data, title: "Edited during pull" },
+  });
+  release();
+  await pull;
+  expect((await all()).find((x) => x.id === e.id)?.data.title).toBe(
+    "Edited during pull",
+  );
+  expect((await pending()).some((m) => m.entityId === e.id)).toBe(true);
+  (navigator as any).onLine = true;
+  await synchronize();
+  expect(backend.rows.get(e.id).data.title).toBe("Edited during pull");
 });

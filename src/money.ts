@@ -133,6 +133,14 @@ export function convert(
   integer(result);
   return result;
 }
+function addBalance(a: number, b: number) {
+  const total = a + b;
+  if (!Number.isSafeInteger(total))
+    throw Error(
+      "Trip totals exceed the supported exact amount. Reduce the amounts before reporting.",
+    );
+  return total;
+}
 export function report(
   expenses: Expense[],
   repayments: Repayment[],
@@ -150,19 +158,19 @@ export function report(
     const s = splitExpense(e),
       total = convert(e.total, e.currency, base, e.rate);
     const baseSplits = allocate(total, s);
-    spent += total;
-    categories[e.category] = (categories[e.category] || 0) + total;
-    paid[e.payer] = (paid[e.payer] || 0) + total;
+    spent = addBalance(spent, total);
+    categories[e.category] = addBalance(categories[e.category] || 0, total);
+    paid[e.payer] = addBalance(paid[e.payer] || 0, total);
     for (const [p, n] of Object.entries(baseSplits))
-      owed[p] = (owed[p] || 0) + n;
+      owed[p] = addBalance(owed[p] || 0, n);
   }
   for (const p of new Set([...Object.keys(paid), ...Object.keys(owed)]))
     net[p] = (paid[p] || 0) - (owed[p] || 0);
   for (const r of repayments) {
     integer(r.amount);
     if (r.from === r.to) throw Error("Repayment participants must differ.");
-    net[r.from] = (net[r.from] || 0) + r.amount;
-    net[r.to] = (net[r.to] || 0) - r.amount;
+    net[r.from] = addBalance(net[r.from] || 0, r.amount);
+    net[r.to] = addBalance(net[r.to] || 0, -r.amount);
   }
   const debtors = Object.entries(net)
       .filter(([, n]) => n < 0)
@@ -188,7 +196,7 @@ export function expenseCSV(expenses: Expense[], base: string) {
     '"' +
     String(v ?? "")
       .replace(/"/g, '""')
-      .replace(/^[=+@\-]/, "'$&") +
+      .replace(/^[\s\u0000-\u001f]*[=+@\-]/, "'$&") +
     '"';
   return [
     [

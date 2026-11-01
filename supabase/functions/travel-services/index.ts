@@ -1,8 +1,9 @@
-import { createClient } from "npm:@supabase/supabase-js@2";
-import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
+import { createClient } from "npm:@supabase/supabase-js@2.118.0";
+import { corsHeaders } from "npm:@supabase/supabase-js@2.118.0/cors";
 import { serviceCors } from "../_shared/cors.ts";
 import { googleFailure } from "../_shared/google-error.ts";
-import { z } from "npm:zod@4";
+import { z } from "npm:zod@4.6.7";
+import { readRequestText, redactSecrets } from "../_shared/request.ts";
 const allowedOrigins = (
   Deno.env.get("ALLOWED_ORIGIN") || "http://127.0.0.1:5173"
 )
@@ -83,8 +84,7 @@ Deno.serve(async (req: Request) => {
         status: 401,
         headers,
       });
-    const raw = await req.text();
-    if (raw.length > 30000) throw Error("Request too large");
+    const raw = await readRequestText(req);
     const body = z
       .object({
         action: z.enum([
@@ -100,13 +100,13 @@ Deno.serve(async (req: Request) => {
       })
       .passthrough()
       .parse(JSON.parse(raw));
-    const { data: membership } = await sb
+    const { data: membership, error: membershipError } = await sb
       .from("memberships")
       .select("role")
       .eq("trip_id", body.tripId)
       .eq("user_id", user.id)
       .maybeSingle();
-    if (!membership)
+    if (membershipError || !membership)
       return new Response(
         JSON.stringify({ error: "Trip membership required" }),
         { status: 403, headers },
@@ -430,7 +430,11 @@ Deno.serve(async (req: Request) => {
         error:
           e instanceof z.ZodError
             ? "Invalid request parameters."
-            : e.message || "Service unavailable",
+            : redactSecrets(e.message || "Service unavailable", [
+                Deno.env.get("GOOGLE_MAPS_SERVER_KEY"),
+                Deno.env.get("EXCHANGE_RATE_KEY"),
+                Deno.env.get("AI_API_KEY"),
+              ]),
       }),
       { status: 400, headers },
     );

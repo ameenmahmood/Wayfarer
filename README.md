@@ -108,8 +108,10 @@ Never put a Supabase service-role key, SMTP password, Google server key, AI key,
 | `003_missing_conflict_entity.sql`     | Correct JSON null for conflicts involving a missing record.                                      |
 | `004_invitation_inbox.sql`            | Recipient-only invitation discovery, acceptance by ID, and safe acceptance retries.              |
 | `005_internal_validation_helpers.sql` | Restrict direct execution of internal validation helpers and pin the money helper’s search path. |
+| `006_trip_ideas.sql` | Shared Ideas records, validation, and duplicate itinerary-link protection. |
+| `007_backend_audit_hardening.sql` | Strict versions and payloads, invitation revocation, bounded service quotas, and function hardening. |
 
-All five migrations are installed on the current hosted backend. If an existing database was initialized manually, verify its schema and migration history before using migration repair. **Do not reset the database to fix an “already exists” error.**
+All seven migrations are installed on the current hosted backend. If an existing database was initialized manually, verify its schema and migration history before using migration repair. **Do not reset the database to fix an “already exists” error.**
 
 ### Sign-in and invitations
 
@@ -155,7 +157,7 @@ Every mutation carries an immutable operation ID and expected record version. Se
 
 Owners manage trip settings, budgets, invitations, and access. Editors change plans, expenses, repayments, and shared packing; viewers have read access. Application tables use RLS and reject direct client writes. Internal validation helpers are not exposed as callable client RPCs. The public website does not grant access to trip records.
 
-Synchronization uses a full pull of visible records after sign-in, reconnect, and changes, with Realtime invalidations and a 30-second fallback. **Pagination is not implemented**: keep the Supabase API row limit above your visible workspace record count. Another account cannot reuse a connected browser cache; use separate browser profiles for separate travelers.
+Synchronization downloads visible records after sign-in, reconnect, and changes, with Realtime invalidations and a 30-second fallback. Downloads use ordered keyset pagination, including when the API returns fewer rows than requested. Partial or failed pulls do not prune cached records; the merge checks pending edits atomically. See the [backend audit](docs/backend-audit-2026-11-01.md) for deployment status and verification limits. Another account cannot reuse a connected browser cache; use separate browser profiles for separate travelers.
 
 **Clearing browser storage can remove unsynchronized changes. Revoking access cannot erase copies already downloaded by another traveler.** IndexedDB is not encrypted by this application. Trip deletion has no in-app recovery and retains database tombstones. See [deletion details](docs/trip-deletion.md).
 
@@ -179,7 +181,7 @@ Google Maps/Places/Routes usage, Supabase usage beyond plan allowances, SMTP del
 
 ## Verification and remaining limits
 
-**Latest verified suite: 141 passing tests across 18 files.** GitHub Actions runs the full suite and production build before deployment.
+**Latest verified suite: 171 passing tests across 22 files.** GitHub Actions runs the full suite and production build before deployment.
 
 - Money tests cover currency precision, rounding, invalid and itemized splits, saved rates, balance reconciliation, settlements, repayments, edits/deletions, and CSV safety.
 - Time/route tests cover time zones, daylight-saving gaps/ambiguity, fixed reservations, multi-day lodging, conflicts, endpoints, unavailable routes, and proposal bounds.
@@ -199,5 +201,7 @@ For connected end-to-end verification: create a disposable owner trip, invite a 
 - [Google Maps key security](https://developers.google.com/maps/api-security-best-practices)
 - [Places Text Search](https://developers.google.com/maps/documentation/places/web-service/text-search), [Nearby Search](https://developers.google.com/maps/documentation/places/web-service/nearby-search), and [storage/attribution policies](https://developers.google.com/maps/documentation/places/web-service/policies)
 - [Routes waypoint optimization](https://developers.google.com/maps/documentation/routes/opt-way), [transit restrictions](https://developers.google.com/maps/documentation/routes/transit-route), [route matrices](https://developers.google.com/maps/documentation/routes/compute_route_matrix), and [Routes policies](https://developers.google.com/maps/documentation/routes/policies)
+
+The [November 1 backend audit](docs/backend-audit-2026-11-01.md) records findings, deployed backend protections, the approved browser-side fixes, and remaining verification limits.
 
 Further implementation notes: [invitations](docs/invitations.md), [email delivery](docs/auth-delivery.md), [covers](docs/trip-covers.md), [nearby discovery](docs/nearby-places.md), and [trip deletion](docs/trip-deletion.md). Older verification reports in `docs/` describe their own snapshots and should not be read as current test counts or additional live verification claims.
