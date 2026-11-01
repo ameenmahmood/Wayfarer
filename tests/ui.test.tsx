@@ -432,3 +432,22 @@ it("Edit trip contains red deletion controls, cancel keeps the trip and confirm 
     screen.getByRole("button", { name: /A little lost in Japan.*Open trip/ }),
   ).toBeTruthy();
 });
+
+it("compact activity details expand by keyboard, preserve edit actions, and collapse explicitly", async () => {
+  localStorage.setItem("wayfarer-trip", "demo-japan");
+  const u = await openApp();
+  const toggle = screen.getAllByRole("button", { name: /^Details for / })[0];
+  const title = toggle.getAttribute("aria-label")!.replace("Details for ", "");
+  expect(toggle.getAttribute("aria-expanded")).toBe("false");
+  toggle.focus();
+  await u.keyboard("{Enter}");
+  expect(toggle.getAttribute("aria-expanded")).toBe("true");
+  await u.click(screen.getByRole("button", { name: `Edit ${title}` }));
+  expect(await dialog().findByLabelText("Title")).toHaveProperty(
+    "value",
+    title,
+  );
+  await u.click(dialog().getByRole("button", { name: "Close dialog" }));
+  await u.click(toggle);
+  expect(toggle.getAttribute("aria-expanded")).toBe("false");
+});

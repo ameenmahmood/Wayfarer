@@ -17,6 +17,7 @@ import {
   Route,
   ChevronRight,
   Menu as DragHandleIcon,
+  ChevronDown,
   ExternalLink,
   CalendarDays,
 } from "lucide-react";
@@ -62,6 +63,7 @@ export default function Itinerary({
   const [date, setDate] = useState(initialDate || trip.start),
     [view, setView] = useState("day"),
     [selected, setSelected] = useState(""),
+    [expandedEntry, setExpandedEntry] = useState<string>(),
     [editing, setEditing] = useState<Entity<Entry>>(),
     [route, setRoute] = useState(false),
     [nearby, setNearby] = useState(false),
@@ -217,27 +219,39 @@ export default function Itinerary({
       <div className="itinerary-toolbar">
         <div className="segmented" role="group" aria-label="Itinerary view">
           <button
+            aria-label="Daily plan"
             aria-pressed={view === "day"}
             className={view === "day" ? "active" : ""}
             onClick={() => setView("day")}
           >
             <CalendarDays size={15} />
-            Daily plan
+            <span className="view-label-full">Daily plan</span>
+            <span className="view-label-compact" aria-hidden="true">
+              Day
+            </span>
           </button>
           <button
+            aria-label="Whole trip"
             aria-pressed={view === "all"}
             className={view === "all" ? "active" : ""}
             onClick={() => setView("all")}
           >
-            Whole trip
+            <span className="view-label-full">Whole trip</span>
+            <span className="view-label-compact" aria-hidden="true">
+              Trip
+            </span>
           </button>
           <button
+            aria-label={`Saved places ${entries.filter((e) => !e.data.date).length}`}
             aria-pressed={view === "saved"}
             className={view === "saved" ? "active" : ""}
             onClick={() => setView("saved")}
           >
             <Bookmark size={14} />
-            Saved places{" "}
+            <span className="view-label-full">Saved places</span>
+            <span className="view-label-compact" aria-hidden="true">
+              Saved
+            </span>{" "}
             <span>{entries.filter((e) => !e.data.date).length}</span>
           </button>
         </div>
@@ -249,10 +263,11 @@ export default function Itinerary({
           >
             <Button
               onClick={() => setRoute(true)}
-              title="Preview a route before applying changes"
+              title="Optimize day · preview a route before applying changes"
+              aria-label="Optimize day"
             >
               <Route size={15} />
-              Optimize day
+              <span className="optimize-label">Optimize day</span>
             </Button>
           </div>
         )}
@@ -273,6 +288,7 @@ export default function Itinerary({
                   inline: "nearest",
                 });
               }}
+              aria-label={`DAY ${i + 1} ${new Date(d + "T12:00:00").toLocaleDateString("en-US", { weekday: "short" })} ${new Date(d + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}`}
               aria-pressed={d === date}
             >
               <small>DAY {i + 1}</small>
@@ -281,11 +297,14 @@ export default function Itinerary({
                   weekday: "short",
                 })}
               </b>
-              <span>
+              <span className="day-label-full">
                 {new Date(d + "T12:00:00").toLocaleDateString("en-US", {
                   month: "short",
                   day: "numeric",
                 })}
+              </span>
+              <span className="day-number" aria-hidden="true">
+                {Number(d.slice(-2))}
               </span>
               <i
                 className={
@@ -318,8 +337,14 @@ export default function Itinerary({
                         day: "numeric",
                       })}
               </h3>
-              <small>
-                {filtered.length} plans · {trip.zone.replace("_", " ")}
+              <small className="day-context">
+                {filtered.length} plans ·{" "}
+                <span className="zone-full">
+                  {trip.zone.replaceAll("_", " ")}
+                </span>
+                <span className="zone-compact">
+                  {trip.zone.split("/").at(-1)?.replaceAll("_", " ")} time
+                </span>
               </small>
             </div>
             {alerts.length > 0 && view === "day" && (
@@ -380,7 +405,7 @@ export default function Itinerary({
                     )}
                   <article
                     id={e.id}
-                    className={`plan-card ${canEdit && view === "day" ? "can-reorder" : ""} ${drag === e.id ? "is-dragging" : ""} ${dropTarget === e.id && drag !== e.id ? "drop-target" : ""} ${selected === e.id ? "selected" : ""}`}
+                    className={`plan-card ${canEdit && view === "day" ? "can-reorder" : ""} ${drag === e.id ? "is-dragging" : ""} ${dropTarget === e.id && drag !== e.id ? "drop-target" : ""} ${selected === e.id ? "selected" : ""} ${expandedEntry === e.id ? "is-expanded" : ""}`}
                   >
                     {canEdit && view === "day" && (
                       <button
@@ -465,16 +490,29 @@ export default function Itinerary({
                         if (ev.key === "Enter" || ev.key === " ") {
                           ev.preventDefault();
                           setSelected(e.id);
+                          setExpandedEntry(e.id);
                         }
                       }}
                       onClick={() => {
                         setSelected(e.id);
+                        setExpandedEntry(e.id);
                         if (mapOnly)
                           document
                             .querySelector(".map-card")
                             ?.scrollIntoView({ block: "nearest" });
                       }}
                     >
+                      {view === "all" && (
+                        <small className="plan-date-mobile">
+                          {new Date(
+                            e.data.date + "T12:00:00",
+                          ).toLocaleDateString("en-US", {
+                            weekday: "short",
+                            month: "short",
+                            day: "numeric",
+                          })}
+                        </small>
+                      )}
                       <div className="plan-top">
                         <span
                           className={`type-icon ${e.data.type.toLowerCase()}`}
@@ -488,54 +526,93 @@ export default function Itinerary({
                           {formatTime(e.data.start)}
                         </span>
                       </div>
-                      {view === "all" && <small>{e.data.date}</small>}
-                      {e.data.address && (
-                        <p className="place-address">
-                          <MapPin size={13} />
-                          {e.data.address}
-                        </p>
-                      )}
-                      {e.data.notes && (
-                        <p className="plan-notes">{e.data.notes}</p>
-                      )}
-                      <div className="plan-details">
-                        <span>
-                          {e.data.zone}
-                          {e.data.endZone && e.data.endZone !== e.data.zone
-                            ? " → " + e.data.endZone
-                            : ""}
+                      <div className="plan-summary">
+                        <span className="compact-duration">
+                          <EIcon size={14} aria-label={e.data.type} />
+                          {e.data.endDate > e.data.date
+                            ? `Until ${new Date(e.data.endDate + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}`
+                            : `${e.data.duration} min`}
                         </span>
-                        <span>
-                          <Clock size={13} />
-                          {e.data.duration} min
+                        <span className="compact-location">
+                          {e.data.address || e.data.type}
                         </span>
-                        {e.data.cost > 0 && (
-                          <span>
-                            Est. {money(e.data.cost, e.data.currency)}
-                          </span>
-                        )}
-                        {e.data.endDate > e.data.date && (
-                          <span>
-                            Until {e.data.endDate}{" "}
-                            {e.data.end ? formatTime(e.data.end) : ""}
-                          </span>
-                        )}
-                        {e.data.reservation && (
-                          <span>{e.data.reservation}</span>
+                        {e.data.fixed && (
+                          <span className="compact-fixed">Fixed</span>
                         )}
                       </div>
-                      {e.data.link && (
-                        <a
-                          className="plan-link"
-                          href={e.data.link}
-                          target="_blank"
-                          rel="noreferrer"
-                          onClick={(ev) => ev.stopPropagation()}
-                        >
-                          Open link <ExternalLink size={12} />
-                        </a>
+                      {e.data.zone !== trip.zone && (
+                        <div className="compact-zone">
+                          {e.data.zone.split("/").at(-1)?.replaceAll("_", " ")}{" "}
+                          time
+                        </div>
                       )}
+                      <div
+                        className="plan-secondary"
+                        id={`plan-details-${e.id}`}
+                      >
+                        {view === "all" && <small>{e.data.date}</small>}
+                        {e.data.address && (
+                          <p className="place-address">
+                            <MapPin size={13} />
+                            {e.data.address}
+                          </p>
+                        )}
+                        {e.data.notes && (
+                          <p className="plan-notes">{e.data.notes}</p>
+                        )}
+                        <div className="plan-details">
+                          <span>
+                            {e.data.zone}
+                            {e.data.endZone && e.data.endZone !== e.data.zone
+                              ? " → " + e.data.endZone
+                              : ""}
+                          </span>
+                          <span>
+                            <Clock size={13} />
+                            {e.data.duration} min
+                          </span>
+                          {e.data.cost > 0 && (
+                            <span>
+                              Est. {money(e.data.cost, e.data.currency)}
+                            </span>
+                          )}
+                          {e.data.endDate > e.data.date && (
+                            <span>
+                              Until {e.data.endDate}{" "}
+                              {e.data.end ? formatTime(e.data.end) : ""}
+                            </span>
+                          )}
+                          {e.data.reservation && (
+                            <span>{e.data.reservation}</span>
+                          )}
+                        </div>
+                        {e.data.link && (
+                          <a
+                            className="plan-link"
+                            href={e.data.link}
+                            target="_blank"
+                            rel="noreferrer"
+                            onClick={(ev) => ev.stopPropagation()}
+                          >
+                            Open link <ExternalLink size={12} />
+                          </a>
+                        )}
+                      </div>
                     </div>
+                    <button
+                      className="plan-details-toggle icon-button"
+                      aria-label={`Details for ${e.data.title}`}
+                      aria-expanded={expandedEntry === e.id}
+                      aria-controls={`plan-details-${e.id}`}
+                      onClick={() => {
+                        setSelected(e.id);
+                        setExpandedEntry((current) =>
+                          current === e.id ? undefined : e.id,
+                        );
+                      }}
+                    >
+                      <ChevronDown size={17} />
+                    </button>
                     {canEdit && (
                       <div className="plan-actions">
                         <span className="updated">

@@ -4512,3 +4512,369 @@ html {
     min-height: 44px;
   }
 }
+
+/* Compact mobile itinerary: readable summaries, details on demand. */
+.plan-summary,
+.plan-details-toggle,
+.compact-zone,
+.plan-date-mobile,
+.view-label-compact,
+.zone-compact,
+.day-number,
+.travel-summary {
+  display: none;
+}
+.itinerary-toolbar .segmented .view-label-full,
+.itinerary-toolbar .segmented .view-label-compact {
+  background: none;
+  padding: 0;
+  font: inherit;
+}
+.travel-expanded {
+  display: grid;
+  gap: 4px;
+}
+@media (max-width: 650px) {
+  .itinerary-heading {
+    margin-bottom: 12px;
+  }
+  .itinerary-heading h2 {
+    font-size: 23px;
+  }
+  .itinerary-heading p {
+    font-size: 12px;
+  }
+  .itinerary-toolbar {
+    flex-wrap: nowrap;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .itinerary-toolbar .segmented {
+    flex: 1 1 auto;
+    width: 0;
+    min-width: 0;
+    flex-wrap: nowrap;
+  }
+  .itinerary-toolbar .segmented button {
+    padding: 8px 6px;
+    gap: 4px;
+    font-size: 13px;
+    min-width: 0;
+  }
+  .itinerary-toolbar .view-label-full {
+    display: none;
+  }
+  .itinerary-toolbar .view-label-compact {
+    display: inline;
+  }
+  .itinerary-toolbar .segmented button > svg {
+    display: none;
+  }
+  .itinerary-tools {
+    width: auto;
+    margin: 0;
+    flex: 0 0 44px;
+  }
+  .itinerary-tools .button {
+    width: 44px;
+    height: 44px;
+    padding: 0;
+  }
+  .itinerary-tools .button svg {
+    width: 19px;
+    height: 19px;
+  }
+  .optimize-label {
+    display: none;
+  }
+  .scroll-rail > .day-strip {
+    margin: 0 0 14px;
+    padding: 4px 0 8px;
+    gap: 2px;
+  }
+  .day-strip button {
+    flex: 1 0 44px;
+    min-width: 44px;
+    padding: 3px 2px 8px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    text-align: center;
+  }
+  .day-strip button small,
+  .day-strip .day-label-full {
+    display: none;
+  }
+  .day-strip button b {
+    font-size: 11px;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  .day-strip .day-number {
+    display: inline-grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    font-size: 18px;
+    line-height: 1;
+    color: var(--text);
+    border-radius: 50%;
+  }
+  .day-strip button.active {
+    background: transparent;
+    border: 0;
+  }
+  .day-strip button.active .day-number {
+    background: var(--green);
+    color: var(--surface);
+  }
+  .day-strip button.active b {
+    color: var(--green);
+  }
+  .day-strip i {
+    top: auto;
+    bottom: 1px;
+    left: calc(50% - 2px);
+    right: auto;
+  }
+  .timeline-panel .day-heading {
+    margin-bottom: 12px;
+    align-items: center;
+    gap: 8px;
+  }
+  .day-heading .eyebrow {
+    display: none;
+  }
+  .day-heading h3 {
+    font-size: 18px;
+    line-height: 1.35;
+    margin: 0 0 4px;
+  }
+  .day-heading .day-context {
+    font-size: 12px;
+  }
+  .day-heading .pill {
+    flex-shrink: 0;
+    font-size: 11px;
+    min-height: 36px;
+    padding: 5px 9px;
+  }
+  .zone-full {
+    display: none;
+  }
+  .zone-compact {
+    display: inline;
+  }
+  .timeline {
+    padding-left: 18px;
+  }
+  .plan-card {
+    border-radius: 10px;
+    box-shadow: none;
+    margin-bottom: 0;
+  }
+  .timeline-dot {
+    width: 19px;
+    height: 19px;
+    font-size: 10px;
+    left: -28px;
+    top: 20px;
+  }
+  .plan-card .plan-main {
+    padding: 14px 40px 12px 13px;
+  }
+  .plan-card.can-reorder .plan-main {
+    padding-left: 38px;
+  }
+  .plan-top {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 8px;
+    margin-bottom: 6px;
+  }
+  .plan-top .type-icon,
+  .plan-top .plan-type,
+  .plan-top > .pill {
+    display: none;
+  }
+  .plan-top h3 {
+    font-size: 18px;
+    font-weight: 750;
+    line-height: 1.3;
+    letter-spacing: -0.3px;
+    margin: 0;
+    overflow-wrap: anywhere;
+  }
+  .plan-top .plan-time {
+    font-size: 14px;
+    line-height: 1.8;
+    margin: 0;
+  }
+  .plan-summary {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--muted);
+    min-width: 0;
+  }
+  .compact-duration {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .compact-location {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .compact-fixed {
+    margin-left: auto;
+    flex-shrink: 0;
+    font-size: 10px;
+    color: var(--green);
+  }
+  .compact-zone {
+    display: block;
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+  .plan-date-mobile {
+    display: block;
+    font-size: 12px;
+    color: var(--green);
+    margin-bottom: 6px;
+  }
+  .plan-secondary {
+    display: none;
+  }
+  .plan-card.is-expanded .plan-secondary {
+    display: block;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+  }
+  .plan-card .plan-main .place-address,
+  .plan-card .plan-main .plan-notes,
+  .plan-card .plan-main .plan-details {
+    font-size: 13px;
+    line-height: 1.5;
+  }
+  .plan-card .plan-main .plan-notes {
+    margin-block: 7px;
+  }
+  .plan-details-toggle {
+    display: flex;
+    position: absolute;
+    right: 0;
+    top: 7px;
+    width: 36px;
+    min-width: 36px;
+    height: 44px;
+    min-height: 44px;
+    padding: 7px;
+  }
+  .plan-details-toggle svg {
+    transition: transform 0.15s;
+  }
+  .plan-card.is-expanded .plan-details-toggle svg {
+    transform: rotate(180deg);
+  }
+  .plan-card .activity-drag-handle {
+    left: 2px;
+    top: 9px;
+    width: 32px;
+    min-width: 32px;
+    height: 44px;
+    min-height: 44px;
+    padding: 5px;
+  }
+  .plan-card:not(.is-expanded) .plan-actions {
+    display: none;
+  }
+  .plan-card .plan-actions {
+    padding: 6px 8px;
+    gap: 2px;
+  }
+  .plan-card .plan-actions .updated {
+    font-size: 11px;
+    padding: 2px 4px;
+  }
+  .plan-card .plan-actions > div {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0;
+  }
+  .travel-leg {
+    padding: 1px 4px 1px 6px;
+    gap: 0;
+  }
+  .travel-summary {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    min-height: 36px;
+    border: 0;
+    padding: 6px 4px;
+    text-align: left;
+    background: transparent;
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.5;
+  }
+  .travel-summary-chevron {
+    margin-left: auto;
+    flex-shrink: 0;
+  }
+  .travel-summary[aria-expanded="true"] .travel-summary-chevron {
+    transform: rotate(180deg);
+  }
+  .travel-expanded {
+    display: none;
+  }
+  .travel-expanded.open {
+    display: grid;
+    gap: 7px;
+    padding: 8px 8px 12px;
+    margin-bottom: 6px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface);
+  }
+  .travel-expanded .travel-status > small {
+    font-size: 12px;
+  }
+  .travel-expanded .notice {
+    margin: 0;
+  }
+  .add-plan {
+    min-height: 44px;
+    margin-top: 10px;
+    font-size: 13px;
+    padding: 10px;
+  }
+}
+
+@media (max-width: 650px) {
+  .plan-card:not(.is-expanded) .plan-top h3 {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+  }
+  .scroll-rail > [role="region"] {
+    scrollbar-width: none;
+  }
+  .scroll-rail > [role="region"]::-webkit-scrollbar {
+    display: none;
+  }
+}

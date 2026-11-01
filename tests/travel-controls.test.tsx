@@ -230,3 +230,20 @@ it("does not treat a multi-day hotel stay as a missed departure deadline", () =>
   );
   expect(screen.queryByText(/Insufficient travel time/)).toBeNull();
 });
+
+it("compact travel options expand and collapse without triggering a route request", async () => {
+  const u = userEvent.setup();
+  render(<Harness />);
+  const toggle = screen.getByRole("button", { name: /^Walking/ });
+  expect(toggle.getAttribute("aria-expanded")).toBe("false");
+  await u.click(toggle);
+  expect(toggle.getAttribute("aria-expanded")).toBe("true");
+  expect(
+    document.getElementById(toggle.getAttribute("aria-controls")!),
+  ).toBeTruthy();
+  await u.click(screen.getByLabelText("Set time manually"));
+  expect(screen.getByLabelText("Travel minutes to Museum")).toBeTruthy();
+  await u.click(toggle);
+  expect(toggle.getAttribute("aria-expanded")).toBe("false");
+  expect(service.api).not.toHaveBeenCalled();
+});
