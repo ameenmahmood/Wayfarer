@@ -42,7 +42,7 @@ export default function MapWorkspace({
     <section className="map-workspace-view" aria-label="Expanded trip map">
       <div className="map-workspace-toolbar">
         <div className="map-workspace-heading">
-          <h2>Every place, in one view</h2>
+          <h2>Map</h2>
           <small>
             {located.length} {located.length === 1 ? "stop" : "stops"} on the
             map

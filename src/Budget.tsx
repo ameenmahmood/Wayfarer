@@ -68,8 +68,7 @@ export default function Budget({
     <>
       <div className="content-heading">
         <div>
-          <h2>A little clarity for every cost</h2>
-          <p>Actual spending, fair splits, and a settled-up feeling.</p>
+          <h2>Expenses</h2>
         </div>
         <div className="button-row">
           <Button onClick={csv}>
@@ -149,11 +148,11 @@ export default function Budget({
       <div className="two-columns">
         <section className="panel">
           <div className="section-head">
-            <h3>Expenses</h3>
+            <h3>Recent expenses</h3>
             <span className="count">{expenses.length}</span>
           </div>
           {!expenses.length && (
-            <Empty title="Start with the first coffee">
+            <Empty title="No expenses yet">
               Add an expense and choose who shared it.
             </Empty>
           )}

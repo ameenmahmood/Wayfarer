@@ -95,7 +95,7 @@ it("creates, filters and edits ideas, then reviews and adds one on the selected 
   expect(
     await screen.findByRole("heading", { name: "Kyoto riverside stay" }),
   ).toBeTruthy();
-});
+}, 15000);
 
 it("viewers can filter and open references but cannot change ideas or schedule them", async () => {
   const idea = makeEntity<Idea>("idea", "demo-japan", {

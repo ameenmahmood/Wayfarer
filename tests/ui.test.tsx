@@ -250,7 +250,7 @@ it("switching between itinerary and map preserves the selected trip day", async 
     screen.getByRole("button", { name: /^DAY 2/ }).getAttribute("aria-pressed"),
   ).toBe("true");
   await u.click(screen.getByRole("button", { name: "Map" }));
-  await screen.findByRole("heading", { name: "Every place, in one view" });
+  await screen.findByRole("heading", { name: "Map" });
   expect((screen.getByLabelText("Map day") as HTMLSelectElement).value).toBe(
     "2027-04-13",
   );

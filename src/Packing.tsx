@@ -34,8 +34,7 @@ export default function Packing({
     <>
       <div className="content-heading">
         <div>
-          <h2>Room for everything you need</h2>
-          <p>Shared essentials and a checklist that’s just yours.</p>
+          <h2>Packing list</h2>
         </div>
         {canEdit && (
           <Button
@@ -86,7 +85,7 @@ export default function Packing({
       <div className="two-columns">
         <section className="panel">
           {!visible.length && (
-            <Empty title="Travel a little lighter">
+            <Empty title="No items yet">
               Start a list or use a saved template.
             </Empty>
           )}
@@ -152,11 +151,8 @@ export default function Packing({
         <div className="stack">
           <section className="panel template-panel">
             <PackageCheck size={28} />
-            <h3>Good lists travel well</h3>
-            <p>
-              Save this checklist as a reusable template. Packed status resets
-              when you use it.
-            </p>
+            <h3>Templates</h3>
+            <p>Reuse this checklist with packed status reset.</p>
             <Button
               disabled={!canEdit || !visible.length || a.busy}
               onClick={() =>

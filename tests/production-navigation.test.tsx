@@ -219,25 +219,10 @@ it("signed in: every trip section and its creation control opens the right area"
   const u = userEvent.setup();
   await screen.findByRole("button", { name: "Edit trip" });
   const cases = [
-    [
-      "Map",
-      "Every place, in one view",
-      "Add a plan",
-      "A new plan, a new possibility",
-    ],
-    ["Itinerary", "Itinerary", "Add a plan", "A new plan, a new possibility"],
-    [
-      "Expenses",
-      "A little clarity for every cost",
-      "Add expense",
-      "Add an expense",
-    ],
-    [
-      "Packing list",
-      "Room for everything you need",
-      "Add item",
-      "Add packing item",
-    ],
+    ["Map", "Map", "Add a plan", "Add a plan"],
+    ["Itinerary", "Itinerary", "Add a plan", "Add a plan"],
+    ["Expenses", "Expenses", "Add expense", "Add an expense"],
+    ["Packing list", "Packing list", "Add item", "Add packing item"],
   ];
   for (const [section, heading, button, modal] of cases) {
     await u.click(screen.getByRole("button", { name: section }));

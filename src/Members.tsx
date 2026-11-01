@@ -49,8 +49,7 @@ export default function Members({
     <>
       <div className="content-heading">
         <div>
-          <h2>Better with your people</h2>
-          <p>Private plans, shared only with the people you invite.</p>
+          <h2>Members</h2>
         </div>
         <ShieldCheck size={25} />
       </div>
@@ -137,7 +136,7 @@ export default function Members({
         <div className="stack">
           <section className="panel">
             <UserPlus size={24} />
-            <h3>Make room for a friend</h3>
+            <h3>Invite a friend</h3>
             <p>
               Create an email-bound invitation. Copy the link and share it
               yourself; Wayfarer does not send an invitation email.

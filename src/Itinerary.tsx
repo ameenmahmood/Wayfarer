@@ -160,9 +160,7 @@ export default function Itinerary({
           : Footprints;
   const entryEditor = editing && (
     <Modal
-      title={
-        editing.version ? "Edit your plan" : "A new plan, a new possibility"
-      }
+      title={editing.version ? "Edit plan" : "Add a plan"}
       onClose={() => setEditing(undefined)}
       wide
     >
@@ -199,7 +197,7 @@ export default function Itinerary({
     <>
       <div className="content-heading itinerary-heading">
         <div>
-          <h2>{mapOnly ? "Every place, in one view" : "Itinerary"}</h2>
+          <h2>{mapOnly ? "Map" : "Itinerary"}</h2>
           <p>
             {mapOnly
               ? "Pick a stop to connect your map and itinerary."
@@ -371,9 +369,7 @@ export default function Itinerary({
           {!filtered.length && (
             <Empty
               title={
-                view === "saved"
-                  ? "Save a little possibility"
-                  : "A beautifully open day"
+                view === "saved" ? "No saved places" : "No plans for this day"
               }
             >
               {view === "saved"
@@ -705,33 +701,19 @@ export default function Itinerary({
             <span className="type-icon">
               <MapPin size={20} />
             </span>
-            <h3>Find your next little detour.</h3>
-            <p>
-              Browse cafés, food, parks and sights around a destination or a
-              stop on your itinerary.
-            </p>
+            <h3>Nearby places</h3>
+            <p>Find cafés, food, parks, and sights near your stops.</p>
             <Button onClick={() => setNearby(true)}>
               Find places nearby <ChevronRight size={15} />
             </Button>
             <small>Google Places · internet required</small>
           </section>
-          <div className="travel-note">
-            <span>✳</span>
-            <p>
-              Good trips aren’t packed to the minute.
-              <br />A little breathing room goes a long way.
-            </p>
-          </div>
         </aside>
       </div>
       {a.error && <Notice tone="error">{a.error}</Notice>}
       {entryEditor}
       {route && (
-        <Modal
-          title="A smoother way through your day"
-          onClose={() => setRoute(false)}
-          wide
-        >
+        <Modal title="Optimize day" onClose={() => setRoute(false)} wide>
           <RoutePlanner
             entries={entries}
             date={date}

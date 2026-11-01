@@ -67,8 +67,7 @@ export default function Ideas({
     <section className="ideas-workspace" aria-label="Trip ideas">
       <div className="content-heading">
         <div>
-          <h2>A few possibilities</h2>
-          <p>Compare options together. Add a plan when you’re ready.</p>
+          <h2>Ideas</h2>
         </div>
         {canEdit && (
           <Button
@@ -122,24 +121,27 @@ export default function Ideas({
           ))}
         </select>
       </div>
-      <p className="ideas-hint">
-        Approved isn’t booked or scheduled. Ideas stay out of trip totals;
-        adding a plan carries over its estimated cost.
-      </p>
+      <div className="ideas-help">
+        <span>Approved doesn’t mean booked.</span>
+        <details>
+          <summary>How ideas work</summary>
+          <p>
+            Ideas aren’t scheduled or included in trip totals. Add one to the
+            itinerary to choose a day and time and carry over its estimated
+            cost. Actual spending comes from expenses.
+          </p>
+        </details>
+      </div>
       {action.error && <Notice tone="error">{action.error}</Notice>}
       {!visible.length ? (
         <Empty
-          title={
-            ideas.length
-              ? "No ideas match these filters"
-              : "Good trips start with a possibility"
-          }
+          title={ideas.length ? "No ideas match these filters" : "No ideas yet"}
         >
           {ideas.length
             ? "Try another status or category."
             : canEdit
-              ? "Save a hotel, a way to get there, or something you’d love to do. Nothing is scheduled until you add it to the itinerary."
-              : "Your travel companions haven’t added any ideas yet."}
+              ? "Add a hotel, transport option, or activity to compare."
+              : "Ideas added by your companions will appear here."}
         </Empty>
       ) : (
         <div className="ideas-grid">
@@ -259,7 +261,7 @@ export default function Ideas({
       )}
       {editing && canEdit && (
         <Modal
-          title={editing.version ? "Edit idea" : "Save a possibility"}
+          title={editing.version ? "Edit idea" : "Add an idea"}
           onClose={() => setEditing(undefined)}
         >
           <IdeaForm

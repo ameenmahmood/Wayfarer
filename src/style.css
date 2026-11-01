@@ -4878,3 +4878,130 @@ html {
     display: none;
   }
 }
+
+/* Direct labels and a compact trip summary, without decorative filler. */
+.trip-hero {
+  height: auto;
+  min-height: 220px;
+}
+.hero-content {
+  position: relative;
+  inset: auto;
+  padding: 76px 30px 24px;
+}
+.trip-overview {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) auto;
+  gap: 18px;
+  padding: 16px 0;
+}
+.trip-overview .overview-stat {
+  min-width: 0;
+  border: 0;
+  padding: 0;
+}
+.trip-overview .overview-stat + .overview-stat {
+  border-left: 1px solid var(--border);
+  padding-left: 18px;
+}
+.trip-overview .overview-stat small {
+  white-space: normal;
+  line-height: 1.4;
+}
+.trip-overview .travelers-summary {
+  margin: 0;
+  padding: 0;
+  flex-direction: column;
+  align-items: flex-end;
+}
+.content-heading h2:last-child {
+  margin-bottom: 0;
+}
+.tab-content {
+  padding-top: 20px;
+}
+.app-footer {
+  justify-content: flex-end;
+  margin-top: 24px;
+  padding: 14px 0 20px;
+}
+.ideas-help {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  font-size: 12px;
+  color: var(--muted);
+  margin: 12px 0 18px;
+}
+.ideas-help details {
+  max-width: 600px;
+}
+.ideas-help summary {
+  cursor: pointer;
+  color: var(--green);
+}
+.ideas-help p {
+  margin: 8px 0 0;
+  line-height: 1.6;
+}
+.ideas-workspace .empty {
+  margin-top: 16px;
+  padding: 28px 16px;
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+}
+.inspiration-card h3 {
+  font-size: 19px;
+  margin-bottom: 8px;
+}
+.inspiration-card p {
+  font-size: 12px;
+  line-height: 1.6;
+}
+@media (max-width: 650px) {
+  .trip-hero {
+    min-height: 210px;
+  }
+  .hero-content {
+    padding: 82px 18px 20px;
+  }
+  .hero-content p {
+    margin-bottom: 14px;
+  }
+  .trip-overview {
+    gap: 10px;
+    padding: 14px 0;
+  }
+  .trip-overview .overview-stat {
+    gap: 6px;
+  }
+  .trip-overview .overview-stat + .overview-stat {
+    padding-left: 10px;
+  }
+  .trip-overview .overview-stat strong {
+    font-size: 18px;
+  }
+  .trip-overview .overview-stat small,
+  .trip-overview .travelers-summary small {
+    font-size: 10px;
+  }
+  .trip-overview .travelers-summary {
+    gap: 5px;
+  }
+  .tab-content {
+    padding-top: 18px;
+  }
+  .content-heading {
+    margin-bottom: 16px;
+  }
+  .app-footer {
+    align-items: flex-end;
+    padding-bottom: 16px;
+  }
+  .ideas-help {
+    font-size: 12px;
+    margin-bottom: 14px;
+  }
+}

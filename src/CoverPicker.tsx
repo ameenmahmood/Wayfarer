@@ -64,7 +64,6 @@ export default function CoverPicker({
         />
         <div className="hero-overlay" />
         <div className="cover-preview-title">
-          <small>YOUR NEXT CHAPTER</small>
           <h3>{entity.data.title}</h3>
           <span>{entity.data.destinations}</span>
         </div>

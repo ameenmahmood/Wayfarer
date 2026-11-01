@@ -375,19 +375,6 @@ export default function App() {
           Plan a new trip
         </Button>
         <div className="sidebar-bottom">
-          <div className="private-note">
-            <span>✧</span>
-            <b>
-              Good company.
-              <br />
-              Great adventures.
-            </b>
-            <p>
-              Your plans belong to you
-              <br />
-              and the people you invite.
-            </p>
-          </div>
           <button className="nav-item" onClick={() => openSettings()}>
             <SettingsIcon size={17} />
             Settings & account
@@ -523,7 +510,6 @@ export default function App() {
               <div className="content-heading">
                 <div>
                   <h1>My trips</h1>
-                  <p>Your private adventures, all in one place.</p>
                 </div>
                 <Button className="primary" onClick={newTrip}>
                   <Plus size={17} />
@@ -574,7 +560,6 @@ export default function App() {
                     ? "Good company. Great plans."
                     : "Your next trip starts here."}
                 </h1>
-                <p>Keep your places, plans, and people together.</p>
               </div>
               {invite && !demo && !userId ? (
                 <div className="welcome-invitation">
@@ -646,12 +631,6 @@ export default function App() {
                 />
                 <div className="hero-overlay" />
                 <div className="hero-content">
-                  <span className="hero-tag">
-                    <span />{" "}
-                    {tripEntity.id.startsWith("demo")
-                      ? "THE SAMPLE ADVENTURE"
-                      : "YOUR NEXT CHAPTER"}
-                  </span>
                   <h1>{trip.title}</h1>
                   <p>
                     <MapPin size={16} />
@@ -672,7 +651,8 @@ export default function App() {
                     </span>
                     <span className="hero-divider" />
                     <span>
-                      {days(trip.start, trip.end).length} days of possibility
+                      {days(trip.start, trip.end).length}{" "}
+                      {days(trip.start, trip.end).length === 1 ? "day" : "days"}
                     </span>
                   </div>
                 </div>
@@ -691,13 +671,6 @@ export default function App() {
                 </div>
               </section>
               <section className="trip-overview">
-                <div className="overview-intro">
-                  <span className="eyebrow">THE ADVENTURE AT A GLANCE</span>
-                  <p>
-                    {trip.description ||
-                      "Your plans, places, and people. All in one place."}
-                  </p>
-                </div>
                 <div className="overview-stat">
                   <span className="stat-icon">
                     <MapPin size={19} />
@@ -815,9 +788,6 @@ export default function App() {
             </>
           )}
           <footer className="app-footer">
-            <span>
-              <Compass size={14} /> Made for the journey, and the people in it.
-            </span>
             <button onClick={() => openSettings("privacy")}>
               Privacy & offline data
             </button>
