@@ -5407,73 +5407,24 @@ html {
   }
 }
 
-/* Compact activity expansion and secondary actions. */
+/* Activity expansion keeps one compact, accessible action row. */
 .plan-card .plan-actions {
   display: flex;
-  align-items: flex-start;
-  justify-content: flex-end;
-  flex-wrap: wrap;
-  gap: 4px;
-  padding: 5px 10px;
-}
-.activity-action,
-.activity-more > summary {
-  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  gap: 6px;
-  min-height: 36px;
-  padding: 6px 10px;
-  border: 0;
-  background: transparent;
-  color: var(--muted);
-  font-size: 12px;
-  border-radius: 6px;
-  cursor: pointer;
-}
-.activity-action:hover,
-.activity-more > summary:hover {
-  background: var(--green-soft);
-  color: var(--green);
-}
-.activity-more {
-  min-width: 0;
-}
-.activity-more > summary {
-  list-style: none;
-}
-.activity-more > summary::-webkit-details-marker {
-  display: none;
-}
-.activity-more[open] {
-  flex: 1 1 100%;
-}
-.activity-more[open] > summary {
-  display: flex;
-  width: fit-content;
-  margin-left: auto;
-}
-.activity-more-content {
-  padding-top: 4px;
-  border-top: 1px solid var(--border);
-}
-.activity-more-buttons {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 2px;
-}
-.activity-more-buttons .activity-action {
-  justify-content: flex-start;
-  text-align: left;
-}
-.activity-action.danger {
-  color: var(--red, #b54e48);
+  justify-content: space-between;
+  flex-wrap: nowrap;
+  gap: 4px;
+  padding: 3px 10px;
 }
 .activity-updated {
-  display: block;
-  padding: 5px 10px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 10px;
+}
+.plan-card .plan-actions > .activity-action-row {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  margin-left: auto;
 }
 @media (max-width: 650px) {
   .plan-card.selected {
@@ -5505,11 +5456,17 @@ html {
     padding-bottom: 10px;
   }
   .plan-card .plan-actions {
-    padding: 2px 6px;
+    padding: 0 5px;
+    gap: 0;
   }
-  .activity-action,
-  .activity-more > summary {
+  .plan-card .activity-updated {
+    display: none;
+  }
+  .plan-card .plan-actions .icon-button {
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
     min-height: 44px;
-    font-size: 13px;
+    padding: 10px;
   }
 }

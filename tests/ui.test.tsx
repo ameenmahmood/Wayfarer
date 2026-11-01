@@ -125,7 +125,6 @@ it("manual itinerary editing, duplication and removal work, while unavailable ne
   await u.type(title, "UI test arrival");
   await u.click(dialog().getByRole("button", { name: "Save to itinerary" }));
   await screen.findByRole("heading", { name: "UI test arrival" });
-  await u.click(screen.getByLabelText("More actions for UI test arrival"));
   await u.click(
     screen.getByRole("button", { name: "Move or duplicate UI test arrival" }),
   );
@@ -135,7 +134,6 @@ it("manual itinerary editing, duplication and removal work, while unavailable ne
   await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   await u.click(screen.getByRole("button", { name: /Saved places/ }));
   await screen.findByRole("heading", { name: "UI test arrival" });
-  await u.click(screen.getByLabelText("More actions for UI test arrival"));
   await u.click(screen.getByRole("button", { name: "Delete UI test arrival" }));
   await waitFor(() =>
     expect(
@@ -445,17 +443,10 @@ it("compact activity details expand by keyboard, preserve edit actions, and coll
   toggle.focus();
   await u.keyboard("{Enter}");
   expect(toggle.getAttribute("aria-expanded")).toBe("true");
-  const more = screen.getByLabelText(`More actions for ${title}`);
-  expect(more.closest("details")!.open).toBe(false);
-  await u.click(more);
-  expect(more.closest("details")!.open).toBe(true);
   expect(
     screen.getByRole("button", { name: `Move or duplicate ${title}` }),
   ).toBeTruthy();
-  more.focus();
-  await u.keyboard("{Escape}");
-  expect(more.closest("details")!.open).toBe(false);
-  expect(document.activeElement).toBe(more);
+  expect(screen.getByRole("button", { name: `Delete ${title}` })).toBeTruthy();
   await u.click(screen.getByRole("button", { name: `Edit ${title}` }));
   expect(await dialog().findByLabelText("Title")).toHaveProperty(
     "value",
