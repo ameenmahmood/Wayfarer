@@ -87,3 +87,19 @@ it("deleting a local demo trip hides its children and leaves other trips intact"
   expect(rows.find((e) => e.id === child.id)?.deleted).toBe(true);
   expect(rows.find((e) => e.id === "demo-japan")?.deleted).toBe(false);
 });
+
+it("keeps creation metadata immutable locally even when an edit supplies another creator", async () => {
+  const first = await save(
+    makeEntity("entry", "creator-trip", { title: "New plan" }),
+  );
+  expect(first.createdBy).toBe("local-owner");
+  expect(first.createdAt).toBeTruthy();
+  const updated = await save({
+    ...first,
+    createdBy: "someone-else",
+    createdAt: "2000-01-01T00:00:00Z",
+    data: { title: "Edited" },
+  });
+  expect(updated.createdBy).toBe(first.createdBy);
+  expect(updated.createdAt).toBe(first.createdAt);
+});

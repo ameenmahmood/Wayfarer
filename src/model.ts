@@ -95,6 +95,8 @@ export type Entity<T = any> = {
   version: number;
   updatedAt: string;
   updatedBy: string;
+  createdBy?: string | null;
+  createdAt?: string | null;
   deleted: boolean;
 };
 export type Mutation = {

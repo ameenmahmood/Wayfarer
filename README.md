@@ -21,6 +21,7 @@ In connected mode, you can draft a trip while signed out, then sign in through S
 | Expenses             | Track budgets, categories, planned costs, actual spending, itemized splits, currencies, repayments, balances, and suggested settlements. Export expenses as CSV.                                                                                           |
 | Packing              | Maintain shared or personal lists with categories, quantities, assignments, notes, packed status, and reusable templates.                                                                                                                                  |
 | Members              | Owners invite editors or viewers, change access, and revoke invitations or membership. Signed-in recipients see pending invitations even without the original link.                                                                                        |
+| Display names        | Choose an account name at first sign-in or edit it through your account control. Activity details preserve the original creator separately from the latest editor. Names also appear in members, expense selections, and packing assignments.              |
 | Appearance           | Follow the system theme or remember an explicit Light/Dark choice. Signed-out accounts use person icons and clear Sign in labels.                                                                                                                          |
 
 Owners can customize the trip banner using **Change cover**. Curated city and landscape presets include suggestions based on local keyword matches, such as NYC → New York skyline. This is a preset catalog, not a live image-search service. Photos require internet and have a gradient fallback.
@@ -115,17 +116,18 @@ Never put a Supabase service-role key, SMTP password, Google server key, AI key,
 4. Set Edge Function secrets in Supabase. Set `ALLOWED_ORIGIN` to the exact allowed origins, separated by commas, such as `https://ameenmahmood.github.io,http://127.0.0.1:5174,http://localhost:5174`. Origins have no path; Auth redirect URLs include the application path.
 5. Add the browser environment variables, restart, and sign in. Connected mode does not upload the demo trip or convert its sample travelers into real members.
 
-| Migration                             | Purpose                                                                                              |
-| ------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| `001_private_trips.sql`               | Tables, RLS, membership, validation, mutation receipts, and invitation RPCs.                         |
-| `002_delete_trips.sql`                | Owner-only deletion, trip-wide tombstones, and deletion-aware invitation/mutation checks.            |
-| `003_missing_conflict_entity.sql`     | Correct JSON null for conflicts involving a missing record.                                          |
-| `004_invitation_inbox.sql`            | Recipient-only invitation discovery, acceptance by ID, and safe acceptance retries.                  |
-| `005_internal_validation_helpers.sql` | Restrict direct execution of internal validation helpers and pin the money helper’s search path.     |
-| `006_trip_ideas.sql`                  | Shared Ideas records, validation, and duplicate itinerary-link protection.                           |
-| `007_backend_audit_hardening.sql`     | Strict versions and payloads, invitation revocation, bounded service quotas, and function hardening. |
+| Migration                             | Purpose                                                                                                  |
+| ------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `001_private_trips.sql`               | Tables, RLS, membership, validation, mutation receipts, and invitation RPCs.                             |
+| `002_delete_trips.sql`                | Owner-only deletion, trip-wide tombstones, and deletion-aware invitation/mutation checks.                |
+| `003_missing_conflict_entity.sql`     | Correct JSON null for conflicts involving a missing record.                                              |
+| `004_invitation_inbox.sql`            | Recipient-only invitation discovery, acceptance by ID, and safe acceptance retries.                      |
+| `005_internal_validation_helpers.sql` | Restrict direct execution of internal validation helpers and pin the money helper’s search path.         |
+| `006_trip_ideas.sql`                  | Shared Ideas records, validation, and duplicate itinerary-link protection.                               |
+| `007_backend_audit_hardening.sql`     | Strict versions and payloads, invitation revocation, bounded service quotas, and function hardening.     |
+| `008_display_names_and_creators.sql`  | Private account profiles, own-account name RPC, Realtime names, and immutable activity creator metadata. |
 
-All seven migrations are installed on the current hosted backend. If an existing database was initialized manually, verify its schema and migration history before using migration repair. **Do not reset the database to fix an “already exists” error.**
+All eight migrations are installed on the current hosted backend. If an existing database was initialized manually, verify its schema and migration history before using migration repair. **Do not reset the database to fix an “already exists” error.**
 
 ### Sign-in and invitations
 
@@ -195,7 +197,7 @@ Google Maps/Places/Routes usage, Supabase usage beyond plan allowances, SMTP del
 
 ## Verification and remaining limits
 
-**Latest verified suite: 177 passing tests across 23 files (November 1, 2026).** GitHub Actions runs the full suite and production build before deployment.
+**Latest verified suite: 201 passing tests across 27 files.** GitHub Actions runs the full suite and production build before deployment.
 
 - Money tests cover currency precision, rounding, invalid and itemized splits, saved rates, balance reconciliation, settlements, repayments, edits/deletions, and CSV safety.
 - Time/route tests cover time zones, daylight-saving gaps/ambiguity, fixed reservations, multi-day lodging, conflicts, endpoints, unavailable routes, and proposal bounds.
@@ -219,3 +221,5 @@ For connected end-to-end verification: create a disposable owner trip, invite a 
 The [November 1 backend audit](docs/backend-audit-2026-11-01.md) records findings, deployed backend protections, the approved browser-side fixes, and remaining verification limits.
 
 Further implementation notes: [invitations](docs/invitations.md), [email delivery](docs/auth-delivery.md), [covers](docs/trip-covers.md), [nearby discovery](docs/nearby-places.md), and [trip deletion](docs/trip-deletion.md). Older verification reports in `docs/` describe their own snapshots and should not be read as current test counts or additional live verification claims.
+
+Account names are linked to permanent Supabase user IDs; sign-in and invitations continue to use email. A name change updates how that person appears without rewriting trip membership or balances. Historical activities without a reliable creator retain latest-editor attribution only. See [display names and creator tracking](docs/display-names.md) for setup, privacy, and verification details.

@@ -1,3 +1,4 @@
+import { displayNameFor } from "./profiles";
 import MapWorkspace from "./MapWorkspace";
 import { useRef, useState } from "react";
 import {
@@ -22,7 +23,7 @@ import {
   CalendarDays,
 } from "lucide-react";
 import { days, makeEntity, type Entity, type Trip, type Entry } from "./model";
-import { save, remove } from "./store";
+import { save, remove, userId, demo } from "./store";
 import { travel, warnings, entryBounds, formatTime } from "./schedule";
 import { money } from "./money";
 import { EntryForm } from "./Forms";
@@ -529,9 +530,48 @@ export default function Itinerary({
                         )}
                       </div>
                       <div
-                        className={`plan-secondary ${e.data.address || e.data.notes || e.data.cost > 0 || e.data.reservation || e.data.link || e.data.endDate > e.data.date ? "has-detail-content" : ""}`}
+                        className={`plan-secondary ${e.data.address || e.data.notes || e.data.cost > 0 || e.data.reservation || e.data.link || e.data.endDate > e.data.date || e.createdBy || e.updatedBy ? "has-detail-content" : ""}`}
                         id={`plan-details-${e.id}`}
                       >
+                        <div className="plan-attribution">
+                          {e.createdBy && (
+                            <span
+                              title={
+                                e.createdAt
+                                  ? new Date(e.createdAt).toLocaleString()
+                                  : undefined
+                              }
+                            >
+                              Added by{" "}
+                              {displayNameFor(
+                                e.createdBy,
+                                trip.people.find((p) => p.id === e.createdBy)
+                                  ?.name,
+                                userId,
+                                demo,
+                              )}
+                            </span>
+                          )}
+                          {(!e.createdBy || e.version > 1) && (
+                            <span
+                              title={new Date(e.updatedAt).toLocaleString()}
+                            >
+                              Updated by{" "}
+                              {displayNameFor(
+                                e.updatedBy,
+                                trip.people.find((p) => p.id === e.updatedBy)
+                                  ?.name,
+                                userId,
+                                demo,
+                              )}{" "}
+                              ·{" "}
+                              {new Date(e.updatedAt).toLocaleDateString(
+                                "en-US",
+                                { month: "short", day: "numeric" },
+                              )}
+                            </span>
+                          )}
+                        </div>
                         {view === "all" && <small>{e.data.date}</small>}
                         {e.data.address && (
                           <p className="place-address">
@@ -591,21 +631,6 @@ export default function Itinerary({
                     </button>
                     {canEdit && (
                       <div className="plan-actions">
-                        <small className="activity-updated">
-                          Updated{" "}
-                          <time
-                            dateTime={e.updatedAt}
-                            title={new Date(e.updatedAt).toLocaleString()}
-                          >
-                            {new Date(e.updatedAt).toLocaleDateString("en-US", {
-                              month: "short",
-                              day: "numeric",
-                            })}
-                          </time>{" "}
-                          ·{" "}
-                          {trip.people.find((p) => p.id === e.updatedBy)
-                            ?.name || "Traveler"}
-                        </small>
                         <div className="activity-action-row">
                           <button
                             className="icon-button"

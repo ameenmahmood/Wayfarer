@@ -1,3 +1,4 @@
+import { displayNameFor } from "./profiles";
 import { pendingInvitation, clearInvitation } from "./invitation";
 import { useEffect, useState } from "react";
 import { appBaseUrl, appBasePath } from "./urls";
@@ -42,7 +43,12 @@ export default function Members({
     ? trip.people
     : members.map((m) => ({
         id: m.user_id,
-        name: trip.people.find((p) => p.id === m.user_id)?.name || m.email,
+        name: displayNameFor(
+          m.user_id,
+          trip.people.find((p) => p.id === m.user_id)?.name,
+          userId,
+          demo,
+        ),
         role: m.role,
       }));
   return (

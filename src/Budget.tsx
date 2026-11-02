@@ -421,7 +421,7 @@ export default function Budget({
                 await save({
                   ...tripEntity,
                   data: {
-                    ...trip,
+                    ...tripEntity.data,
                     budget: minor(String(f.get("budget")), trip.currency),
                     categoryBudgets,
                   },

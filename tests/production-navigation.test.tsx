@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { applyProfiles } from "../src/profiles";
 // Production mode with a controlled Supabase transport, never a real account.
 import { beforeAll, beforeEach, afterEach, it, expect, vi } from "vitest";
 import {
@@ -23,6 +24,14 @@ const backend = vi.hoisted(() => ({
 }));
 vi.mock("../src/store", () => ({
   demo: false,
+  setDisplayName: async (name: string) => {
+    const { applyProfiles } = await import("../src/profiles");
+    applyProfiles(
+      [{ user_id: backend.session.user.id, display_name: name }],
+      backend.session.user.id,
+    );
+    backend.changes.dispatchEvent(new Event("change"));
+  },
   get userId() {
     return backend.session?.user.id || "";
   },
@@ -103,6 +112,7 @@ beforeAll(() => {
   };
 });
 beforeEach(() => {
+  applyProfiles([], "", false);
   backend.session = null;
   backend.records = [];
   backend.saved = [];
@@ -467,4 +477,41 @@ it("viewers do not receive a disabled invitation form and can still read permiss
     screen.getByText("Permissions", { selector: "summary" }),
   );
   expect(screen.getByText("Viewer", { selector: "b" })).toBeTruthy();
+});
+
+it("signed-in accounts without a name receive a dismissible profile prompt and can save their name", async () => {
+  backend.session = { user: { id: "owner-test", email: "owner@example.test" } };
+  applyProfiles([], "owner-test", true);
+  const u = userEvent.setup();
+  render(<App />);
+  await screen.findByRole("heading", { name: "What should we call you?" });
+  await u.type(await dlg().findByLabelText("Display name"), "Ameen");
+  await u.click(dlg().getByRole("button", { name: "Save name" }));
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  expect(
+    screen.getByRole("button", { name: /Ameen.*Private workspace/ }),
+  ).toBeTruthy();
+});
+
+it("saving a budget preserves canonical membership names after applying display names", async () => {
+  backend.session = { user: { id: "owner-test", email: "owner@example.test" } };
+  backend.records = seed();
+  const raw = backend.records.find((e) => e.kind === "trip");
+  const originalPeople = structuredClone(raw.data.people);
+  applyProfiles(
+    [
+      { user_id: originalPeople[0].id, display_name: "Ameen" },
+      { user_id: "owner-test", display_name: "Account owner" },
+    ],
+    "owner-test",
+  );
+  const u = userEvent.setup();
+  render(<App />);
+  await screen.findByRole("button", { name: "Edit trip" });
+  await u.click(screen.getByRole("button", { name: "Expenses" }));
+  await screen.findByRole("heading", { name: "Expenses" });
+  await u.click(screen.getByRole("button", { name: "Manage budgets" }));
+  await u.click(dlg().getByRole("button", { name: "Save budgets" }));
+  await waitFor(() => expect(backend.saved).toHaveLength(1));
+  expect(backend.saved[0].data.people).toEqual(originalPeople);
 });

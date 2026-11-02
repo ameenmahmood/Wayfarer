@@ -1,3 +1,10 @@
+import {
+  applyProfiles,
+  profileFailure,
+  profileRows,
+  normalizeDisplayName,
+  type Profile,
+} from "./profiles";
 import { openDB } from "idb";
 import { fetchVisibleEntities } from "./syncPull";
 import { createClient } from "@supabase/supabase-js";
@@ -27,6 +34,71 @@ export let syncStatus = "Loading local data…";
 export let syncError = "";
 export let userId = "local-owner";
 export let userEmail = "";
+export async function refreshDisplayNames() {
+  const db = await dbPromise;
+  if (demo) {
+    applyProfiles((await db.get("meta", "demo-profiles")) || [], userId);
+    return;
+  }
+  if (!userId) {
+    applyProfiles([], "", false);
+    return;
+  }
+  const account = userId;
+  const cached = (await db.get("meta", `profiles:${account}`)) || [];
+  applyProfiles(cached, account, false);
+  if (!navigator.onLine) return;
+  try {
+    const { data, error } = await supabase!
+      .from("profiles")
+      .select("user_id,display_name");
+    if (error) throw error;
+    if (userId !== account) return;
+    applyProfiles(data || [], account);
+    await db.put("meta", data || [], `profiles:${account}`);
+  } catch {
+    if (userId !== account) return;
+    profileFailure(
+      "Display names are unavailable right now. Your saved trips are still available. Try again later.",
+    );
+  }
+}
+export async function setDisplayName(value: string) {
+  const name = normalizeDisplayName(value),
+    db = await dbPromise;
+  if (demo) {
+    const rows = [
+      ...profileRows().filter((p) => p.user_id !== userId),
+      { user_id: userId, display_name: name },
+    ];
+    await db.put("meta", rows, "demo-profiles");
+    applyProfiles(rows, userId);
+  } else {
+    if (!navigator.onLine)
+      throw Error("Connect to the internet to change your account name.");
+    const {
+      data: { session },
+    } = await supabase!.auth.getSession();
+    if (!session || session.user.id !== userId)
+      throw Error("Sign in again before changing your name.");
+    const { data, error } = await supabase!.rpc("set_display_name", {
+      new_name: name,
+    });
+    if (error)
+      throw Error(
+        "Your name could not be saved. Check your connection and try again, or ask the site owner to enable account names.",
+      );
+    if (userId !== session.user.id)
+      throw Error("Your account changed. Sign in again.");
+    const rows: Profile[] = [
+      ...profileRows().filter((p) => p.user_id !== userId),
+      data,
+    ];
+    applyProfiles(rows, userId);
+    await db.put("meta", rows, `profiles:${userId}`);
+  }
+  changed();
+}
 export async function all(): Promise<Entity[]> {
   const db = await dbPromise;
   if (!demo) {
@@ -146,6 +218,12 @@ export async function saveBatch(
       version: baseVersion + 1,
       updatedAt: new Date().toISOString(),
       updatedBy: userId,
+      createdBy: stored.get(entity.id)
+        ? stored.get(entity.id)!.createdBy
+        : userId,
+      createdAt: stored.get(entity.id)
+        ? stored.get(entity.id)!.createdAt
+        : new Date().toISOString(),
     };
     if (!demo)
       await tx.objectStore("mutations").put({
@@ -246,6 +324,7 @@ async function synchronizeOnce() {
     userId = session.user.id;
     userEmail = session.user.email || "";
     if (!navigator.onLine) {
+      await refreshDisplayNames();
       syncStatus = "Offline · edits queued";
       return;
     }
@@ -329,6 +408,7 @@ async function synchronizeOnce() {
       if (!remoteIds.has(e.id) && !blocked.has(e.id))
         await entitiesStore.delete(e.id);
     await tx.done;
+    await refreshDisplayNames();
     const remaining = await pending();
     syncStatus = remaining.some((m) => m.state === "conflict")
       ? "Conflict needs review"
@@ -351,6 +431,8 @@ function fromRemote(r: any): Entity {
     version: r.version,
     updatedAt: r.updated_at,
     updatedBy: r.updated_by,
+    createdBy: r.created_by,
+    createdAt: r.created_at,
     deleted: r.deleted,
   };
 }
@@ -372,7 +454,12 @@ export async function resolveConflict(m: Mutation, choice: "remote" | "local") {
     if (m.remote) await tx.objectStore("entities").put(fromRemote(m.remote));
     else await tx.objectStore("entities").delete(m.entityId);
   } else {
-    const next = { ...current, version: m.remote.version + 1 };
+    const next = {
+      ...current,
+      createdBy: m.remote.created_by,
+      createdAt: m.remote.created_at,
+      version: m.remote.version + 1,
+    };
     await tx.objectStore("entities").put(next);
     await tx.objectStore("mutations").put({
       ...m,
@@ -412,6 +499,7 @@ async function initialize() {
     supabase.auth.onAuthStateChange((_event, session) => {
       userId = session?.user.id || "";
       userEmail = session?.user.email || "";
+      applyProfiles([], userId, false);
       setTimeout(() => void synchronize(), 0);
     });
     supabase
@@ -421,8 +509,16 @@ async function initialize() {
         { event: "*", schema: "public", table: "entities" },
         () => void synchronize(),
       )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "profiles" },
+        () => {
+          void refreshDisplayNames().then(changed);
+        },
+      )
       .subscribe();
   }
+  await refreshDisplayNames();
   await synchronize();
   window.addEventListener("online", () => void synchronize());
   window.addEventListener("offline", () => {

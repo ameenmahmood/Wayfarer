@@ -1,3 +1,4 @@
+import DisplayNameForm from "./DisplayNameForm";
 import SignIn from "./SignIn";
 import { legalUrl } from "./urls";
 import { Monitor, Sun, Moon, Cloud, HardDrive } from "lucide-react";
@@ -76,7 +77,7 @@ export default function Settings({
           {!demo &&
             (userEmail ? (
               <>
-                <p>Signed in as {userEmail}</p>
+                <DisplayNameForm />
                 <Button
                   onClick={() =>
                     a.run(async () => {
@@ -91,6 +92,7 @@ export default function Settings({
             ) : (
               <SignIn />
             ))}
+          {demo && <DisplayNameForm />}
           {demo && (
             <p className="small">
               Setup: add Supabase URL and public anon key to .env.local, apply

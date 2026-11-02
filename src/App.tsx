@@ -1,3 +1,4 @@
+import { displayNameFor, ownDisplayName, profileState } from "./profiles";
 import InvitationInbox from "./InvitationInbox";
 import { pendingInvitation, clearInvitation } from "./invitation";
 import CoverPhoto from "./CoverPhoto";
@@ -63,6 +64,7 @@ const Packing = lazy(() => import("./Packing"));
 const Members = lazy(() => import("./Members"));
 const CoverPicker = lazy(() => import("./CoverPicker"));
 const Settings = lazy(() => import("./Settings"));
+const DisplayNameForm = lazy(() => import("./DisplayNameForm"));
 const TripForm = lazy(() =>
   import("./Forms").then((m) => ({ default: m.TripForm })),
 );
@@ -119,6 +121,7 @@ export default function App() {
       return undefined;
     }),
     [sidebar, setSidebar] = useState(false),
+    [namePromptDismissed, setNamePromptDismissed] = useState(""),
     [status, setStatus] = useState("Loading…"),
     [role, setRole] = useState<Role>("viewer"),
     [invite, setInvite] = useState(pendingInvitation),
@@ -149,7 +152,15 @@ export default function App() {
   }, [theme]);
   const trips = records.filter((e) => e.kind === "trip") as Entity<Trip>[],
     tripEntity = trips.find((t) => t.id === tripId) || trips[0],
-    trip = tripEntity?.data,
+    trip = tripEntity
+      ? {
+          ...tripEntity.data,
+          people: tripEntity.data.people.map((p) => ({
+            ...p,
+            name: displayNameFor(p.id, p.name, userId, demo),
+          })),
+        }
+      : undefined,
     tid = tripEntity?.id;
   useEffect(() => {
     if (!tid) return;
@@ -182,6 +193,7 @@ export default function App() {
     };
   }, [tid, status, queue.length]);
   useEffect(() => setTripDetails(false), [tid, tab]);
+  useEffect(() => setNamePromptDismissed(""), [userId]);
   useEffect(() => {
     if (tripDetails)
       document
@@ -262,6 +274,9 @@ export default function App() {
   } catch {}
   const canEdit = role !== "viewer";
   const signedOut = !demo && !userId;
+  const accountInitial = (ownDisplayName || "Traveler")
+    .slice(0, 1)
+    .toLocaleUpperCase();
   const newTrip = () => {
     setSidebar(false);
     const id = uid();
@@ -318,7 +333,11 @@ export default function App() {
           <span
             className={"workspace-icon" + (signedOut ? " guest-workspace" : "")}
           >
-            {signedOut ? <Compass size={18} aria-hidden="true" /> : "A"}
+            {signedOut ? (
+              <Compass size={18} aria-hidden="true" />
+            ) : (
+              accountInitial
+            )}
           </span>
           <div>
             <b>My travel space</b>
@@ -395,11 +414,17 @@ export default function App() {
           </button>
           <button className="profile" onClick={() => openSettings("account")}>
             <span className="avatar a0">
-              {signedOut ? <UserRound size={18} aria-hidden="true" /> : "A"}
+              {signedOut ? (
+                <UserRound size={18} aria-hidden="true" />
+              ) : (
+                accountInitial
+              )}
             </span>
             <div>
               <b>
-                {signedOut ? "Sign in" : demo ? "Local traveler" : "My account"}
+                {signedOut
+                  ? "Sign in"
+                  : ownDisplayName || (demo ? "Local traveler" : "My account")}
               </b>
               <small>
                 {signedOut
@@ -418,6 +443,33 @@ export default function App() {
       {sidebar && (
         <div className="sidebar-backdrop" onClick={() => setSidebar(false)} />
       )}
+      {!demo &&
+        userId &&
+        !loading &&
+        profileState === "ready" &&
+        !ownDisplayName &&
+        namePromptDismissed !== userId &&
+        !settings &&
+        !editingTrip &&
+        !choosingCover && (
+          <Modal
+            title="What should we call you?"
+            onClose={() => setNamePromptDismissed(userId)}
+          >
+            <LazyPanel resetKey="profile-onboarding">
+              <DisplayNameForm
+                onboarding
+                onDone={() => setNamePromptDismissed(userId)}
+              />
+            </LazyPanel>
+            <Button
+              className="text-button"
+              onClick={() => setNamePromptDismissed(userId)}
+            >
+              Not now
+            </Button>
+          </Modal>
+        )}
       <div className="main-shell" inert={sidebar}>
         <header className="topbar">
           <button
@@ -512,7 +564,11 @@ export default function App() {
               title={signedOut ? "Sign in" : "My account"}
               onClick={() => openSettings("account")}
             >
-              {signedOut ? <UserRound size={17} aria-hidden="true" /> : "A"}
+              {signedOut ? (
+                <UserRound size={17} aria-hidden="true" />
+              ) : (
+                accountInitial
+              )}
             </button>
           </div>
         </header>

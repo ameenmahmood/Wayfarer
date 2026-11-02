@@ -6055,3 +6055,36 @@ html {
   line-height: 1.6;
   margin: 6px 0;
 }
+
+.display-name-form {
+  max-width: 480px;
+  margin: 12px 0 18px;
+}
+.display-name-form > p {
+  font-size: 13px;
+  line-height: 1.5;
+}
+.account-email {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+  margin: 0 0 14px;
+  overflow-wrap: anywhere;
+}
+.plan-attribution {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.5;
+  margin-bottom: 6px;
+}
+@media (max-width: 650px) {
+  .plan-attribution {
+    flex-direction: column;
+    font-size: 11px;
+    gap: 2px;
+  }
+}
