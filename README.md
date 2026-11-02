@@ -4,29 +4,43 @@ A private travel planner for you and invited friends. Plan activities, explore a
 
 **Live application:** [ameenmahmood.github.io/Wayfarer](https://ameenmahmood.github.io/Wayfarer/)
 
-Anyone can open Wayfarer. Sign in by email to create and save your own trips. Each trip is private to its owner and invited members.. This is not a travel marketplace: there is no public trip discovery, payment processing, or booking import.
+Anyone can open Wayfarer without a ChatGPT account. In connected mode, you can draft a trip while signed out, then sign in through Supabase email to save it. Any signed-in user can create their own trips; access to someone else’s trip requires an invitation. Each trip is private to its owner and members. This is not a travel marketplace: there is no public trip discovery, payment processing, or booking import.
 
 ## What you can do
 
-| Area                 | Current behavior                                                                                                                                                                                                                       |
-| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Trips                | Create multiple private trips with destinations, dates, travelers, time zones, base currencies, and budgets.                                                                                                                           |
-| Itinerary            | Use daily, whole-trip, and saved-place views. Add activities, restaurants, transport, flights, lodging, and notes through a simplified form with optional details. Times display in 12-hour format.                                    |
-| Reordering           | Drag an activity’s three-bar handle, use its up/down arrow keys, or use the move buttons. Reordering changes display order without changing reservation times. Move or duplicate plans between days.                                   |
-| Travel between stops | Choose walking, driving, cycling, or public transit. Calculate a live estimate when available, or enter travel minutes manually. Rough estimates are labeled.                                                                          |
-| Map                  | Open a dedicated, nearly full-window map without the activity list or sidebar. Change day, trip scope, and transport; select a stop to view its details and edit it when permitted. Returning to Itinerary preserves the selected day. |
-| Nearby places        | Find cafés, restaurants, attractions, parks, and museums around a destination or itinerary stop. Search radii use miles. Review results before adding a place to a day or saving it for later.                                         |
-| Route proposals      | Preview a suggested stop order, travel estimates, savings, and conflicts before applying changes. Fixed reservations and supported opening windows constrain the proposal.                                                             |
-| Expenses             | Track budgets, categories, planned costs, actual spending, itemized splits, currencies, repayments, balances, and suggested settlements. Export expenses as CSV.                                                                       |
-| Packing              | Maintain shared or personal lists with categories, quantities, assignments, notes, packed status, and reusable templates.                                                                                                              |
-| Members              | Owners invite editors or viewers, change access, and revoke invitations or membership. Signed-in recipients see pending invitations even without the original link.                                                                    |
-| Appearance           | Follow the system theme or remember an explicit Light/Dark choice. Signed-out accounts use person icons and clear Sign in labels.                                                                                                      |
+| Area                 | Current behavior                                                                                                                                                                                                                                           |
+| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Trips                | Create multiple private trips with destinations, dates, travelers, base currencies, and budgets. Planning uses local clock times without time-zone controls.                                                                                               |
+| Itinerary            | Use daily, whole-trip, and saved-place views. Add activities, restaurants, transport, flights, lodging, and notes through a simplified form with optional details. Times display in 12-hour format.                                                        |
+| Reordering           | Drag an activity’s three-bar handle, use its up/down arrow keys, or use the move buttons. Reordering changes display order without changing reservation times. Move or duplicate plans between days.                                                       |
+| Travel between stops | Choose walking, driving, cycling, or public transit. Calculate a live estimate when available, or enter travel minutes manually. Rough estimates are labeled.                                                                                              |
+| Map                  | Open a dedicated, nearly full-window map without the activity list or sidebar. Change day, trip scope, and transport; select a stop to view its details and edit it when permitted. Returning to Itinerary preserves the selected day.                     |
+| Ideas                | Compare potential activities, restaurants, hotels, flights, transport, and other options under Considering, Passed, or Approved. Review an idea in the activity form before adding it to the itinerary. Approval alone does not book or schedule anything. |
+| Nearby places        | Find cafés, restaurants, attractions, parks, and museums around a destination or itinerary stop. Search radii use miles. Review results before adding a place to a day or saving it for later.                                                             |
+| Route proposals      | Preview a suggested stop order, travel estimates, savings, and conflicts before applying changes. Fixed reservations and supported opening windows constrain the proposal.                                                                                 |
+| Expenses             | Track budgets, categories, planned costs, actual spending, itemized splits, currencies, repayments, balances, and suggested settlements. Export expenses as CSV.                                                                                           |
+| Packing              | Maintain shared or personal lists with categories, quantities, assignments, notes, packed status, and reusable templates.                                                                                                                                  |
+| Members              | Owners invite editors or viewers, change access, and revoke invitations or membership. Signed-in recipients see pending invitations even without the original link.                                                                                        |
+| Appearance           | Follow the system theme or remember an explicit Light/Dark choice. Signed-out accounts use person icons and clear Sign in labels.                                                                                                                          |
 
 Owners can customize the trip banner using **Change cover**. Curated city and landscape presets include suggestions based on local keyword matches, such as NYC → New York skyline. This is a preset catalog, not a live image-search service. Photos require internet and have a gradient fallback.
 
 To delete a trip, an owner opens **Edit trip → Delete trip** and confirms the named trip. Connected deletion requires internet and no pending/conflicted edits for that trip. It removes the trip from the app for all travelers and revokes invitations. Records remain tombstoned for synchronization; there is no in-app undo or physical database purge.
 
-The former **Adjust schedule** button and its reminders have been removed. The internal scheduling module and its tests remain in the source. **Optimize day** remains available for supported daily plans. Nearby-place discovery replaced the AI recommendation interface; no AI key is needed for the current interface.
+Route proposals open through **Optimize day** on desktop or **Route** on mobile. Dragging activities changes their display order; it does not shift their scheduled times. Nearby-place discovery replaced the AI recommendation interface; no AI key is needed for the current interface.
+
+## Mobile workspace
+
+The phone interface prioritizes the current section instead of repeating the full trip banner:
+
+- **Trip header:** the trip name and dates stay at the top. Tap the name to reveal or hide the cover, trip summary, and owner controls such as Change cover and Edit trip.
+- **Bottom navigation:** Itinerary, Map, Ideas, Expenses, Packing, and Members stay within reach while scrolling. The selected section is highlighted.
+- **Itinerary:** switch between Day plan, Whole trip, and Saved; select a date from the compact calendar strip. Activity rows show the title, start time, duration, and location/type. Expand a row for additional details and the original move-up, move-down, edit, move/duplicate, and delete icons when permitted. Empty details and repeated duration fields are omitted.
+- **Travel:** tap the line between activities to choose a travel method, calculate an estimate, or save a manual duration. **Route** opens a proposal for review before applying it.
+- **Secondary tools:** planned costs, expense details, packing templates, and help expand when needed. Expense totals distinguish actual spending, remaining budget, and estimates.
+- **Status:** the top status control opens synchronization/account details. Short phone labels such as Synced, Saved locally, and Offline retain the full status as an accessible label.
+
+Mobile layouts retain browser zoom and readable form inputs, use safe-area spacing for bottom navigation, and support Light, Dark, and System appearance. Desktop retains its sidebar, trip banner, and section tabs.
 
 ## Run locally
 
@@ -56,7 +70,7 @@ The preview opens at [http://127.0.0.1:4173/](http://127.0.0.1:4173/) with the d
 - **React + TypeScript + Vite:** responsive interface and a static build that GitHub Pages can serve continuously without a running development computer.
 - **IndexedDB + idb:** local trip records and a persistent, versioned mutation queue. Edits are saved locally before synchronization.
 - **Supabase:** passwordless Auth, Postgres with row-level security, Realtime invalidations, and the `travel-services` Edge Function. Membership and role checks run on the server.
-- **Temporal polyfill:** IANA time zones, cross-zone arrival times, and daylight-saving validation.
+- **Temporal polyfill:** internal interpretation of existing local-time records, route timing, and daylight-saving validation. Time-zone selectors and labels have been removed from the interface; saved timing metadata is retained without converting existing activity clocks.
 - **Integer minor units + BigInt intermediate arithmetic:** deterministic expense splitting and currency conversion.
 
 Google Maps and place lookup are configured on the hosted installation. A fresh clone needs its own service configuration. Automatic exchange rates require a separately configured provider; manual rate snapshots remain available.
@@ -101,15 +115,15 @@ Never put a Supabase service-role key, SMTP password, Google server key, AI key,
 4. Set Edge Function secrets in Supabase. Set `ALLOWED_ORIGIN` to the exact allowed origins, separated by commas, such as `https://ameenmahmood.github.io,http://127.0.0.1:5174,http://localhost:5174`. Origins have no path; Auth redirect URLs include the application path.
 5. Add the browser environment variables, restart, and sign in. Connected mode does not upload the demo trip or convert its sample travelers into real members.
 
-| Migration                             | Purpose                                                                                          |
-| ------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| `001_private_trips.sql`               | Tables, RLS, membership, validation, mutation receipts, and invitation RPCs.                     |
-| `002_delete_trips.sql`                | Owner-only deletion, trip-wide tombstones, and deletion-aware invitation/mutation checks.        |
-| `003_missing_conflict_entity.sql`     | Correct JSON null for conflicts involving a missing record.                                      |
-| `004_invitation_inbox.sql`            | Recipient-only invitation discovery, acceptance by ID, and safe acceptance retries.              |
-| `005_internal_validation_helpers.sql` | Restrict direct execution of internal validation helpers and pin the money helper’s search path. |
-| `006_trip_ideas.sql` | Shared Ideas records, validation, and duplicate itinerary-link protection. |
-| `007_backend_audit_hardening.sql` | Strict versions and payloads, invitation revocation, bounded service quotas, and function hardening. |
+| Migration                             | Purpose                                                                                              |
+| ------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `001_private_trips.sql`               | Tables, RLS, membership, validation, mutation receipts, and invitation RPCs.                         |
+| `002_delete_trips.sql`                | Owner-only deletion, trip-wide tombstones, and deletion-aware invitation/mutation checks.            |
+| `003_missing_conflict_entity.sql`     | Correct JSON null for conflicts involving a missing record.                                          |
+| `004_invitation_inbox.sql`            | Recipient-only invitation discovery, acceptance by ID, and safe acceptance retries.                  |
+| `005_internal_validation_helpers.sql` | Restrict direct execution of internal validation helpers and pin the money helper’s search path.     |
+| `006_trip_ideas.sql`                  | Shared Ideas records, validation, and duplicate itinerary-link protection.                           |
+| `007_backend_audit_hardening.sql`     | Strict versions and payloads, invitation revocation, bounded service quotas, and function hardening. |
 
 All seven migrations are installed on the current hosted backend. If an existing database was initialized manually, verify its schema and migration history before using migration repair. **Do not reset the database to fix an “already exists” error.**
 
@@ -181,14 +195,14 @@ Google Maps/Places/Routes usage, Supabase usage beyond plan allowances, SMTP del
 
 ## Verification and remaining limits
 
-**Latest verified suite: 171 passing tests across 22 files.** GitHub Actions runs the full suite and production build before deployment.
+**Latest verified suite: 177 passing tests across 23 files (November 1, 2026).** GitHub Actions runs the full suite and production build before deployment.
 
 - Money tests cover currency precision, rounding, invalid and itemized splits, saved rates, balance reconciliation, settlements, repayments, edits/deletions, and CSV safety.
 - Time/route tests cover time zones, daylight-saving gaps/ambiguity, fixed reservations, multi-day lodging, conflicts, endpoints, unavailable routes, and proposal bounds.
 - Real IndexedDB behavior with a controlled sync transport covers offline queues, lost responses, idempotent retries, concurrent changes, deletion precedence, and fresh downloads after invitation acceptance.
 - Actual migration/RPC SQL runs in embedded PostgreSQL/PGlite. Tests cover roles, wrong-email invitations, recipient isolation, revocation, deletion, raw-write denial, personal packing, and internal helper permissions. Test-only crypto substitutes do not validate hosted token entropy or SMTP delivery.
-- UI tests cover signed-out navigation, trip drafts, invitation recovery, map/day preservation, expanded map rendering, drag and keyboard reordering, account dialogs, resend cooldowns, and error recovery. Google SDK/API tests use controlled responses.
-- Browser checks have covered desktop and phone layouts, light/dark settings, map-only navigation, stop details/editing, activity ordering across reloads, covers, expense/packing workflows, and the simplified signed-out/sign-in interface.
+- UI tests cover signed-out navigation, trip drafts, invitation recovery, map/day preservation, expanded map rendering, drag and keyboard reordering, compact activity expansion and actions, trip-header details, local-time field preservation, account dialogs, resend cooldowns, and error recovery. Google SDK/API tests use controlled responses.
+- Browser checks have covered desktop and phone layouts, light/dark settings, map-only navigation, stop details/editing, activity ordering across reloads, covers, expense/packing workflows, and the simplified signed-out/sign-in interface. The latest mobile pass checked 320px, 390px, and 430px viewport widths, all six bottom-navigation destinations, map fit, the compact action row, trip details, and desktop layout preservation. These are browser viewport checks, not physical-device certification.
 
 The owner confirmed live passwordless sign-in, invitation joining, Google Maps, and place search. A reported missing confirmation email was found in Spam. A complete two-device Realtime/offline/conflicting-expense demonstration remains separately unverified; automated transport/database coverage is not a claim that this live workflow was performed. Browser storage and mail delivery remain subject to the browser/provider.
 
