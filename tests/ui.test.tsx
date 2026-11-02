@@ -457,9 +457,15 @@ it("compact activity details expand by keyboard, preserve edit actions, and coll
   expect(toggle.getAttribute("aria-expanded")).toBe("false");
 });
 
-it("trip context can expand on secondary screens and resets when switching sections", async () => {
+it("trip context opens from the itinerary header and resets when switching sections", async () => {
   localStorage.setItem("wayfarer-trip", "demo-japan");
   const u = await openApp();
+  const itineraryContext = screen.getByRole("button", {
+    name: "Trip details for A little lost in Japan",
+  });
+  expect(itineraryContext.getAttribute("aria-expanded")).toBe("false");
+  await u.click(itineraryContext);
+  expect(itineraryContext.getAttribute("aria-expanded")).toBe("true");
   await u.click(screen.getByRole("button", { name: "Ideas" }));
   const toggle = await screen.findByRole("button", {
     name: "Trip details for A little lost in Japan",

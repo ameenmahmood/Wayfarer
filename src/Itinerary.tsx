@@ -220,7 +220,7 @@ export default function Itinerary({
             <CalendarDays size={15} />
             <span className="view-label-full">Daily plan</span>
             <span className="view-label-compact" aria-hidden="true">
-              Day
+              Day plan
             </span>
           </button>
           <button
@@ -231,7 +231,7 @@ export default function Itinerary({
           >
             <span className="view-label-full">Whole trip</span>
             <span className="view-label-compact" aria-hidden="true">
-              Trip
+              Whole trip
             </span>
           </button>
           <button
@@ -261,6 +261,9 @@ export default function Itinerary({
             >
               <Route size={15} />
               <span className="optimize-label">Optimize day</span>
+              <span className="optimize-label-mobile" aria-hidden="true">
+                Route
+              </span>
             </Button>
           </div>
         )}

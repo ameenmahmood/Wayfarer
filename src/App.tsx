@@ -284,6 +284,7 @@ export default function App() {
     <div
       className={
         "app-shell" +
+        (!overview && trip ? " trip-active" : "") +
         (!overview && trip && tab === "map" ? " map-workspace" : "") +
         (!overview && trip && !["itinerary", "map"].includes(tab)
           ? " secondary-section"
@@ -439,7 +440,7 @@ export default function App() {
             <b className="breadcrumb-title">
               {trip?.title || "Your next adventure"}
             </b>
-            {!overview && trip && !["itinerary", "map"].includes(tab) && (
+            {!overview && trip && tab !== "map" && (
               <button
                 className="mobile-trip-title"
                 aria-label={`Trip details for ${trip.title}`}
@@ -447,7 +448,20 @@ export default function App() {
                 aria-controls="trip-banner trip-summary"
                 onClick={() => setTripDetails((v) => !v)}
               >
-                <span>{trip.title}</span>
+                <span className="mobile-trip-heading">
+                  <span>{trip.title}</span>
+                  <small>
+                    {new Date(trip.start + "T12:00:00").toLocaleDateString(
+                      "en-US",
+                      { month: "short", day: "numeric" },
+                    )}{" "}
+                    –{" "}
+                    {new Date(trip.end + "T12:00:00").toLocaleDateString(
+                      "en-US",
+                      { month: "short", day: "numeric" },
+                    )}
+                  </small>
+                </span>
                 <ChevronDown size={14} />
               </button>
             )}
@@ -455,6 +469,8 @@ export default function App() {
           <div className="top-actions">
             <button
               className="sync-indicator"
+              aria-label={status}
+              title={status}
               onClick={() =>
                 openSettings(!demo && !userId ? "account" : "sync")
               }
@@ -468,7 +484,24 @@ export default function App() {
               ) : (
                 <Check size={14} />
               )}
-              <span>{status}</span>
+              <span className="sync-label-full">{status}</span>
+              <span className="sync-label-mobile" aria-hidden="true">
+                {status === "Saved on this device"
+                  ? "Saved locally"
+                  : status === "All changes synced"
+                    ? "Synced"
+                    : status.includes("Offline")
+                      ? "Offline"
+                      : status.includes("Syncing")
+                        ? "Syncing…"
+                        : status.includes("Sign in")
+                          ? "Sign in"
+                          : status.includes("failed")
+                            ? "Sync failed"
+                            : status.includes("conflict")
+                              ? "Review sync"
+                              : status}
+              </span>
               {queue.length > 0 && <b>{queue.length}</b>}
             </button>
             <button
