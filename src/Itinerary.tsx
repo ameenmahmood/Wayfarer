@@ -717,6 +717,11 @@ export default function Itinerary({
             date={date}
             trip={trip}
             tripId={tripId}
+            initialMode={mode}
+            onEditEntry={(entry) => {
+              setRoute(false);
+              setEditing(entry);
+            }}
             onDone={() => setRoute(false)}
           />
         </Modal>

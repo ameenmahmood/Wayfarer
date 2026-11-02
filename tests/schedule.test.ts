@@ -121,3 +121,36 @@ describe("destination time and route proposals", () => {
     expect(() => optimize(Array(11).fill(entry()), "09:00", "WALK")).toThrow();
   });
 });
+
+it("keeps an already feasible route when greedy insertion would increase travel", () => {
+  const stops = [
+    entry({ title: "A", order: 0 }),
+    entry({ title: "B", order: 1 }),
+    entry({ title: "C", order: 2 }),
+  ];
+  const result = optimize(stops, "09:00", "WALK", {
+    "A|B": 2,
+    "B|A": 1,
+    "B|C": 3,
+    "C|B": 100,
+    "A|C": 100,
+    "C|A": 100,
+  });
+  expect(result.entries.map((e) => e.title)).toEqual(["A", "B", "C"]);
+  expect(result.travel).toBe(5);
+  expect(result.savings).toBe(0);
+});
+it("flags a fixed reservation before the supplied opening window", () => {
+  const result = optimize(
+    [
+      entry({
+        fixed: true,
+        start: "09:00",
+        opening: { open: 600, close: 1020 },
+      }),
+    ],
+    "08:00",
+    "WALK",
+  );
+  expect(result.conflicts.length).toBeGreaterThan(0);
+});

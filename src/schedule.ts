@@ -114,7 +114,8 @@ export function optimize(
       }
       if (
         begin + e.duration > 1440 ||
-        (e.opening && begin + e.duration > e.opening.close)
+        (e.opening &&
+          (begin < e.opening.open || begin + e.duration > e.opening.close))
       )
         return null;
       scheduled.push({
@@ -152,7 +153,7 @@ export function optimize(
       };
     result = best.entries;
   }
-  const proposed = evaluate(result);
+  let proposed = evaluate(result);
   if (!proposed)
     return {
       entries,
@@ -161,6 +162,10 @@ export function optimize(
       conflicts: ["Fixed reservations cannot be reached with these settings."],
     };
   const original = [...entries].sort((a, b) => a.order - b.order);
+  const originalSchedule = evaluate(original);
+  // Keep an already feasible route when greedy insertion cannot improve it.
+  if (originalSchedule && originalSchedule.travel <= proposed.travel)
+    proposed = originalSchedule;
   let originalCost = 0,
     previous = startLocation;
   for (const e of original) {
