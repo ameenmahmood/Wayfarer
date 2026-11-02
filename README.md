@@ -4,7 +4,7 @@ A private travel planner for you and invited friends. Plan activities, explore a
 
 **Live application:** [ameenmahmood.github.io/Wayfarer](https://ameenmahmood.github.io/Wayfarer/)
 
-Anyone can open Wayfarer without a ChatGPT account. In connected mode, you can draft a trip while signed out, then sign in through Supabase email to save it. Any signed-in user can create their own trips; access to someone else’s trip requires an invitation. Each trip is private to its owner and members. This is not a travel marketplace: there is no public trip discovery, payment processing, or booking import.
+In connected mode, you can draft a trip while signed out, then sign in through Supabase email to save it. Any signed-in user can create their own trips; access to someone else’s trip requires an invitation. Each trip is private to its owner and members. This is not a travel marketplace: there is no public trip discovery, payment processing, or booking import.
 
 ## What you can do
 
