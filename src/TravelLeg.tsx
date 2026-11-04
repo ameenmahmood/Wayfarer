@@ -236,7 +236,7 @@ export default function TravelLeg({
         <div className="travel-status">
           <small role="status">
             {Number.isFinite(duration)
-              ? `${duration} min · ${manualTime !== undefined ? "manual time" : estimate ? "Google Maps estimate · live, not saved" : "rough straight-line estimate"}`
+              ? `${duration} min · ${manualTime !== undefined ? "manual time" : estimate ? (selectedMode === "DRIVE" ? "Google Maps estimate · average traffic" : "Google Maps estimate · live, not saved") : "rough straight-line estimate"}`
               : "No estimate yet · calculate or set a manual time"}
           </small>
           {manualTime === undefined && (

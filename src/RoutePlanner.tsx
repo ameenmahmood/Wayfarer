@@ -98,10 +98,6 @@ export default function RoutePlanner({
     if (!demo) {
       const departureInstant = instant(date, departure, trip.zone);
       const daysAway = (departureInstant - Date.now()) / 86400000;
-      if (mode === "DRIVE" && daysAway < 0)
-        throw Error(
-          "Driving estimates can’t use a past departure. Choose a future trip day/time, or use walking or cycling.",
-        );
       if (mode === "TRANSIT" && (daysAway < -7 || daysAway > 100))
         throw Error(
           "Transit schedules are only available from 7 days ago to 100 days ahead. Choose a date in that range or another transport method.",
@@ -155,7 +151,10 @@ export default function RoutePlanner({
       }
       setUnverifiedHours(unavailableHours);
       setSource(
-        "Live route estimates. Regular opening hours are estimates; holidays may differ." +
+        (mode === "DRIVE"
+          ? "Driving estimates use average traffic conditions. "
+          : "") +
+          "Regular opening hours are estimates; holidays may differ." +
           (unavailableHours.length
             ? " Hours unavailable/complex for: " +
               unavailableHours.join(", ") +

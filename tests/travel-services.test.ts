@@ -384,3 +384,49 @@ it("request decoding rejects a declared oversize body and handles split UTF-8 by
   } as RequestInit);
   expect(await readRequestText(req)).toBe("Kyoto · 京都");
 });
+
+it.each(["route", "matrix"])(
+  "only forwards departure times for transit in %s requests",
+  async (action) => {
+    const departure = "2027-04-12T12:00:00.000Z";
+    const origin = { placeId: "start" };
+    const destination = { placeId: "end" };
+    for (const mode of ["DRIVE", "WALK", "BICYCLE", "TRANSIT"]) {
+      const service = handler();
+      service.google.mockResolvedValueOnce(
+        new Response(
+          JSON.stringify(
+            action === "route"
+              ? { routes: [{ duration: "120s" }] }
+              : [
+                  {
+                    originIndex: 0,
+                    destinationIndex: 1,
+                    duration: "120s",
+                    condition: "ROUTE_EXISTS",
+                  },
+                ],
+          ),
+        ),
+      );
+      const response = await service.invoke(
+        nearbyRequest({
+          action,
+          mode,
+          departure,
+          origin,
+          destination,
+          points: [
+            { ...origin, title: "Start" },
+            { ...destination, title: "End" },
+          ],
+        }),
+      );
+      expect(response.status).toBe(200);
+      const payload = JSON.parse(service.google.mock.calls[0][1].body);
+      expect(payload.travelMode).toBe(mode);
+      if (mode === "TRANSIT") expect(payload.departureTime).toBe(departure);
+      else expect(payload).not.toHaveProperty("departureTime");
+    }
+  },
+);

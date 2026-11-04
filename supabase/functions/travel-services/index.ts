@@ -249,7 +249,7 @@ Deno.serve(async (req: Request) => {
         destination: waypoint(input.destination),
         travelMode: input.mode,
       };
-      if (input.departure && ["TRANSIT", "DRIVE"].includes(input.mode))
+      if (input.departure && input.mode === "TRANSIT")
         params.departureTime = input.departure;
       const data = await google(
         "https://routes.googleapis.com/directions/v2:computeRoutes",
@@ -294,7 +294,7 @@ Deno.serve(async (req: Request) => {
           destinations: input.points.map((p) => ({ waypoint: waypoint(p) })),
           travelMode: input.mode,
         };
-        if (["DRIVE", "TRANSIT"].includes(input.mode))
+        if (input.mode === "TRANSIT")
           params.departureTime = input.departure;
         const rows = await google(
           "https://routes.googleapis.com/distanceMatrix/v2:computeRouteMatrix",

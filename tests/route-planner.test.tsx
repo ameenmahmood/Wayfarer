@@ -195,7 +195,7 @@ it("explains a day containing only lodging and disables an empty preview", () =>
     true,
   );
 });
-it("rejects past driving and unsupported transit dates before contacting Google", async () => {
+it("allows driving estimates on past dates and rejects unsupported transit dates", async () => {
   const u = userEvent.setup(),
     date = "2000-01-01";
   render(
@@ -209,7 +209,13 @@ it("rejects past driving and unsupported transit dates before contacting Google"
     />,
   );
   await u.click(screen.getByRole("button", { name: "Preview route" }));
-  await screen.findByText(/Driving estimates can’t use a past departure/);
+  await screen.findByText(/Original itinerary is unchanged/);
+  expect(store.api).toHaveBeenCalledWith(
+    "matrix",
+    "trip",
+    expect.objectContaining({ mode: "DRIVE" }),
+  );
+  store.api.mockClear();
   await u.selectOptions(screen.getByLabelText("Transport"), "TRANSIT");
   await u.click(screen.getByRole("button", { name: "Preview route" }));
   await screen.findByText(/Transit schedules are only available/);
