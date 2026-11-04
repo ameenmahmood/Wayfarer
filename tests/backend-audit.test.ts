@@ -43,6 +43,8 @@ async function rpc(sql: string, args: any[] = []) {
 }
 beforeAll(async () => {
   await db.exec(`create role anon; create role authenticated; create schema auth; create table auth.users(id uuid primary key); insert into auth.users values('${owner}'),('${editor}'),('${viewer}'),('${stranger}'); create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('test.uid',true),'')::uuid$$; create function auth.jwt() returns jsonb language sql stable as $$select jsonb_build_object('email',current_setting('test.email',true))$$; grant usage on schema auth to authenticated; grant execute on all functions in schema auth to authenticated;
+ alter table auth.users add column email text, add column email_confirmed_at timestamptz;
+ update auth.users set email=case id when '${owner}' then 'owner@example.test' when '${editor}' then 'friend@example.test' when '${viewer}' then 'viewer@example.test' else 'outsider@example.test' end, email_confirmed_at=now();
  -- Test-only cryptographic stand-ins. Production uses pgcrypto. These tests cover SQL and authorization, not token entropy.
  create function public.gen_random_bytes(n int) returns bytea language sql as $$select decode(md5(random()::text)||md5(random()::text),'hex')$$;
  create function public.digest(v text,algo text) returns bytea language sql immutable as $$select decode(md5(v),'hex')$$; create publication supabase_realtime;`);
@@ -115,6 +117,15 @@ beforeAll(async () => {
     readFileSync(
       new URL(
         "../supabase/migrations/009_secure_entity_writes.sql",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  );
+  await db.exec(
+    readFileSync(
+      new URL(
+        "../supabase/migrations/010_verify_invitation_email.sql",
         import.meta.url,
       ),
       "utf8",
@@ -378,5 +389,59 @@ it("preserves private deletion visibility and keeps malformed tombstones from br
     expect(rows.map(({ id }) => id)).toEqual([t, missingId].sort());
   } finally {
     await db.exec("reset role");
+  }
+});
+
+it("rejects a still-valid session bearing the former holder's email", async () => {
+  const { t } = await workspace();
+  const address = "reassigned@example.test";
+  await rpc("select public.create_invitation($1,$2,'editor')", [t, address]);
+  const id = (await rpc("select id from invitations where trip_id=$1", [t]))
+    .rows[0].id;
+  await actor(stranger, address);
+  expect(
+    (await rpc("select id from public.my_trip_invitations()")).rows,
+  ).toEqual([]);
+  await expect(
+    rpc("select public.accept_trip_invitation($1)", [id]),
+  ).rejects.toThrow("Invitation is invalid");
+  expect(
+    (await rpc("select public.trip_role($1) as role", [t])).rows[0].role,
+  ).toBeNull();
+});
+
+it("prevents a removed member from rejoining with a pending invitation to their new email", async () => {
+  const { t } = await workspace();
+  await rpc(
+    "select public.create_invitation($1,'friend@example.test','editor')",
+    [t],
+  );
+  const first = (await rpc("select id from invitations where trip_id=$1", [t]))
+    .rows[0].id;
+  await actor(editor);
+  await rpc("select public.accept_trip_invitation($1)", [first]);
+
+  const newEmail = "new-friend@example.test";
+  await rpc("update auth.users set email=$2 where id=$1", [editor, newEmail]);
+  try {
+    await actor(owner);
+    const spare = (
+      await rpc("select public.create_invitation($1,$2,'editor') r", [
+        t,
+        newEmail,
+      ])
+    ).rows[0].r.token;
+    await rpc("select public.manage_member($1,$2,null)", [t, editor]);
+    await actor(editor, newEmail);
+    await expect(
+      rpc("select public.accept_invitation($1)", [spare]),
+    ).rejects.toThrow("Invitation is invalid");
+    expect(
+      (await rpc("select public.trip_role($1) as role", [t])).rows[0].role,
+    ).toBeNull();
+  } finally {
+    await rpc("update auth.users set email='friend@example.test' where id=$1", [
+      editor,
+    ]);
   }
 });
