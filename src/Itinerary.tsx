@@ -577,17 +577,15 @@ export default function Itinerary({
                       </div>
                       {(pin?.displayName?.text || pin?.formattedAddress) && (
                         <div className="plan-google-pin">
-                          <div>
-                            {pin.displayName?.text && (
-                              <b>{pin.displayName.text}</b>
-                            )}
-                            {pin.formattedAddress && (
-                              <span>{pin.formattedAddress}</span>
-                            )}
-                            {pin.attributions?.map((attribution, i) => (
-                              <small key={i}>{attribution.provider}</small>
-                            ))}
-                          </div>
+                          {pin.displayName?.text && (
+                            <b>{pin.displayName.text}</b>
+                          )}
+                          {pin.formattedAddress && (
+                            <span>{pin.formattedAddress}</span>
+                          )}
+                          {pin.attributions?.map((attribution, i) => (
+                            <span key={i}>{attribution.provider}</span>
+                          ))}
                           <span className="google-attribution" translate="no">
                             Google Maps
                           </span>

@@ -6090,38 +6090,25 @@ html {
 }
 
 .plan-google-pin {
-  display: flex;
-  justify-content: flex-end;
-  align-items: flex-start;
-  gap: 8px;
-  margin: 2px 0 8px auto;
-  max-width: min(100%, 380px);
-  padding: 6px 8px;
-  border-inline-start: 2px solid var(--border);
-  font-size: 11px;
-  line-height: 1.4;
+  margin: 0 0 4px;
+  padding-inline-start: 6px;
+  border-inline-start: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
   overflow-wrap: anywhere;
 }
-.plan-google-pin > div {
-  min-width: 0;
+.plan-google-pin b {
+  color: var(--text);
 }
-.plan-google-pin b,
-.plan-google-pin div > span,
-.plan-google-pin small {
-  display: block;
-}
-.plan-google-pin div > span,
-.plan-google-pin small {
-  color: var(--muted);
+.plan-google-pin > * + *::before {
+  content: " · ";
 }
 .plan-google-pin .google-attribution {
+  display: inline;
   margin: 0;
-  flex-shrink: 0;
-}
-@media (max-width: 650px) {
-  .plan-google-pin {
-    justify-content: space-between;
-    margin: 5px 0;
-    max-width: none;
-  }
+  padding: 0;
+  background: transparent;
+  color: light-dark(#5e5e5e, #fff);
+  font-size: 12px;
 }
