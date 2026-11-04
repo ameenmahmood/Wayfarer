@@ -45,6 +45,12 @@ export function travel(a: Entry, b: Entry, mode: string, matrix?: Matrix) {
           3,
       );
 }
+export function formatTravelDuration(minutes: number) {
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  const remainder = String(minutes % 60).padStart(2, "0");
+  return `${hours}:${remainder} hours`;
+}
 export function warnings(
   entries: Entry[],
   mode = "WALK",
@@ -75,7 +81,7 @@ export function warnings(
           out.push(`Route unavailable: ${prev.title} → ${e.title}.`);
         else if (gap < t)
           out.push(
-            `Insufficient travel time before ${e.title} (${t} min estimate).`,
+            `Insufficient travel time before ${e.title} (${formatTravelDuration(t)} estimate).`,
           );
       }
     }

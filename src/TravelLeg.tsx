@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import type { Entity, Entry } from "./model";
 import { api, demo, save } from "./store";
-import { travel, entryBounds } from "./schedule";
+import { travel, entryBounds, formatTravelDuration } from "./schedule";
 import { Button, Notice, useAsyncAction } from "./ui";
 
 export default function TravelLeg({
@@ -98,7 +98,7 @@ export default function TravelLeg({
         <span>
           {modeLabel} ·{" "}
           {Number.isFinite(duration)
-            ? `${manualTime === undefined && !estimate ? "~" : ""}${duration} min${manualTime !== undefined ? " · manual" : " estimate"}`
+            ? `${manualTime === undefined && !estimate ? "~" : ""}${formatTravelDuration(duration)}${manualTime !== undefined ? " · manual" : " estimate"}`
             : "Set travel time"}
         </span>
         {Number.isFinite(duration) && gap < duration && (
@@ -236,7 +236,7 @@ export default function TravelLeg({
         <div className="travel-status">
           <small role="status">
             {Number.isFinite(duration)
-              ? `${duration} min · ${manualTime !== undefined ? "manual time" : estimate ? (selectedMode === "DRIVE" ? "Google Maps estimate · average traffic" : "Google Maps estimate · live, not saved") : "rough straight-line estimate"}`
+              ? `${formatTravelDuration(duration)} · ${manualTime !== undefined ? "manual time" : estimate ? (selectedMode === "DRIVE" ? "Google Maps estimate · average traffic" : "Google Maps estimate · live, not saved") : "rough straight-line estimate"}`
               : "No estimate yet · calculate or set a manual time"}
           </small>
           {manualTime === undefined && (
@@ -252,8 +252,8 @@ export default function TravelLeg({
         </div>
         {Number.isFinite(duration) && gap < duration && (
           <Notice>
-            Insufficient travel time before {entry.data.title}: allow {duration}{" "}
-            minutes.
+            Insufficient travel time before {entry.data.title}: allow{" "}
+            {formatTravelDuration(duration)}.
           </Notice>
         )}
         {estimate?.warnings.map((w) => (
