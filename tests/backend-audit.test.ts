@@ -102,6 +102,24 @@ beforeAll(async () => {
       "utf8",
     ),
   );
+  await db.exec(
+    readFileSync(
+      new URL(
+        "../supabase/migrations/008_display_names_and_creators.sql",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  );
+  await db.exec(
+    readFileSync(
+      new URL(
+        "../supabase/migrations/009_secure_entity_writes.sql",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  );
   await actor(owner);
   await change("trip", tripId, {
     title: "Shared Japan",
@@ -283,6 +301,81 @@ it("deletion cannot carry an oversized payload and helper functions stay private
     await expect(
       rpc("select public.validate_payload('packing','{}',null)"),
     ).rejects.toThrow("permission denied");
+  } finally {
+    await db.exec("reset role");
+  }
+});
+
+it("does not grant an owner role when creation conflicts with a missing trip", async () => {
+  const { t } = await workspace();
+  const trip = (await rpc("select data from entities where id=$1", [t])).rows[0]
+    .data;
+  const id = randomUUID();
+  const create = (version: number) =>
+    rpc("select public.apply_change($1,$2,$2,'trip',$3,$4::jsonb) r", [
+      randomUUID(),
+      id,
+      version,
+      JSON.stringify(trip),
+    ]);
+  await actor(stranger);
+  expect((await create(1)).rows[0].r).toEqual({ conflict: true, entity: null });
+  expect(
+    (await rpc("select public.trip_role($1) as role", [id])).rows[0].role,
+  ).toBeNull();
+  await actor(owner);
+  expect((await create(0)).rows[0].r.conflict).toBe(false);
+  await actor(stranger);
+  expect(
+    (await rpc("select public.trip_role($1) as role", [id])).rows[0].role,
+  ).toBeNull();
+});
+
+it("preserves private deletion visibility and keeps malformed tombstones from breaking reads", async () => {
+  const { t, write } = await workspace();
+  const privateId = randomUUID(),
+    legacyId = randomUUID(),
+    missingId = randomUUID();
+  const personal = {
+    title: "Private checklist",
+    quantity: 1,
+    personal: true,
+    assigned: owner,
+  };
+  await write("packing", privateId, personal);
+  const deleted = await write(
+    "packing",
+    privateId,
+    { personal: false },
+    1,
+    true,
+  );
+  expect(deleted.entity.data).toEqual(personal);
+  const tombstone = await write(
+    "packing",
+    missingId,
+    { personal: "invalid" },
+    0,
+    true,
+  );
+  expect(tombstone.entity.data).toEqual({});
+
+  await rpc(
+    "insert into memberships values ($1,$2,'viewer@example.test','viewer')",
+    [t, viewer],
+  );
+  await rpc(
+    "insert into entities(id,trip_id,kind,data,updated_by,deleted) values($1,$2,'packing',$3,$4,true)",
+    [legacyId, t, JSON.stringify({ personal: "invalid" }), owner],
+  );
+  await actor(viewer);
+  await db.exec("set role authenticated");
+  try {
+    const { rows } = await rpc(
+      "select id from public.entities where trip_id=$1 order by id",
+      [t],
+    );
+    expect(rows.map(({ id }) => id)).toEqual([t, missingId].sort());
   } finally {
     await db.exec("reset role");
   }
