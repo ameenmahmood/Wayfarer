@@ -49,6 +49,7 @@ export default function MapPanel({
   tripId,
   mode = "WALK",
   expanded = false,
+  lookupPlace,
 }: {
   entries: Entity<Entry>[];
   selected: string;
@@ -56,6 +57,9 @@ export default function MapPanel({
   tripId: string;
   mode?: string;
   expanded?: boolean;
+  lookupPlace?: (
+    id: string,
+  ) => Promise<{ location: { latitude: number; longitude: number } }>;
 }) {
   const ref = useRef<HTMLDivElement>(null),
     map = useRef<any>(null),
@@ -130,7 +134,9 @@ export default function MapPanel({
           lng = e.data.lng;
         if (e.data.placeId && !demo) {
           try {
-            const p = await api("place", tripId, { placeId: e.data.placeId });
+            const p = lookupPlace
+              ? await lookupPlace(e.data.placeId)
+              : await api("place", tripId, { placeId: e.data.placeId });
             lat = p.location.latitude;
             lng = p.location.longitude;
           } catch (err: any) {
@@ -201,7 +207,7 @@ export default function MapPanel({
       markers.current.forEach((m) => m.setMap(null));
       paths.current.forEach((p) => p.setMap(null));
     };
-  }, [ready, mapVersion, locationKey, mode, tripId]);
+  }, [ready, mapVersion, locationKey, mode, tripId, lookupPlace]);
   useEffect(() => {
     const marker = markers.current.get(selected);
     if (marker && window.google?.maps) {

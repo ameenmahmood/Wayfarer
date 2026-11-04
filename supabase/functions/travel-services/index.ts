@@ -227,7 +227,7 @@ Deno.serve(async (req: Request) => {
           headers: {
             "X-Goog-Api-Key": key,
             "X-Goog-FieldMask":
-              "id,location,regularOpeningHours,attributions,googleMapsUri",
+              "id,location,regularOpeningHours,attributions,googleMapsUri,displayName,formattedAddress",
           },
           signal: AbortSignal.timeout(15000),
         },

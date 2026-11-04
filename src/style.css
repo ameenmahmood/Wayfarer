@@ -6088,3 +6088,40 @@ html {
     gap: 2px;
   }
 }
+
+.plan-google-pin {
+  display: flex;
+  justify-content: flex-end;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 2px 0 8px auto;
+  max-width: min(100%, 380px);
+  padding: 6px 8px;
+  border-inline-start: 2px solid var(--border);
+  font-size: 11px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.plan-google-pin > div {
+  min-width: 0;
+}
+.plan-google-pin b,
+.plan-google-pin div > span,
+.plan-google-pin small {
+  display: block;
+}
+.plan-google-pin div > span,
+.plan-google-pin small {
+  color: var(--muted);
+}
+.plan-google-pin .google-attribution {
+  margin: 0;
+  flex-shrink: 0;
+}
+@media (max-width: 650px) {
+  .plan-google-pin {
+    justify-content: space-between;
+    margin: 5px 0;
+    max-width: none;
+  }
+}

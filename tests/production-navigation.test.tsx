@@ -515,3 +515,27 @@ it("saving a budget preserves canonical membership names after applying display 
   await waitFor(() => expect(backend.saved).toHaveLength(1));
   expect(backend.saved[0].data.people).toEqual(originalPeople);
 });
+
+it("shows the linked Google pin name and address beside the activity title", async () => {
+  backend.session = { user: { id: "owner-test", email: "owner@example.test" } };
+  backend.records = seed();
+  const entry = backend.records.find((record) => record.kind === "entry");
+  entry.data.placeId = "airport-pin";
+  backend.api.mockResolvedValue({
+    displayName: { text: "Haneda Airport" },
+    formattedAddress: "Hanedakuko, Ota City, Tokyo",
+    location: { latitude: 35.55, longitude: 139.78 },
+  });
+  render(<App />);
+  const address = await screen.findByText("Hanedakuko, Ota City, Tokyo");
+  const card = address.closest("article")!;
+  expect(
+    within(card).getByText("Haneda Airport", { exact: true }),
+  ).toBeTruthy();
+  expect(
+    within(card).getByRole("heading", { name: entry.data.title }),
+  ).toBeTruthy();
+  expect(backend.api).toHaveBeenCalledWith("place", entry.tripId, {
+    placeId: "airport-pin",
+  });
+});

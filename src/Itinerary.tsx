@@ -1,6 +1,6 @@
 import { displayNameFor } from "./profiles";
 import MapWorkspace from "./MapWorkspace";
-import { useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Plus,
   ArrowDown,
@@ -23,7 +23,7 @@ import {
   CalendarDays,
 } from "lucide-react";
 import { days, makeEntity, type Entity, type Trip, type Entry } from "./model";
-import { save, remove, userId, demo } from "./store";
+import { api, save, remove, userId, demo } from "./store";
 import { travel, warnings, entryBounds, formatTime } from "./schedule";
 import { money } from "./money";
 import { EntryForm } from "./Forms";
@@ -40,6 +40,59 @@ import MapPanel from "./MapPanel";
 import TravelLeg from "./TravelLeg";
 import NearbyPlaces from "./NearbyPlaces";
 import RoutePlanner from "./RoutePlanner";
+type PinDetails = {
+  displayName?: { text?: string };
+  formattedAddress?: string;
+  location: { latitude: number; longitude: number };
+  attributions?: { provider: string; providerUri?: string }[];
+};
+
+function useItineraryPins(tripId: string, placeIds: string[]) {
+  const key = JSON.stringify([...new Set(placeIds)].sort());
+  const lookup = useMemo(() => {
+    const requests = new Map<string, Promise<PinDetails>>();
+    return (id: string) => {
+      let request = requests.get(id);
+      if (!request) {
+        request = api("place", tripId, { placeId: id }).catch((error) => {
+          requests.delete(id);
+          throw error;
+        });
+        requests.set(id, request);
+      }
+      return request;
+    };
+  }, [tripId, key]);
+  const [result, setResult] = useState<{
+    lookup: typeof lookup;
+    pins: Record<string, PinDetails>;
+  }>();
+  useEffect(() => {
+    if (demo) return;
+    let active = true;
+    async function load() {
+      if (!navigator.onLine) return;
+      const pins: Record<string, PinDetails> = {};
+      for (const id of JSON.parse(key) as string[]) {
+        if (!active) return;
+        try {
+          pins[id] = await lookup(id);
+          if (active) setResult({ lookup, pins: { ...pins } });
+        } catch {
+          // The activity's saved information stays visible if Google is unavailable.
+        }
+      }
+    }
+    void load();
+    window.addEventListener("online", load);
+    return () => {
+      active = false;
+      window.removeEventListener("online", load);
+    };
+  }, [key, lookup]);
+  return { lookup, pins: result?.lookup === lookup ? result.pins : undefined };
+}
+
 export default function Itinerary({
   trip,
   tripId,
@@ -93,6 +146,12 @@ export default function Itinerary({
             )
           : a.data.order - b.data.order,
       );
+  const { lookup: lookupPin, pins } = useItineraryPins(
+    tripId,
+    mapOnly
+      ? []
+      : filtered.flatMap(({ data }) => (data.placeId ? [data.placeId] : [])),
+  );
   const dayEntries = filtered.filter(
     (e) => e.data.date === date && e.data.endDate <= date,
   );
@@ -378,7 +437,8 @@ export default function Itinerary({
           <div className="timeline">
             {filtered.map((e, i) => {
               const EIcon = Icon(e.data.type),
-                previous = filtered[i - 1];
+                previous = filtered[i - 1],
+                pin = e.data.placeId ? pins?.[e.data.placeId] : undefined;
               return (
                 <div key={e.id} className="timeline-wrap">
                   {previous &&
@@ -515,6 +575,24 @@ export default function Itinerary({
                           {formatTime(e.data.start)}
                         </span>
                       </div>
+                      {(pin?.displayName?.text || pin?.formattedAddress) && (
+                        <div className="plan-google-pin">
+                          <div>
+                            {pin.displayName?.text && (
+                              <b>{pin.displayName.text}</b>
+                            )}
+                            {pin.formattedAddress && (
+                              <span>{pin.formattedAddress}</span>
+                            )}
+                            {pin.attributions?.map((attribution, i) => (
+                              <small key={i}>{attribution.provider}</small>
+                            ))}
+                          </div>
+                          <span className="google-attribution" translate="no">
+                            Google Maps
+                          </span>
+                        </div>
+                      )}
                       <div className="plan-summary">
                         <span className="compact-duration">
                           <EIcon size={14} aria-label={e.data.type} />
@@ -712,6 +790,7 @@ export default function Itinerary({
           </Field>
           <MapPanel
             entries={filtered}
+            lookupPlace={lookupPin}
             selected={selected}
             onSelect={(id) => {
               setSelected(id);
