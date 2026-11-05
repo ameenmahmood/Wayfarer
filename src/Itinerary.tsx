@@ -371,7 +371,11 @@ export default function Itinerary({
           ))}
         </ScrollRail>
       )}
-      <div className={"itinerary-columns " + (mapOnly ? "map-first" : "")}>
+      <div
+        className={
+          "itinerary-columns timeline-view " + (mapOnly ? "map-first" : "")
+        }
+      >
         <section className="timeline-panel">
           <div className="day-heading">
             <div>
@@ -530,6 +534,15 @@ export default function Itinerary({
                         <DragHandleIcon size={16} aria-hidden="true" />
                       </button>
                     )}
+                    <div
+                      className="activity-clock"
+                      aria-label={formatTime(e.data.start)}
+                    >
+                      <b>{formatTime(e.data.start).replace(/ (AM|PM)$/, "")}</b>
+                      {e.data.start && (
+                        <span>{formatTime(e.data.start).slice(-2)}</span>
+                      )}
+                    </div>
                     <div className="timeline-dot">{i + 1}</div>
                     <div
                       className="plan-main"
@@ -581,7 +594,20 @@ export default function Itinerary({
                             <b>{pin.displayName.text}</b>
                           )}
                           {pin.formattedAddress && (
-                            <span>{pin.formattedAddress}</span>
+                            <>
+                              <span className="pin-address-short">
+                                {pin.formattedAddress.split(",").length > 2
+                                  ? pin.formattedAddress
+                                      .split(",")
+                                      .slice(-3, -1)
+                                      .map((part) => part.trim())
+                                      .join(", ")
+                                  : pin.formattedAddress}
+                              </span>
+                              <span className="pin-address-full">
+                                {pin.formattedAddress}
+                              </span>
+                            </>
                           )}
                           {pin.attributions?.map((attribution, i) => (
                             <span key={i}>{attribution.provider}</span>
@@ -599,7 +625,7 @@ export default function Itinerary({
                             : `${e.data.duration} min`}
                         </span>
                         <span className="compact-location">
-                          {e.data.address || e.data.type}
+                          {pin ? "" : e.data.address || e.data.type}
                         </span>
                         {e.data.fixed && (
                           <span className="compact-fixed">Fixed</span>

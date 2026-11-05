@@ -6112,3 +6112,297 @@ html {
   color: light-dark(#5e5e5e, #fff);
   font-size: 12px;
 }
+
+/* Time-led itinerary, with details expanded only when requested. */
+.timeline-view {
+  --time-column: 72px;
+}
+.timeline-view .timeline {
+  padding-left: 0;
+}
+.timeline-view .timeline-wrap::before {
+  display: block;
+  left: var(--time-column);
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--border);
+}
+.timeline-view .timeline-wrap:first-child::before {
+  top: 23px;
+}
+.timeline-view .timeline-wrap:last-child::before {
+  bottom: 25px;
+}
+.timeline-view .plan-card {
+  display: grid;
+  grid-template-columns: var(--time-column) minmax(0, 1fr);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  padding-block: 8px;
+}
+.timeline-view .plan-card::before {
+  content: "";
+  position: absolute;
+  top: 22px;
+  left: calc(var(--time-column) - 4px);
+  width: 9px;
+  height: 9px;
+  border: 2px solid var(--bg);
+  border-radius: 50%;
+  background: var(--green);
+  z-index: 1;
+}
+.timeline-view .plan-card.selected {
+  border: 0;
+  box-shadow: none;
+}
+.timeline-view .plan-card.drop-target {
+  box-shadow: inset 0 2px 0 var(--green);
+}
+.timeline-view .timeline-dot {
+  display: none;
+}
+.activity-clock {
+  grid-column: 1;
+  grid-row: 1;
+  align-self: start;
+  padding-top: 9px;
+  line-height: 1.3;
+}
+.activity-clock b {
+  display: block;
+  font-size: 17px;
+}
+.activity-clock > span {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+}
+.timeline-view .plan-card .plan-main,
+.timeline-view .plan-card.can-reorder .plan-main {
+  grid-column: 2;
+  grid-row: 1;
+  min-width: 0;
+  padding: 8px 80px 8px 20px;
+}
+.timeline-view .plan-top {
+  display: flex;
+  margin-bottom: 4px;
+  gap: 8px;
+}
+.timeline-view .plan-top .type-icon,
+.timeline-view .plan-top .plan-type,
+.timeline-view .plan-top .plan-time,
+.timeline-view .plan-top > .pill {
+  display: none;
+}
+.timeline-view .plan-top h3 {
+  margin: 0;
+  font-size: 18px;
+  line-height: 1.4;
+  letter-spacing: -0.25px;
+}
+.timeline-view .plan-google-pin {
+  margin: 0 0 4px;
+  border: 0;
+  padding: 0;
+}
+.timeline-view .plan-google-pin b,
+.timeline-view .plan-google-pin .pin-address-short {
+  display: block;
+}
+.timeline-view .plan-google-pin b {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 550;
+}
+.timeline-view .plan-google-pin > * + *::before {
+  content: none;
+}
+.timeline-view .pin-address-full {
+  display: none;
+}
+.timeline-view .plan-card.is-expanded .pin-address-short {
+  display: none;
+}
+.timeline-view .plan-card.is-expanded .pin-address-full {
+  display: block;
+}
+.timeline-view .plan-card.is-expanded .plan-google-pin b {
+  white-space: normal;
+}
+.timeline-view .plan-google-pin .google-attribution {
+  display: inline-block;
+  margin-top: 2px;
+}
+.timeline-view .plan-summary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.timeline-view .plan-summary .compact-duration {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.timeline-view .compact-location:empty {
+  display: none;
+}
+.timeline-view .compact-fixed {
+  color: var(--green);
+  font-size: 11px;
+}
+.timeline-view .plan-secondary,
+.timeline-view .plan-card:not(.is-expanded) .plan-actions {
+  display: none;
+}
+.timeline-view .plan-card.is-expanded .plan-secondary {
+  display: block;
+  border-top: 1px solid var(--border);
+  margin-top: 8px;
+  padding-top: 8px;
+}
+.timeline-view .plan-details .desktop-duration {
+  display: none;
+}
+.timeline-view .plan-card .activity-drag-handle {
+  left: auto;
+  right: 36px;
+  top: 5px;
+  width: 36px;
+  min-width: 36px;
+  height: 44px;
+  min-height: 44px;
+  padding: 10px;
+}
+.timeline-view .plan-card .plan-details-toggle {
+  display: flex;
+  position: absolute;
+  top: 5px;
+  right: 0;
+  width: 36px;
+  min-width: 36px;
+  height: 44px;
+  min-height: 44px;
+  padding: 10px;
+  background: transparent;
+}
+.timeline-view .plan-card.is-expanded .plan-details-toggle svg {
+  transform: rotate(180deg);
+}
+.timeline-view .plan-card .plan-actions {
+  grid-column: 2;
+  border: 0;
+  padding: 0 0 0 20px;
+  justify-content: flex-start;
+}
+.timeline-view .plan-actions > .activity-action-row {
+  margin-left: 0;
+  gap: 2px;
+}
+.timeline-view .plan-actions .icon-button {
+  min-width: 40px;
+  min-height: 40px;
+}
+.timeline-view .travel-leg {
+  margin-left: var(--time-column);
+  padding: 0 0 0 20px;
+}
+.timeline-view .travel-summary {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 36px;
+  width: 100%;
+  border: 0;
+  padding: 4px 0;
+  background: transparent;
+  color: var(--muted);
+  text-align: left;
+  font-size: 12px;
+}
+.timeline-view .travel-summary-chevron {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+.timeline-view .travel-expanded {
+  display: none;
+}
+.timeline-view .travel-expanded.open {
+  display: grid;
+  gap: 7px;
+  padding: 10px;
+  margin-bottom: 6px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.timeline-view .plan-date-mobile {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--muted);
+  font-size: 11px;
+}
+@media (max-width: 650px) {
+  .timeline-view {
+    --time-column: 52px;
+  }
+  .timeline-view .activity-clock b {
+    font-size: 15px;
+  }
+  .timeline-view .activity-clock > span {
+    font-size: 11px;
+  }
+  .timeline-view .plan-card .plan-main,
+  .timeline-view .plan-card.can-reorder .plan-main {
+    padding: 8px 34px 8px 14px;
+    min-height: 72px;
+  }
+  .timeline-view .plan-top h3 {
+    font-size: 17px;
+  }
+  .timeline-view .plan-card .activity-drag-handle {
+    right: 0;
+    top: 0;
+    width: 30px;
+    min-width: 30px;
+  }
+  .timeline-view .plan-card .plan-details-toggle {
+    right: 0;
+    top: 40px;
+    width: 30px;
+    min-width: 30px;
+    padding: 7px;
+  }
+  .timeline-view .plan-card .plan-actions {
+    padding-left: 12px;
+  }
+  .timeline-view .plan-actions .icon-button {
+    width: 40px;
+    min-width: 40px;
+    min-height: 44px;
+  }
+  .timeline-view .travel-leg {
+    padding-left: 14px;
+  }
+  .timeline-view .travel-summary {
+    font-size: 11px;
+  }
+  .timeline-view .plan-google-pin {
+    font-size: 12px;
+    line-height: 1.4;
+  }
+}
+
+.timeline-view .plan-card.is-expanded .compact-location {
+  display: none;
+}
