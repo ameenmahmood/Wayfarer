@@ -259,7 +259,7 @@ it("switching between itinerary and map preserves the selected trip day", async 
   expect(document.querySelector(".app-shell.map-workspace")).toBeTruthy();
   expect(document.querySelector(".timeline")).toBeNull();
   await u.selectOptions(screen.getByLabelText("Map day"), "2027-04-14");
-  await u.click(screen.getByRole("button", { name: "Itinerary" }));
+  await u.click(screen.getByRole("button", { name: "Back to itinerary" }));
   await screen.findByRole("heading", { name: "Itinerary" });
   expect(
     screen.getByRole("button", { name: /^DAY 3/ }).getAttribute("aria-pressed"),
@@ -490,9 +490,7 @@ it("trip context opens from the itinerary header and resets when switching secti
 
 it("groups the whole trip under independently collapsible day headers and adds plans to the chosen day", async () => {
   const u = await openApp();
-  await u.click(
-    screen.getByRole("button", { name: "Whole trip" }),
-  );
+  await u.click(screen.getByRole("button", { name: "Whole trip" }));
   const monday = screen.getByRole("button", { name: /Monday, April 12/ });
   const tuesday = screen.getByRole("button", { name: /Tuesday, April 13/ });
   expect(monday.getAttribute("aria-expanded")).toBe("true");
@@ -506,11 +504,24 @@ it("groups the whole trip under independently collapsible day headers and adds p
   const secondDay = document.getElementById(
     tuesday.getAttribute("aria-controls")!,
   )!;
-  await u.click(
-    within(secondDay).getByRole("button", { name: "Add a plan" }),
-  );
+  await u.click(within(secondDay).getByRole("button", { name: "Add a plan" }));
   expect(dialog().getByLabelText("Date (empty = saved place)")).toHaveProperty(
     "value",
     "2027-04-13",
   );
+});
+
+it("focused map exposes View directly without fit, transport, or add-plan menus", async () => {
+  const u = await openApp();
+  await u.click(screen.getByRole("button", { name: "Map" }));
+  await screen.findByRole("heading", { name: "Map" });
+  expect(screen.queryByRole("button", { name: "Map options" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Fit map" })).toBeNull();
+  expect(screen.queryByLabelText("Map transport")).toBeNull();
+  expect(screen.queryByRole("button", { name: "Add a plan" })).toBeNull();
+  await u.selectOptions(screen.getByLabelText("Map view"), "all");
+  expect(screen.queryByLabelText("Map day")).toBeNull();
+  expect(screen.getByLabelText("Map view")).toHaveProperty("value", "all");
+  await u.selectOptions(screen.getByLabelText("Map view"), "day");
+  expect(screen.getByLabelText("Map day")).toBeTruthy();
 });

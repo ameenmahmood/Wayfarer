@@ -240,7 +240,7 @@ it("keeps page scrolling separate from map gestures with visible zoom controls",
   );
 });
 
-it("draws a dashed airport connection while requesting only the ground route, with independent fit controls", async () => {
+it("draws a dashed airport connection while requesting only the ground route, with automatic bounds", async () => {
   const from = entry("MIA to BAQ", ""),
     to = entry("Arrive at BAQ", ""),
     hotel = entry("Cartagena", "");
@@ -261,10 +261,10 @@ it("draws a dashed airport connection while requesting only the ground route, wi
     arrival: { fromId: to.id, mode: "DRIVE" },
   };
   service.api.mockResolvedValue({ warnings: [], polyline: "ground" });
-  const onSelect = vi.fn(),
-    u = userEvent.setup();
+  const onSelect = vi.fn();
   render(
     <MapPanel
+      expanded
       entries={[from, to, hotel]}
       selected=""
       onSelect={onSelect}
@@ -292,19 +292,14 @@ it("draws a dashed airport connection while requesting only the ground route, wi
     "✈",
     "3",
   ]);
-  await u.click(screen.getByRole("button", { name: "Fit flight" }));
   expect(map.fitBounds.mock.calls.at(-1)[0].points).toEqual([
     { lat: 25.8, lng: -80.3 },
     { lat: 10.9, lng: -74.8 },
-  ]);
-  expect(onSelect).toHaveBeenCalledWith(from.id);
-  await u.click(screen.getByRole("button", { name: "Fit local stops" }));
-  expect(map.fitBounds.mock.calls.at(-1)[0].points).toEqual([
-    { lat: 10.9, lng: -74.8 },
     { lat: 10.4, lng: -75.5 },
   ]);
-  expect(service.api).toHaveBeenCalledTimes(1);
-  expect(screen.getByText(/2h 55m scheduled/)).toBeTruthy();
+  markers[0].listener();
+  expect(onSelect).toHaveBeenCalledWith(from.id);
+  expect(screen.queryByRole("button", { name: "Fit map" })).toBeNull();
 });
 it("resolves an overnight flight's airport outside the visible day and does not request ground directions", async () => {
   const from = entry("Overnight flight", "departure"),
@@ -335,7 +330,7 @@ it("resolves an overnight flight's airport outside the visible day and does not 
   expect(service.api.mock.calls.every((call) => call[0] === "place")).toBe(
     true,
   );
-  expect(screen.getByText(/2026-10-29.*3h 0m scheduled/)).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "Fit flight" })).toBeNull();
 });
 it("does not guess a destination or fall back to walking for an unlinked flight", async () => {
   const from = entry("Flight", "origin"),
@@ -394,4 +389,71 @@ it("does not route backwards across an explicitly linked flight when activity or
   expect(service.api.mock.calls.some((call) => call[0] === "route")).toBe(
     false,
   );
+});
+
+it("focused maps keep route warnings on demand and close information with Escape", async () => {
+  const a = entry("A", "one"),
+    b = entry("B", "two");
+  service.api.mockImplementation(async (action) =>
+    action === "place"
+      ? { location: { latitude: 40.75, longitude: -73.98 } }
+      : { warnings: ["This route has tolls."], polyline: "" },
+  );
+  const u = userEvent.setup();
+  render(
+    <MapPanel
+      expanded
+      entries={[a, b]}
+      selected=""
+      onSelect={() => {}}
+      tripId="trip"
+    />,
+  );
+  const notes = await screen.findByRole("button", { name: "Route notes (1)" });
+  expect(screen.queryByText("This route has tolls.")).toBeNull();
+  await u.click(notes);
+  expect(screen.getByText("This route has tolls.")).toBeTruthy();
+  await u.keyboard("{Escape}");
+  expect(screen.queryByText("This route has tolls.")).toBeNull();
+  expect(document.activeElement).toBe(notes);
+});
+it("focused flight maps omit fit controls and stacked flight panels", async () => {
+  const a = entry("Flight", "origin"),
+    b = entry("Arrival", "destination");
+  a.data.type = "Flight";
+  a.data.flight = { arrivalId: b.id };
+  const { container } = render(
+    <MapPanel
+      expanded
+      entries={[a, b]}
+      selected=""
+      onSelect={() => {}}
+      tripId="trip"
+    />,
+  );
+  await waitFor(() => expect(polylines).toHaveLength(1));
+  expect(container.querySelector(".flight-map-tools")).toBeNull();
+  expect(screen.queryByRole("button", { name: "Fit flight" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Fit map" })).toBeNull();
+  expect(service.api.mock.calls.some((call) => call[0] === "route")).toBe(
+    false,
+  );
+});
+
+it("keeps the small itinerary map free of flight selectors, fit buttons, and duplicate schedule summaries", async () => {
+  const a = entry("Flight", "origin"),
+    b = entry("Arrival", "destination");
+  a.data.type = "Flight";
+  a.data.flight = { arrivalId: b.id };
+  const { container } = render(
+    <MapPanel entries={[a, b]} selected="" onSelect={() => {}} tripId="trip" />,
+  );
+  await waitFor(() => expect(polylines).toHaveLength(1));
+  expect(container.querySelector(".flight-map-tools")).toBeNull();
+  expect(screen.queryByRole("button", { name: "Fit map" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Fit flight" })).toBeNull();
+  expect(screen.queryByText(/scheduled/)).toBeNull();
+  expect(
+    screen.getByRole("heading", { name: "Your day, on the map" }),
+  ).toBeTruthy();
 });

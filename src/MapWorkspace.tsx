@@ -1,8 +1,16 @@
-import { CalendarDays, Plus, X, Pencil, MapPin } from "lucide-react";
+import {
+  CalendarDays,
+  X,
+  Pencil,
+  MapPin,
+  ArrowLeft,
+  ChevronDown,
+} from "lucide-react";
 import type { Entity, Entry } from "./model";
 import { formatTime } from "./schedule";
 import { Button } from "./ui";
 import MapPanel from "./MapPanel";
+import { flightConnections, flightTiming } from "./flights";
 export default function MapWorkspace({
   entries,
   contextEntries,
@@ -16,9 +24,8 @@ export default function MapWorkspace({
   onDate,
   onView,
   onSelect,
-  onMode,
-  onAdd,
   onEdit,
+  onBack,
 }: {
   entries: Entity<Entry>[];
   contextEntries?: Entity<Entry>[];
@@ -32,29 +39,90 @@ export default function MapWorkspace({
   onDate: (date: string) => void;
   onView: (view: string) => void;
   onSelect: (id: string) => void;
-  onMode: (mode: string) => void;
-  onAdd: () => void;
   onEdit: (entry: Entity<Entry>) => void;
+  onBack?: () => void;
 }) {
   const stop = entries.find((e) => e.id === selected);
+  const flight = flightConnections(entries, contextEntries || entries).find(
+    (connection) =>
+      connection.from.id === selected || connection.to.id === selected,
+  );
   const located = entries.filter(
     (e) => e.data.placeId || (e.data.lat != null && e.data.lng != null),
   );
+  const dayLabel = (day: string) =>
+    new Date(day + "T12:00:00").toLocaleDateString("en-US", {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+    });
   return (
-    <section className="map-workspace-view" aria-label="Expanded trip map">
-      <div className="map-workspace-toolbar">
-        <div className="map-workspace-heading">
-          <h2>Map</h2>
-          <small>
-            {located.length} {located.length === 1 ? "stop" : "stops"}
-          </small>
+    <section
+      className="map-workspace-view map-focus-view"
+      aria-label="Expanded trip map"
+    >
+      <h2 className="visually-hidden">Map</h2>
+      <div className="map-workspace-stage map-focus-stage">
+        <div className="map-focus-navigation">
+          {onBack && (
+            <button
+              className="map-overlay-button map-back-button"
+              aria-label="Back to itinerary"
+              onClick={onBack}
+            >
+              <ArrowLeft size={17} />
+              <span>Back</span>
+            </button>
+          )}
+          {view === "day" ? (
+            <label className="map-focus-day">
+              <CalendarDays
+                className="map-day-calendar"
+                size={15}
+                aria-hidden="true"
+              />
+              <span className="map-day-size" aria-hidden="true">
+                {dayLabel(date)}
+              </span>
+              <select
+                aria-label="Map day"
+                value={date}
+                onChange={(event) => {
+                  onDate(event.target.value);
+                  onSelect("");
+                }}
+              >
+                {dates.map((day) => (
+                  <option key={day} value={day}>
+                    {dayLabel(day)}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown
+                className="map-day-chevron"
+                size={12}
+                aria-hidden="true"
+              />
+            </label>
+          ) : (
+            <span className="map-overlay-button">
+              {view === "all" ? "Whole trip" : "Saved places"}
+            </span>
+          )}
         </div>
-        <div className="map-workspace-controls">
+        <label className="map-focus-view-control">
+          <span className="map-view-size" aria-hidden="true">
+            {view === "day"
+              ? "Daily plan"
+              : view === "all"
+                ? "Whole trip"
+                : "Saved places"}
+          </span>
           <select
             aria-label="Map view"
             value={view}
-            onChange={(e) => {
-              onView(e.target.value);
+            onChange={(event) => {
+              onView(event.target.value);
               onSelect("");
             }}
           >
@@ -62,48 +130,12 @@ export default function MapWorkspace({
             <option value="all">Whole trip</option>
             <option value="saved">Saved places</option>
           </select>
-          {view === "day" && (
-            <label className="map-day-select">
-              <CalendarDays size={15} aria-hidden="true" />
-              <select
-                aria-label="Map day"
-                value={date}
-                onChange={(e) => {
-                  onDate(e.target.value);
-                  onSelect("");
-                }}
-              >
-                {dates.map((d) => (
-                  <option key={d} value={d}>
-                    {new Date(d + "T12:00:00").toLocaleDateString("en-US", {
-                      weekday: "short",
-                      month: "short",
-                      day: "numeric",
-                    })}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
-          <select
-            aria-label="Map transport"
-            value={mode}
-            onChange={(e) => onMode(e.target.value)}
-          >
-            <option value="WALK">Walking</option>
-            <option value="DRIVE">Driving</option>
-            <option value="BICYCLE">Cycling</option>
-            <option value="TRANSIT">Public transit</option>
-          </select>
-          {canEdit && (
-            <Button className="primary" onClick={onAdd}>
-              <Plus size={16} />
-              Add a plan
-            </Button>
-          )}
-        </div>
-      </div>
-      <div className="map-workspace-stage">
+          <ChevronDown
+            className="map-view-chevron"
+            size={12}
+            aria-hidden="true"
+          />
+        </label>
         <MapPanel
           expanded
           entries={entries}
@@ -125,19 +157,30 @@ export default function MapWorkspace({
         {stop && (
           <section className="map-stop-detail" aria-label="Selected map stop">
             <div>
-              <h3>{stop.data.title}</h3>
+              <h3>
+                {flight ? flight.from.data.title : stop.data.title}
+                {flight?.from.data.flight?.number && (
+                  <small> · {flight.from.data.flight.number}</small>
+                )}
+              </h3>
               <p>
-                {formatTime(stop.data.start)}
-                {stop.data.address && ` · ${stop.data.address}`}
+                {flight ? (
+                  flightTiming(flight)
+                ) : (
+                  <>
+                    {formatTime(stop.data.start)}
+                    {stop.data.address && ` · ${stop.data.address}`}
+                  </>
+                )}
               </p>
             </div>
             {canEdit && (
               <Button
-                onClick={() => onEdit(stop)}
-                aria-label={`Edit ${stop.data.title}`}
+                onClick={() => onEdit(flight?.from || stop)}
+                aria-label={`Edit ${flight?.from.data.title || stop.data.title}`}
               >
                 <Pencil size={15} />
-                Edit
+                Details
               </Button>
             )}
             <button

@@ -102,6 +102,7 @@ export default function Itinerary({
   canEdit,
   mapOnly = false,
   initialDate,
+  onBackToItinerary,
 }: {
   trip: Trip;
   tripId: string;
@@ -109,6 +110,7 @@ export default function Itinerary({
   canEdit: boolean;
   mapOnly?: boolean;
   initialDate?: string;
+  onBackToItinerary?: () => void;
 }) {
   const pointerDrag = useRef<{
     id: string;
@@ -585,9 +587,8 @@ export default function Itinerary({
           onDate={setDate}
           onView={setView}
           onSelect={setSelected}
-          onMode={setMode}
-          onAdd={() => add(view === "saved" ? "" : date)}
           onEdit={setEditing}
+          onBack={onBackToItinerary}
         />
         {entryEditor}
       </>

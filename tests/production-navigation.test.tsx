@@ -231,7 +231,6 @@ it("signed in: every trip section and its creation control opens the right area"
   const u = userEvent.setup();
   await screen.findByRole("button", { name: "Edit trip" });
   const cases = [
-    ["Map", "Map", "Add a plan", "Add a plan"],
     ["Itinerary", "Itinerary", "Add a plan", "Add a plan"],
     ["Expenses", "Expenses", "Add expense", "Add an expense"],
     ["Packing list", "Packing list", "Add item", "Add packing item"],

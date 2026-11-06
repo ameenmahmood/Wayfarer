@@ -899,6 +899,7 @@ export default function App() {
                       entries={entries}
                       canEdit={canEdit}
                       mapOnly={tab === "map"}
+                      onBackToItinerary={() => setTab("itinerary")}
                       initialDate={ideaPlanDate}
                     />
                   )}{" "}

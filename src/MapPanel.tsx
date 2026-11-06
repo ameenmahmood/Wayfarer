@@ -4,13 +4,14 @@ import {
   Navigation,
   ExternalLink,
   RefreshCw,
-  Plane,
+  Info,
 } from "lucide-react";
 import type { Entity, Entry } from "./model";
 import { api, demo } from "./store";
 import { Notice, Button } from "./ui";
 import FlightSketch from "./FlightSketch";
-import { flightConnections, flightGroundPairs, flightTiming } from "./flights";
+import MapPopover from "./MapPopover";
+import { flightConnections, flightGroundPairs } from "./flights";
 declare global {
   interface Window {
     google: any;
@@ -90,20 +91,6 @@ export default function MapPanel({
     ).values(),
   ];
   const positions = useRef(new Map<string, { lat: number; lng: number }>());
-  const [geometryReady, setGeometryReady] = useState(false);
-  const [focusedFlightId, setFocusedFlightId] = useState("");
-  const focusedFlight =
-    flights.find((flight) => flight.from.id === focusedFlightId) || flights[0];
-  const [fitMode, setFitMode] = useState<"all" | "flight" | "local">("all");
-  const flightKey = flights
-    .map((flight) => `${flight.from.id}:${flight.to.id}`)
-    .join("|");
-  useEffect(() => {
-    const flight = flights.find(
-      (flight) => flight.from.id === selected || flight.to.id === selected,
-    );
-    if (flight) setFocusedFlightId(flight.from.id);
-  }, [selected, flightKey]);
   const locationKey = JSON.stringify(
     mapEntries.map((e) => [
       e.id,
@@ -123,41 +110,6 @@ export default function MapPanel({
   const located = mapEntries.filter(
     (e) => (e.data.lat != null && e.data.lng != null) || e.data.placeId,
   );
-  const localIds = focusedFlight
-    ? mapEntries
-        .filter(
-          (entry) =>
-            entry.data.date === focusedFlight.to.data.date &&
-            !flights.some((flight) => flight.from.id === entry.id),
-        )
-        .map((entry) => entry.id)
-    : [];
-  function fitIds(ids: string[]) {
-    const points = ids.flatMap((id) =>
-      positions.current.has(id) ? [positions.current.get(id)!] : [],
-    );
-    if (!map.current || !window.google?.maps || !points.length) return;
-    if (points.length === 1) {
-      map.current.setCenter(points[0]);
-      map.current.setZoom(14);
-    } else {
-      const bounds = new window.google.maps.LatLngBounds();
-      points.forEach((point) => bounds.extend(point));
-      map.current.fitBounds(bounds, 45);
-    }
-  }
-  function fitFlight(id = focusedFlight?.from.id) {
-    const flight = flights.find((flight) => flight.from.id === id);
-    if (!flight) return;
-    setFocusedFlightId(flight.from.id);
-    setFitMode("flight");
-    fitIds([flight.from.id, flight.to.id]);
-    onSelectRef.current(
-      entries.some((entry) => entry.id === flight.from.id)
-        ? flight.from.id
-        : flight.to.id,
-    );
-  }
   useEffect(() => {
     if (!configured || !navigator.onLine) return;
     setReady(false);
@@ -197,7 +149,6 @@ export default function MapPanel({
     markers.current.clear();
     paths.current = [];
     setRouteWarnings([]);
-    setGeometryReady(false);
     positions.current.clear();
     const bounds = new window.google.maps.LatLngBounds();
     async function draw() {
@@ -297,7 +248,6 @@ export default function MapPanel({
         );
         paths.current.push(path);
       }
-      setGeometryReady(true);
       if (!demo)
         for (const { from, to } of flightGroundPairs(entries)) {
           const origin = positions.current.get(from.id),
@@ -349,67 +299,19 @@ export default function MapPanel({
     for (const entry of mapEntries)
       markers.current.get(entry.id)?.setTitle(entry.data.title);
   }, [mapEntries.map((e) => `${e.id}:${e.data.title}`).join()]);
-  return (
-    <section
-      className={"map-card" + (expanded ? " expanded" : "")}
-      aria-label="Trip locations map"
-    >
-      {!expanded && (
-        <div className="section-head">
-          <h3>Your day, on the map</h3>
-          <MapPin size={18} />
-        </div>
-      )}
-      {flights.length > 0 && (
-        <div className="flight-map-tools" aria-label="Flight map controls">
-          <div className="flight-map-chips">
-            {flights.map((flight) => (
-              <button
-                key={flight.from.id}
-                aria-pressed={focusedFlight?.from.id === flight.from.id}
-                className={
-                  focusedFlight?.from.id === flight.from.id ? "active" : ""
-                }
-                onClick={() => fitFlight(flight.from.id)}
-              >
-                <Plane size={14} />
-                <span>
-                  {flight.from.data.title}
-                  {flight.from.data.flight?.number &&
-                    ` · ${flight.from.data.flight.number}`}
-                </span>
-              </button>
-            ))}
-          </div>
-          <div className="flight-fit-controls">
-            <Button
-              disabled={configured && !geometryReady}
-              onClick={() => {
-                setFitMode("all");
-                fitIds(mapEntries.map((entry) => entry.id));
-              }}
-            >
-              Fit all stops
-            </Button>
-            <Button
-              disabled={configured && !geometryReady}
-              onClick={() => fitFlight()}
-            >
-              Fit flight
-            </Button>
-            <Button
-              disabled={configured && !geometryReady}
-              onClick={() => {
-                setFitMode("local");
-                fitIds(localIds);
-              }}
-            >
-              Fit local stops
-            </Button>
-          </div>
-          {focusedFlight && <small>{flightTiming(focusedFlight)}</small>}
-        </div>
-      )}
+  const unlinkedFlights = entries.filter(
+    (entry) =>
+      entry.data.type === "Flight" &&
+      !flights.some((flight) => flight.from.id === entry.id),
+  );
+  const noteCount =
+    routeWarnings.length +
+    (error ? 1 : 0) +
+    (!navigator.onLine ? 1 : 0) +
+    (unlinkedFlights.length ? 1 : 0);
+  const mapDetails = (
+    <>
+      {" "}
       {entries.some(
         (entry) =>
           entry.data.type === "Flight" &&
@@ -419,6 +321,82 @@ export default function MapPanel({
           Link the flight’s arrival-airport stop in Edit plan to show its
           connection. Flights don’t use road directions.
         </p>
+      )}
+      {flights.length > 0 && (
+        <div className="flight-map-legend">
+          <span>
+            <i className="flight-line-key" />
+            Flight connection
+          </span>
+          <span>
+            <i className="ground-line-key" />
+            Ground route
+          </span>
+          <small>
+            Planned airport connection, not an actual flight track. Scheduled
+            times are entered by you.
+          </small>
+        </div>
+      )}
+      {routeWarnings.map((w) => (
+        <Notice key={w}>{w}</Notice>
+      ))}
+      {configured && !navigator.onLine && (
+        <Notice>
+          Offline · live Google maps require internet. Saved itinerary details
+          remain available.
+        </Notice>
+      )}
+      {error && (
+        <Notice tone="error">
+          {error}
+          <Button
+            onClick={() => {
+              setError("");
+              setRetry(retry + 1);
+            }}
+          >
+            <RefreshCw size={14} />
+            Retry map
+          </Button>
+        </Notice>
+      )}
+      <div className="map-footer">
+        <span className="small-icon">
+          <Navigation size={15} />
+          {configured
+            ? "Live map · internet required"
+            : "Live map is not configured"}
+        </span>
+        {located.length > 0 && (
+          <a
+            aria-label="Open Google Maps directions"
+            target="_blank"
+            rel="noreferrer"
+            href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(located.at(-1)!.data.address || located.at(-1)!.data.title)}&travelmode=${({ WALK: "walking", DRIVE: "driving", BICYCLE: "bicycling", TRANSIT: "transit" } as any)[mode]}`}
+          >
+            <ExternalLink size={16} />
+          </a>
+        )}
+      </div>
+      {!configured && (
+        <p className="map-caption">
+          Your saved places stay here offline. Live maps, directions, and place
+          search need configured Google services.
+        </p>
+      )}
+    </>
+  );
+  return (
+    <section
+      className={"map-card" + (expanded ? " expanded map-focus-card" : "")}
+      aria-label="Trip locations map"
+    >
+      {!expanded && (
+        <div className="section-head">
+          <h3>Your day, on the map</h3>
+          <MapPin size={18} />
+        </div>
       )}
       {configured ? (
         <>
@@ -440,14 +418,14 @@ export default function MapPanel({
         <FlightSketch
           entries={mapEntries}
           flights={flights}
-          focused={focusedFlight}
-          fitMode={fitMode}
-          localIds={localIds}
+          focused={flights[0]}
+          fitMode="all"
+          localIds={[]}
           onSelect={(id) =>
             onSelectRef.current(
               entries.some((entry) => entry.id === id)
                 ? id
-                : focusedFlight?.from.id || id,
+                : flights[0]?.from.id || id,
             )
           }
         />
@@ -542,68 +520,34 @@ export default function MapPanel({
           </span>
         </div>
       )}
-      {flights.length > 0 && (
-        <div className="flight-map-legend">
-          <span>
-            <i className="flight-line-key" />
-            Flight connection
-          </span>
-          <span>
-            <i className="ground-line-key" />
-            Ground route
-          </span>
-          <small>
-            Planned airport connection, not an actual flight track. Scheduled
-            times are entered by you.
-          </small>
-        </div>
-      )}
-      {routeWarnings.map((w) => (
-        <Notice key={w}>{w}</Notice>
-      ))}
-      {configured && !navigator.onLine && (
-        <Notice>
-          Offline · live Google maps require internet. Saved itinerary details
-          remain available.
-        </Notice>
-      )}
-      {error && (
-        <Notice tone="error">
-          {error}
-          <Button
-            onClick={() => {
-              setError("");
-              setRetry(retry + 1);
-            }}
-          >
-            <RefreshCw size={14} />
-            Retry map
-          </Button>
-        </Notice>
-      )}
-      <div className="map-footer">
-        <span className="small-icon">
-          <Navigation size={15} />
-          {configured
-            ? "Live map · internet required"
-            : "Live map is not configured"}
-        </span>
-        {located.length > 0 && (
-          <a
-            aria-label="Open Google Maps directions"
-            target="_blank"
-            rel="noreferrer"
-            href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(located.at(-1)!.data.address || located.at(-1)!.data.title)}&travelmode=${({ WALK: "walking", DRIVE: "driving", BICYCLE: "bicycling", TRANSIT: "transit" } as any)[mode]}`}
-          >
-            <ExternalLink size={16} />
-          </a>
-        )}
-      </div>
-      {!configured && (
-        <p className="map-caption">
-          Your saved places stay here offline. Live maps, directions, and place
-          search need configured Google services.
-        </p>
+      {expanded ? (
+        <MapPopover
+          label={
+            error
+              ? "Map issue"
+              : noteCount
+                ? `Route notes (${noteCount})`
+                : "Map information"
+          }
+          className={`map-focus-notes ${error ? "has-map-error" : ""}`}
+          attention={error}
+          icon={
+            <>
+              <Info size={15} />
+              <span>
+                {error
+                  ? "Map issue"
+                  : noteCount
+                    ? `${noteCount} ${noteCount === 1 ? "note" : "notes"}`
+                    : "Info"}
+              </span>
+            </>
+          }
+        >
+          {mapDetails}
+        </MapPopover>
+      ) : (
+        mapDetails
       )}
     </section>
   );
