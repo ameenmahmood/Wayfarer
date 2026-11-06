@@ -119,6 +119,7 @@ export default function Itinerary({
     [view, setView] = useState("day"),
     [selected, setSelected] = useState(""),
     [expandedEntry, setExpandedEntry] = useState<string>(),
+    [collapsedDays, setCollapsedDays] = useState<Record<string, boolean>>({}),
     [editing, setEditing] = useState<Entity<Entry>>(),
     [route, setRoute] = useState(false),
     [nearby, setNearby] = useState(false),
@@ -229,6 +230,312 @@ export default function Itinerary({
         : type === "Restaurant"
           ? Utensils
           : Footprints;
+  const renderEntry = (e: Entity<Entry>, i: number, list: Entity<Entry>[]) => {
+    const EIcon = Icon(e.data.type),
+      previous = list[i - 1],
+      pin = e.data.placeId ? pins?.[e.data.placeId] : undefined;
+    return (
+      <div key={e.id} className="timeline-wrap">
+        {previous && view !== "saved" && previous.data.date === e.data.date && (
+          <TravelLeg
+            key={`${previous.id}:${e.id}`}
+            previous={previous}
+            entry={e}
+            mode={mode}
+            canEdit={canEdit}
+          />
+        )}
+        <article
+          id={e.id}
+          className={`plan-card ${canEdit && view === "day" ? "can-reorder" : ""} ${drag === e.id ? "is-dragging" : ""} ${dropTarget === e.id && drag !== e.id ? "drop-target" : ""} ${selected === e.id ? "selected" : ""} ${expandedEntry === e.id ? "is-expanded" : ""}`}
+        >
+          {canEdit && view === "day" && (
+            <button
+              className="activity-drag-handle"
+              aria-label={`Reorder ${e.data.title}`}
+              aria-describedby="activity-reorder-help"
+              title="Drag to reorder · or use the up/down arrows"
+              draggable={false}
+              aria-disabled={a.busy}
+              onPointerDown={(ev) => {
+                if (a.busy || ev.button !== 0) return;
+                pointerDrag.current = {
+                  id: e.id,
+                  x: ev.clientX,
+                  y: ev.clientY,
+                  active: false,
+                };
+                ev.currentTarget.setPointerCapture?.(ev.pointerId);
+              }}
+              onPointerMove={(ev) => {
+                const moving = pointerDrag.current;
+                if (!moving) return;
+                if (
+                  !moving.active &&
+                  Math.hypot(ev.clientX - moving.x, ev.clientY - moving.y) < 6
+                )
+                  return;
+                ev.preventDefault();
+                moving.active = true;
+                setDrag(moving.id);
+                const target = document
+                  .elementFromPoint(ev.clientX, ev.clientY)
+                  ?.closest<HTMLElement>(".plan-card");
+                setDropTarget(target?.id || "");
+              }}
+              onPointerUp={(ev) => {
+                const moving = pointerDrag.current;
+                pointerDrag.current = null;
+                if (ev.currentTarget.hasPointerCapture?.(ev.pointerId))
+                  ev.currentTarget.releasePointerCapture(ev.pointerId);
+                const target = document
+                  .elementFromPoint(ev.clientX, ev.clientY)
+                  ?.closest<HTMLElement>(".plan-card");
+                if (moving?.active && target)
+                  void a.run(() => reorder(moving.id, target.id));
+                setDrag("");
+                setDropTarget("");
+              }}
+              onPointerCancel={() => {
+                pointerDrag.current = null;
+                setDrag("");
+                setDropTarget("");
+              }}
+              onKeyDown={(ev) => {
+                if (ev.key !== "ArrowUp" && ev.key !== "ArrowDown") return;
+                ev.preventDefault();
+                ev.stopPropagation();
+                if (a.busy) return;
+                const target = list[i + (ev.key === "ArrowUp" ? -1 : 1)];
+                if (target) void a.run(() => reorder(e.id, target.id));
+              }}
+            >
+              <DragHandleIcon size={16} aria-hidden="true" />
+            </button>
+          )}
+          <div className="activity-clock" aria-label={formatTime(e.data.start)}>
+            <b>{formatTime(e.data.start).replace(/ (AM|PM)$/, "")}</b>
+            {e.data.start && <span>{formatTime(e.data.start).slice(-2)}</span>}
+          </div>
+          <div className="timeline-dot">{i + 1}</div>
+          <div
+            className="plan-main"
+            role="button"
+            tabIndex={0}
+            onKeyDown={(ev) => {
+              if (ev.key === "Enter" || ev.key === " ") {
+                ev.preventDefault();
+                setSelected(e.id);
+                setExpandedEntry(e.id);
+              }
+            }}
+            onClick={() => {
+              setSelected(e.id);
+              setExpandedEntry(e.id);
+              if (mapOnly)
+                document
+                  .querySelector(".map-card")
+                  ?.scrollIntoView({ block: "nearest" });
+            }}
+          >
+            <div className="plan-top">
+              <span className={`type-icon ${e.data.type.toLowerCase()}`}>
+                <EIcon size={18} />
+              </span>
+              <h3>{e.data.title}</h3>
+              <span className="plan-type">{e.data.type}</span>
+              {e.data.fixed && <span className="pill">Fixed</span>}
+              <span className="plan-time">{formatTime(e.data.start)}</span>
+            </div>
+            {(pin?.displayName?.text || pin?.formattedAddress) && (
+              <div className="plan-google-pin">
+                {pin.displayName?.text && <b>{pin.displayName.text}</b>}
+                {pin.formattedAddress && (
+                  <>
+                    <span className="pin-address-short">
+                      {pin.formattedAddress.split(",").length > 2
+                        ? pin.formattedAddress
+                            .split(",")
+                            .slice(-3, -1)
+                            .map((part) => part.trim())
+                            .join(", ")
+                        : pin.formattedAddress}
+                    </span>
+                    <span className="pin-address-full">
+                      {pin.formattedAddress}
+                    </span>
+                  </>
+                )}
+                {pin.attributions?.map((attribution, i) => (
+                  <span key={i}>{attribution.provider}</span>
+                ))}
+                <span className="google-attribution" translate="no">
+                  Google Maps
+                </span>
+              </div>
+            )}
+            <div className="plan-summary">
+              <span className="compact-duration">
+                <EIcon size={14} aria-label={e.data.type} />
+                {e.data.endDate > e.data.date
+                  ? `Until ${new Date(e.data.endDate + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}`
+                  : `${e.data.duration} min`}
+              </span>
+              <span className="compact-location">
+                {pin ? "" : e.data.address || e.data.type}
+              </span>
+              {e.data.fixed && <span className="compact-fixed">Fixed</span>}
+            </div>
+            <div
+              className={`plan-secondary ${e.data.address || e.data.notes || e.data.cost > 0 || e.data.reservation || e.data.link || e.data.endDate > e.data.date || e.createdBy || e.updatedBy ? "has-detail-content" : ""}`}
+              id={`plan-details-${e.id}`}
+            >
+              <div className="plan-attribution">
+                {e.createdBy && (
+                  <span
+                    title={
+                      e.createdAt
+                        ? new Date(e.createdAt).toLocaleString()
+                        : undefined
+                    }
+                  >
+                    Added by{" "}
+                    {displayNameFor(
+                      e.createdBy,
+                      trip.people.find((p) => p.id === e.createdBy)?.name,
+                      userId,
+                      demo,
+                    )}
+                  </span>
+                )}
+                {(!e.createdBy || e.version > 1) && (
+                  <span title={new Date(e.updatedAt).toLocaleString()}>
+                    Updated by{" "}
+                    {displayNameFor(
+                      e.updatedBy,
+                      trip.people.find((p) => p.id === e.updatedBy)?.name,
+                      userId,
+                      demo,
+                    )}{" "}
+                    ·{" "}
+                    {new Date(e.updatedAt).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                    })}
+                  </span>
+                )}
+              </div>
+              {e.data.address && (
+                <p className="place-address">
+                  <MapPin size={13} />
+                  {e.data.address}
+                </p>
+              )}
+              {e.data.notes && <p className="plan-notes">{e.data.notes}</p>}
+              <div className="plan-details">
+                <span className="desktop-duration">
+                  <Clock size={13} />
+                  {e.data.duration} min
+                </span>
+                {e.data.cost > 0 && (
+                  <span>Est. {money(e.data.cost, e.data.currency)}</span>
+                )}
+                {e.data.endDate > e.data.date && (
+                  <span>
+                    Until {e.data.endDate}{" "}
+                    {e.data.end ? formatTime(e.data.end) : ""}
+                  </span>
+                )}
+                {e.data.reservation && <span>{e.data.reservation}</span>}
+              </div>
+              {e.data.link && (
+                <a
+                  className="plan-link"
+                  href={e.data.link}
+                  target="_blank"
+                  rel="noreferrer"
+                  onClick={(ev) => ev.stopPropagation()}
+                >
+                  Open link <ExternalLink size={12} />
+                </a>
+              )}
+            </div>
+          </div>
+          <button
+            className="plan-details-toggle icon-button"
+            aria-label={`Details for ${e.data.title}`}
+            aria-expanded={expandedEntry === e.id}
+            aria-controls={`plan-details-${e.id}`}
+            onClick={() => {
+              setSelected(e.id);
+              setExpandedEntry((current) =>
+                current === e.id ? undefined : e.id,
+              );
+            }}
+          >
+            <ChevronDown size={17} />
+          </button>
+          {canEdit && (
+            <div className="plan-actions">
+              <div className="activity-action-row">
+                <button
+                  className="icon-button"
+                  aria-label={`Move ${e.data.title} up`}
+                  title="Move up"
+                  disabled={a.busy || i === 0 || view !== "day"}
+                  onClick={() => a.run(() => reorder(e.id, list[i - 1].id))}
+                >
+                  <ArrowUp size={16} />
+                </button>
+                <button
+                  className="icon-button"
+                  aria-label={`Move ${e.data.title} down`}
+                  title="Move down"
+                  disabled={a.busy || i === list.length - 1 || view !== "day"}
+                  onClick={() => a.run(() => reorder(e.id, list[i + 1].id))}
+                >
+                  <ArrowDown size={16} />
+                </button>
+                <button
+                  className="icon-button"
+                  aria-label={`Edit ${e.data.title}`}
+                  title="Edit"
+                  onClick={() => setEditing(e)}
+                >
+                  <Pencil size={16} />
+                </button>
+                <button
+                  className="icon-button"
+                  aria-label={`Move or duplicate ${e.data.title}`}
+                  title="Move or duplicate"
+                  onClick={() => setMoving(e)}
+                >
+                  <Copy size={16} />
+                </button>
+                <button
+                  className="icon-button"
+                  aria-label={`Delete ${e.data.title}`}
+                  title="Delete"
+                  disabled={a.busy}
+                  onClick={() =>
+                    a.run(async () => {
+                      if (hasTransferFor(e.id))
+                        throw Error(
+                          "Remove the linked travel details before deleting this activity.",
+                        );
+                      await remove(e);
+                    })
+                  }
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            </div>
+          )}
+        </article>
+      </div>
+    );
+  };
   const entryEditor = editing && (
     <Modal
       title={editing.version ? "Edit plan" : "Add a plan"}
@@ -450,369 +757,73 @@ export default function Itinerary({
             below. Reordering does not change activity times.
           </span>
           <div className="timeline">
-            {filtered.map((e, i) => {
-              const EIcon = Icon(e.data.type),
-                previous = filtered[i - 1],
-                pin = e.data.placeId ? pins?.[e.data.placeId] : undefined;
-              return (
-                <div key={e.id} className="timeline-wrap">
-                  {previous &&
-                    view !== "saved" &&
-                    previous.data.date === e.data.date && (
-                      <TravelLeg
-                        key={`${previous.id}:${e.id}`}
-                        previous={previous}
-                        entry={e}
-                        mode={mode}
-                        canEdit={canEdit}
-                      />
-                    )}
-                  <article
-                    id={e.id}
-                    className={`plan-card ${canEdit && view === "day" ? "can-reorder" : ""} ${drag === e.id ? "is-dragging" : ""} ${dropTarget === e.id && drag !== e.id ? "drop-target" : ""} ${selected === e.id ? "selected" : ""} ${expandedEntry === e.id ? "is-expanded" : ""}`}
-                  >
-                    {canEdit && view === "day" && (
-                      <button
-                        className="activity-drag-handle"
-                        aria-label={`Reorder ${e.data.title}`}
-                        aria-describedby="activity-reorder-help"
-                        title="Drag to reorder · or use the up/down arrows"
-                        draggable={false}
-                        aria-disabled={a.busy}
-                        onPointerDown={(ev) => {
-                          if (a.busy || ev.button !== 0) return;
-                          pointerDrag.current = {
-                            id: e.id,
-                            x: ev.clientX,
-                            y: ev.clientY,
-                            active: false,
-                          };
-                          ev.currentTarget.setPointerCapture?.(ev.pointerId);
-                        }}
-                        onPointerMove={(ev) => {
-                          const moving = pointerDrag.current;
-                          if (!moving) return;
-                          if (
-                            !moving.active &&
-                            Math.hypot(
-                              ev.clientX - moving.x,
-                              ev.clientY - moving.y,
-                            ) < 6
-                          )
-                            return;
-                          ev.preventDefault();
-                          moving.active = true;
-                          setDrag(moving.id);
-                          const target = document
-                            .elementFromPoint(ev.clientX, ev.clientY)
-                            ?.closest<HTMLElement>(".plan-card");
-                          setDropTarget(target?.id || "");
-                        }}
-                        onPointerUp={(ev) => {
-                          const moving = pointerDrag.current;
-                          pointerDrag.current = null;
-                          if (
-                            ev.currentTarget.hasPointerCapture?.(ev.pointerId)
-                          )
-                            ev.currentTarget.releasePointerCapture(
-                              ev.pointerId,
-                            );
-                          const target = document
-                            .elementFromPoint(ev.clientX, ev.clientY)
-                            ?.closest<HTMLElement>(".plan-card");
-                          if (moving?.active && target)
-                            void a.run(() => reorder(moving.id, target.id));
-                          setDrag("");
-                          setDropTarget("");
-                        }}
-                        onPointerCancel={() => {
-                          pointerDrag.current = null;
-                          setDrag("");
-                          setDropTarget("");
-                        }}
-                        onKeyDown={(ev) => {
-                          if (ev.key !== "ArrowUp" && ev.key !== "ArrowDown")
-                            return;
-                          ev.preventDefault();
-                          ev.stopPropagation();
-                          if (a.busy) return;
-                          const target =
-                            filtered[i + (ev.key === "ArrowUp" ? -1 : 1)];
-                          if (target)
-                            void a.run(() => reorder(e.id, target.id));
-                        }}
-                      >
-                        <DragHandleIcon size={16} aria-hidden="true" />
-                      </button>
-                    )}
-                    <div
-                      className="activity-clock"
-                      aria-label={formatTime(e.data.start)}
-                    >
-                      <b>{formatTime(e.data.start).replace(/ (AM|PM)$/, "")}</b>
-                      {e.data.start && (
-                        <span>{formatTime(e.data.start).slice(-2)}</span>
-                      )}
-                    </div>
-                    <div className="timeline-dot">{i + 1}</div>
-                    <div
-                      className="plan-main"
-                      role="button"
-                      tabIndex={0}
-                      onKeyDown={(ev) => {
-                        if (ev.key === "Enter" || ev.key === " ") {
-                          ev.preventDefault();
-                          setSelected(e.id);
-                          setExpandedEntry(e.id);
-                        }
-                      }}
-                      onClick={() => {
-                        setSelected(e.id);
-                        setExpandedEntry(e.id);
-                        if (mapOnly)
-                          document
-                            .querySelector(".map-card")
-                            ?.scrollIntoView({ block: "nearest" });
-                      }}
-                    >
-                      {view === "all" && (
-                        <small className="plan-date-mobile">
-                          {new Date(
-                            e.data.date + "T12:00:00",
-                          ).toLocaleDateString("en-US", {
-                            weekday: "short",
-                            month: "short",
-                            day: "numeric",
-                          })}
-                        </small>
-                      )}
-                      <div className="plan-top">
-                        <span
-                          className={`type-icon ${e.data.type.toLowerCase()}`}
+            {view === "all"
+              ? [...new Set([...dayList, ...filtered.map((e) => e.data.date)])]
+                  .sort()
+                  .map((day) => {
+                    const list = filtered.filter((e) => e.data.date === day);
+                    const collapsed = collapsedDays[day] ?? list.length === 0;
+                    const label = new Date(
+                      day + "T12:00:00",
+                    ).toLocaleDateString("en-US", {
+                      weekday: "long",
+                      month: "long",
+                      day: "numeric",
+                      ...(day.slice(0, 4) !== trip.start.slice(0, 4)
+                        ? { year: "numeric" }
+                        : {}),
+                    });
+                    return (
+                      <section className="whole-trip-day" key={day}>
+                        <h3 className="whole-trip-day-heading">
+                          <button
+                            aria-expanded={!collapsed}
+                            aria-controls={`plans-${day}`}
+                            onClick={() =>
+                              setCollapsedDays((current) => ({
+                                ...current,
+                                [day]: !collapsed,
+                              }))
+                            }
+                          >
+                            <span>{label}</span>
+                            <small>
+                              {list.length}{" "}
+                              {list.length === 1 ? "plan" : "plans"}
+                            </small>
+                            <ChevronDown size={18} aria-hidden="true" />
+                          </button>
+                        </h3>
+                        <div
+                          className="whole-trip-day-plans"
+                          id={`plans-${day}`}
+                          hidden={collapsed}
                         >
-                          <EIcon size={18} />
-                        </span>
-                        <h3>{e.data.title}</h3>
-                        <span className="plan-type">{e.data.type}</span>
-                        {e.data.fixed && <span className="pill">Fixed</span>}
-                        <span className="plan-time">
-                          {formatTime(e.data.start)}
-                        </span>
-                      </div>
-                      {(pin?.displayName?.text || pin?.formattedAddress) && (
-                        <div className="plan-google-pin">
-                          {pin.displayName?.text && (
-                            <b>{pin.displayName.text}</b>
+                          {list.length ? (
+                            list.map((entry, index) =>
+                              renderEntry(entry, index, list),
+                            )
+                          ) : (
+                            <p className="day-empty">No plans yet.</p>
                           )}
-                          {pin.formattedAddress && (
-                            <>
-                              <span className="pin-address-short">
-                                {pin.formattedAddress.split(",").length > 2
-                                  ? pin.formattedAddress
-                                      .split(",")
-                                      .slice(-3, -1)
-                                      .map((part) => part.trim())
-                                      .join(", ")
-                                  : pin.formattedAddress}
-                              </span>
-                              <span className="pin-address-full">
-                                {pin.formattedAddress}
-                              </span>
-                            </>
-                          )}
-                          {pin.attributions?.map((attribution, i) => (
-                            <span key={i}>{attribution.provider}</span>
-                          ))}
-                          <span className="google-attribution" translate="no">
-                            Google Maps
-                          </span>
-                        </div>
-                      )}
-                      <div className="plan-summary">
-                        <span className="compact-duration">
-                          <EIcon size={14} aria-label={e.data.type} />
-                          {e.data.endDate > e.data.date
-                            ? `Until ${new Date(e.data.endDate + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}`
-                            : `${e.data.duration} min`}
-                        </span>
-                        <span className="compact-location">
-                          {pin ? "" : e.data.address || e.data.type}
-                        </span>
-                        {e.data.fixed && (
-                          <span className="compact-fixed">Fixed</span>
-                        )}
-                      </div>
-                      <div
-                        className={`plan-secondary ${e.data.address || e.data.notes || e.data.cost > 0 || e.data.reservation || e.data.link || e.data.endDate > e.data.date || e.createdBy || e.updatedBy ? "has-detail-content" : ""}`}
-                        id={`plan-details-${e.id}`}
-                      >
-                        <div className="plan-attribution">
-                          {e.createdBy && (
-                            <span
-                              title={
-                                e.createdAt
-                                  ? new Date(e.createdAt).toLocaleString()
-                                  : undefined
-                              }
+                          {canEdit && (
+                            <Button
+                              className="day-add-plan"
+                              onClick={() => add(day)}
                             >
-                              Added by{" "}
-                              {displayNameFor(
-                                e.createdBy,
-                                trip.people.find((p) => p.id === e.createdBy)
-                                  ?.name,
-                                userId,
-                                demo,
-                              )}
-                            </span>
-                          )}
-                          {(!e.createdBy || e.version > 1) && (
-                            <span
-                              title={new Date(e.updatedAt).toLocaleString()}
-                            >
-                              Updated by{" "}
-                              {displayNameFor(
-                                e.updatedBy,
-                                trip.people.find((p) => p.id === e.updatedBy)
-                                  ?.name,
-                                userId,
-                                demo,
-                              )}{" "}
-                              ·{" "}
-                              {new Date(e.updatedAt).toLocaleDateString(
-                                "en-US",
-                                { month: "short", day: "numeric" },
-                              )}
-                            </span>
+                              <Plus size={14} />
+                              Add a plan
+                            </Button>
                           )}
                         </div>
-                        {view === "all" && <small>{e.data.date}</small>}
-                        {e.data.address && (
-                          <p className="place-address">
-                            <MapPin size={13} />
-                            {e.data.address}
-                          </p>
-                        )}
-                        {e.data.notes && (
-                          <p className="plan-notes">{e.data.notes}</p>
-                        )}
-                        <div className="plan-details">
-                          <span className="desktop-duration">
-                            <Clock size={13} />
-                            {e.data.duration} min
-                          </span>
-                          {e.data.cost > 0 && (
-                            <span>
-                              Est. {money(e.data.cost, e.data.currency)}
-                            </span>
-                          )}
-                          {e.data.endDate > e.data.date && (
-                            <span>
-                              Until {e.data.endDate}{" "}
-                              {e.data.end ? formatTime(e.data.end) : ""}
-                            </span>
-                          )}
-                          {e.data.reservation && (
-                            <span>{e.data.reservation}</span>
-                          )}
-                        </div>
-                        {e.data.link && (
-                          <a
-                            className="plan-link"
-                            href={e.data.link}
-                            target="_blank"
-                            rel="noreferrer"
-                            onClick={(ev) => ev.stopPropagation()}
-                          >
-                            Open link <ExternalLink size={12} />
-                          </a>
-                        )}
-                      </div>
-                    </div>
-                    <button
-                      className="plan-details-toggle icon-button"
-                      aria-label={`Details for ${e.data.title}`}
-                      aria-expanded={expandedEntry === e.id}
-                      aria-controls={`plan-details-${e.id}`}
-                      onClick={() => {
-                        setSelected(e.id);
-                        setExpandedEntry((current) =>
-                          current === e.id ? undefined : e.id,
-                        );
-                      }}
-                    >
-                      <ChevronDown size={17} />
-                    </button>
-                    {canEdit && (
-                      <div className="plan-actions">
-                        <div className="activity-action-row">
-                          <button
-                            className="icon-button"
-                            aria-label={`Move ${e.data.title} up`}
-                            title="Move up"
-                            disabled={a.busy || i === 0 || view !== "day"}
-                            onClick={() =>
-                              a.run(() => reorder(e.id, filtered[i - 1].id))
-                            }
-                          >
-                            <ArrowUp size={16} />
-                          </button>
-                          <button
-                            className="icon-button"
-                            aria-label={`Move ${e.data.title} down`}
-                            title="Move down"
-                            disabled={
-                              a.busy ||
-                              i === filtered.length - 1 ||
-                              view !== "day"
-                            }
-                            onClick={() =>
-                              a.run(() => reorder(e.id, filtered[i + 1].id))
-                            }
-                          >
-                            <ArrowDown size={16} />
-                          </button>
-                          <button
-                            className="icon-button"
-                            aria-label={`Edit ${e.data.title}`}
-                            title="Edit"
-                            onClick={() => setEditing(e)}
-                          >
-                            <Pencil size={16} />
-                          </button>
-                          <button
-                            className="icon-button"
-                            aria-label={`Move or duplicate ${e.data.title}`}
-                            title="Move or duplicate"
-                            onClick={() => setMoving(e)}
-                          >
-                            <Copy size={16} />
-                          </button>
-                          <button
-                            className="icon-button"
-                            aria-label={`Delete ${e.data.title}`}
-                            title="Delete"
-                            disabled={a.busy}
-                            onClick={() =>
-                              a.run(async () => {
-                                if (hasTransferFor(e.id))
-                                  throw Error(
-                                    "Remove the linked travel details before deleting this activity.",
-                                  );
-                                await remove(e);
-                              })
-                            }
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </article>
-                </div>
-              );
-            })}
+                      </section>
+                    );
+                  })
+              : filtered.map((entry, index) =>
+                  renderEntry(entry, index, filtered),
+                )}
           </div>
-          {canEdit && (
+          {canEdit && view !== "all" && (
             <button
               className="add-plan"
               onClick={() => add(view === "saved" ? "" : date)}
@@ -837,7 +848,14 @@ export default function Itinerary({
             selected={selected}
             onSelect={(id) => {
               setSelected(id);
-              document.getElementById(id)?.scrollIntoView({ block: "nearest" });
+              const day = entries.find((entry) => entry.id === id)?.data.date;
+              if (day)
+                setCollapsedDays((current) => ({ ...current, [day]: false }));
+              requestAnimationFrame(() =>
+                document
+                  .getElementById(id)
+                  ?.scrollIntoView({ block: "nearest" }),
+              );
             }}
             tripId={tripId}
             mode={mode}

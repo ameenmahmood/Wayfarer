@@ -517,6 +517,7 @@ export default function App() {
               )}
             </button>
             <button
+              className="breadcrumb-library"
               onClick={() => {
                 setOverview(true);
                 setSidebar(false);

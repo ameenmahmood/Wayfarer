@@ -487,3 +487,30 @@ it("trip context opens from the itinerary header and resets when switching secti
   ).toBe("false");
   expect(document.querySelector(".section-navigation")).toBeTruthy();
 });
+
+it("groups the whole trip under independently collapsible day headers and adds plans to the chosen day", async () => {
+  const u = await openApp();
+  await u.click(
+    screen.getByRole("button", { name: "Whole trip" }),
+  );
+  const monday = screen.getByRole("button", { name: /Monday, April 12/ });
+  const tuesday = screen.getByRole("button", { name: /Tuesday, April 13/ });
+  expect(monday.getAttribute("aria-expanded")).toBe("true");
+  const panel = document.getElementById(monday.getAttribute("aria-controls")!)!;
+  expect(within(panel).getAllByRole("heading").length).toBeGreaterThan(0);
+  await u.click(monday);
+  expect(panel.hidden).toBe(true);
+  expect(tuesday.getAttribute("aria-expanded")).toBe("true");
+  await u.click(monday);
+  expect(panel.hidden).toBe(false);
+  const secondDay = document.getElementById(
+    tuesday.getAttribute("aria-controls")!,
+  )!;
+  await u.click(
+    within(secondDay).getByRole("button", { name: "Add a plan" }),
+  );
+  expect(dialog().getByLabelText("Date (empty = saved place)")).toHaveProperty(
+    "value",
+    "2027-04-13",
+  );
+});

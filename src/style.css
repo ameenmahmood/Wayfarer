@@ -5081,7 +5081,7 @@ html {
   margin-bottom: 14px;
 }
 @media (max-width: 650px) {
-  .breadcrumb > button:first-child {
+  .breadcrumb > .breadcrumb-library {
     display: none;
   }
   .breadcrumb-title {
@@ -6585,5 +6585,67 @@ html {
   }
   .map-workspace .desktop-sidebar-toggle {
     display: none;
+  }
+}
+
+.whole-trip-day {
+  margin-bottom: 18px;
+}
+.whole-trip-day-heading {
+  margin: 0 0 8px;
+}
+.whole-trip-day-heading > button {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 13px 14px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--green) 5%, var(--bg));
+  color: var(--text);
+  text-align: left;
+}
+.whole-trip-day-heading > button > span {
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1.4;
+}
+.whole-trip-day-heading small {
+  margin-left: auto;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--muted);
+}
+.whole-trip-day-heading svg {
+  flex-shrink: 0;
+}
+.whole-trip-day-heading button[aria-expanded="false"] svg {
+  transform: rotate(-90deg);
+}
+.whole-trip-day-plans[hidden] {
+  display: none;
+}
+.day-empty {
+  padding: 8px 14px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.day-add-plan {
+  margin: 5px 0 12px calc(var(--time-column) + 14px);
+  padding: 7px 10px;
+  font-size: 12px;
+}
+@media (max-width: 650px) {
+  .whole-trip-day-heading > button {
+    padding: 11px 10px;
+    gap: 8px;
+  }
+  .whole-trip-day-heading > button > span {
+    font-size: 16px;
+  }
+  .whole-trip-day-heading small {
+    font-size: 11px;
   }
 }
