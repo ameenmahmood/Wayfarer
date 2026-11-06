@@ -212,8 +212,10 @@ export function EntryForm({
   trip,
   onDone,
   persist = save,
+  entries = [],
 }: {
   entity: Entity<Entry>;
+  entries?: Entity<Entry>[];
   trip: Trip;
   onDone: (saved?: Entity<Entry>) => void;
   persist?: (entry: Entity<Entry>) => Promise<Entity<Entry>>;
@@ -263,6 +265,7 @@ export function EntryForm({
             ...entity,
             data: {
               ...v,
+              flight: v.type === "Flight" ? v.flight : undefined,
               duration:
                 v.date && v.end
                   ? Math.round(
@@ -418,6 +421,65 @@ export function EntryForm({
           />
         </Field>
       </div>
+      {v.type === "Flight" && (
+        <section className="flight-editor" aria-label="Flight map connection">
+          <h3>Flight connection</h3>
+          <small>
+            The place above is the departure airport. Choose your existing
+            arrival-airport stop to draw the flight on the map.
+          </small>
+          <Field label="Arrival airport stop">
+            <select
+              value={v.flight?.arrivalId || ""}
+              onChange={(event) =>
+                change("flight", {
+                  arrivalId: event.target.value,
+                  number: v.flight?.number || "",
+                })
+              }
+            >
+              <option value="">Not linked yet</option>
+              {entries
+                .filter(
+                  (entry) =>
+                    entry.id !== entity.id &&
+                    !entry.deleted &&
+                    entry.tripId === entity.tripId &&
+                    !!entry.data.date,
+                )
+                .map((entry) => (
+                  <option key={entry.id} value={entry.id}>
+                    {entry.data.title} · {entry.data.date}
+                  </option>
+                ))}
+              {v.flight?.arrivalId &&
+                !entries.some((entry) => entry.id === v.flight?.arrivalId) && (
+                  <option value={v.flight.arrivalId}>
+                    Linked stop unavailable
+                  </option>
+                )}
+            </select>
+          </Field>
+          <Field label="Flight number (optional)">
+            <input
+              maxLength={40}
+              placeholder="e.g. AA123"
+              value={v.flight?.number || ""}
+              onChange={(event) =>
+                change("flight", {
+                  arrivalId: v.flight?.arrivalId || "",
+                  number: event.target.value,
+                })
+              }
+            />
+          </Field>
+          <small>
+            Use the two airport stops’ start times for scheduled departure and
+            arrival. This does not track live flights. If your arrival stop is
+            missing, save it first, then link it here.
+          </small>
+        </section>
+      )}
       <Field label="Notes">
         <textarea
           value={v.notes}

@@ -12,9 +12,10 @@ vi.mock("../src/store", () => ({
 }));
 vi.stubEnv("VITE_GOOGLE_MAPS_BROWSER_KEY", "public-test-key");
 import MapPanel from "../src/MapPanel";
-let markers: any[], map: any, mapOptions: any;
+let markers: any[], map: any, mapOptions: any, polylines: any[];
 beforeEach(() => {
   markers = [];
+  polylines = [];
   mapOptions = undefined;
   service.api.mockReset();
   map = { fitBounds: vi.fn(), setZoom: vi.fn(), setCenter: vi.fn() };
@@ -27,7 +28,10 @@ beforeEach(() => {
         }
       },
       LatLngBounds: class {
-        extend() {}
+        points: any[] = [];
+        extend(point: any) {
+          this.points.push(point);
+        }
       },
       Marker: class {
         id: any;
@@ -37,6 +41,7 @@ beforeEach(() => {
         listener: any;
         constructor(options: any) {
           this.id = options.title;
+          Object.assign(this, { options });
           markers.push(this);
         }
         addListener(_event: string, fn: any) {
@@ -46,7 +51,13 @@ beforeEach(() => {
       Animation: { BOUNCE: "bounce" },
       geometry: { encoding: { decodePath: () => [] } },
       Polyline: class {
-        setMap() {}
+        options: any;
+        constructor(options: any) {
+          this.options = options;
+          polylines.push(this);
+        }
+        setMap = vi.fn();
+        addListener = vi.fn();
       },
     },
   };
@@ -226,5 +237,161 @@ it("keeps page scrolling separate from map gestures with visible zoom controls",
       gestureHandling: "cooperative",
       zoomControl: true,
     }),
+  );
+});
+
+it("draws a dashed airport connection while requesting only the ground route, with independent fit controls", async () => {
+  const from = entry("MIA to BAQ", ""),
+    to = entry("Arrive at BAQ", ""),
+    hotel = entry("Cartagena", "");
+  from.data = {
+    ...from.data,
+    type: "Flight",
+    start: "11:25",
+    lat: 25.8,
+    lng: -80.3,
+    flight: { arrivalId: to.id, number: "DEMO123" },
+  };
+  to.data = { ...to.data, start: "14:20", lat: 10.9, lng: -74.8 };
+  hotel.data = {
+    ...hotel.data,
+    start: "17:00",
+    lat: 10.4,
+    lng: -75.5,
+    arrival: { fromId: to.id, mode: "DRIVE" },
+  };
+  service.api.mockResolvedValue({ warnings: [], polyline: "ground" });
+  const onSelect = vi.fn(),
+    u = userEvent.setup();
+  render(
+    <MapPanel
+      entries={[from, to, hotel]}
+      selected=""
+      onSelect={onSelect}
+      tripId="trip"
+    />,
+  );
+  await waitFor(() => expect(polylines).toHaveLength(2));
+  expect(service.api).toHaveBeenCalledTimes(1);
+  expect(service.api).toHaveBeenCalledWith(
+    "route",
+    "trip",
+    expect.objectContaining({
+      origin: { lat: 10.9, lng: -74.8 },
+      destination: { lat: 10.4, lng: -75.5 },
+      mode: "DRIVE",
+    }),
+  );
+  expect(polylines[0].options).toMatchObject({
+    geodesic: true,
+    strokeOpacity: 0,
+    icons: [{ repeat: "14px" }],
+  });
+  expect(markers.map((marker) => marker.options.label)).toEqual([
+    "✈",
+    "✈",
+    "3",
+  ]);
+  await u.click(screen.getByRole("button", { name: "Fit flight" }));
+  expect(map.fitBounds.mock.calls.at(-1)[0].points).toEqual([
+    { lat: 25.8, lng: -80.3 },
+    { lat: 10.9, lng: -74.8 },
+  ]);
+  expect(onSelect).toHaveBeenCalledWith(from.id);
+  await u.click(screen.getByRole("button", { name: "Fit local stops" }));
+  expect(map.fitBounds.mock.calls.at(-1)[0].points).toEqual([
+    { lat: 10.9, lng: -74.8 },
+    { lat: 10.4, lng: -75.5 },
+  ]);
+  expect(service.api).toHaveBeenCalledTimes(1);
+  expect(screen.getByText(/2h 55m scheduled/)).toBeTruthy();
+});
+it("resolves an overnight flight's airport outside the visible day and does not request ground directions", async () => {
+  const from = entry("Overnight flight", "departure"),
+    to = entry("Arrival airport", "arrival");
+  from.data = {
+    ...from.data,
+    type: "Flight",
+    flight: { arrivalId: to.id },
+    start: "23:00",
+  };
+  to.data = {
+    ...to.data,
+    date: "2026-10-29",
+    endDate: "2026-10-29",
+    start: "02:00",
+  };
+  render(
+    <MapPanel
+      entries={[from]}
+      contextEntries={[from, to]}
+      selected=""
+      onSelect={() => {}}
+      tripId="trip"
+    />,
+  );
+  await waitFor(() => expect(polylines).toHaveLength(1));
+  expect(markers).toHaveLength(2);
+  expect(service.api.mock.calls.every((call) => call[0] === "place")).toBe(
+    true,
+  );
+  expect(screen.getByText(/2026-10-29.*3h 0m scheduled/)).toBeTruthy();
+});
+it("does not guess a destination or fall back to walking for an unlinked flight", async () => {
+  const from = entry("Flight", "origin"),
+    to = entry("Next stop", "next");
+  from.data.type = "Flight";
+  render(
+    <MapPanel
+      entries={[from, to]}
+      selected=""
+      onSelect={() => {}}
+      tripId="trip"
+    />,
+  );
+  await waitFor(() => expect(markers).toHaveLength(2));
+  expect(service.api.mock.calls.some((call) => call[0] === "route")).toBe(
+    false,
+  );
+  expect(
+    screen.getByText(/Link the flight’s arrival-airport stop/),
+  ).toBeTruthy();
+});
+it("does not draw ground routes across dates or bridge over an unresolved intermediate stop", async () => {
+  const a = entry("A", "one"),
+    b = entry("B", "missing"),
+    c = entry("C", "three"),
+    d = entry("Tomorrow", "four");
+  d.data.date = "2026-10-29";
+  render(
+    <MapPanel
+      entries={[a, b, c, d]}
+      selected=""
+      onSelect={() => {}}
+      tripId="trip"
+    />,
+  );
+  await waitFor(() => expect(markers).toHaveLength(3));
+  expect(service.api.mock.calls.some((call) => call[0] === "route")).toBe(
+    false,
+  );
+});
+
+it("does not route backwards across an explicitly linked flight when activity order needs review", async () => {
+  const from = entry("Departure", "origin"),
+    to = entry("Arrival", "destination");
+  from.data.type = "Flight";
+  from.data.flight = { arrivalId: to.id };
+  render(
+    <MapPanel
+      entries={[to, from]}
+      selected=""
+      onSelect={() => {}}
+      tripId="trip"
+    />,
+  );
+  await waitFor(() => expect(polylines).toHaveLength(1));
+  expect(service.api.mock.calls.some((call) => call[0] === "route")).toBe(
+    false,
   );
 });

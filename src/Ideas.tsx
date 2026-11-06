@@ -283,6 +283,7 @@ export default function Ideas({
           </Notice>
           <EntryForm
             entity={planning.entry}
+            entries={entries}
             trip={trip}
             persist={(entry) => scheduleIdea(planning.idea, entry)}
             onDone={(entry) => {

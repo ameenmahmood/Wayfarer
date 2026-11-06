@@ -5,6 +5,7 @@ import { Button } from "./ui";
 import MapPanel from "./MapPanel";
 export default function MapWorkspace({
   entries,
+  contextEntries,
   tripId,
   date,
   dates,
@@ -20,6 +21,7 @@ export default function MapWorkspace({
   onEdit,
 }: {
   entries: Entity<Entry>[];
+  contextEntries?: Entity<Entry>[];
   tripId: string;
   date: string;
   dates: string[];
@@ -105,6 +107,7 @@ export default function MapWorkspace({
         <MapPanel
           expanded
           entries={entries}
+          contextEntries={contextEntries}
           selected={selected}
           onSelect={onSelect}
           tripId={tripId}

@@ -6649,3 +6649,114 @@ html {
     font-size: 11px;
   }
 }
+
+.flight-editor {
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  margin-bottom: 12px;
+  display: grid;
+  gap: 10px;
+}
+.flight-editor h3 {
+  margin: 0;
+  font-size: 15px;
+}
+.flight-editor small {
+  color: var(--muted);
+}
+.flight-map-tools {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  display: grid;
+  gap: 7px;
+  flex-shrink: 0;
+}
+.flight-map-chips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.flight-map-chips button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 9px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 12px;
+  max-width: 100%;
+}
+.flight-map-chips button.active {
+  border-color: var(--green);
+}
+.flight-map-chips button span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.flight-fit-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.flight-fit-controls button {
+  padding: 5px 8px;
+  font-size: 11px;
+  min-height: 32px;
+}
+.flight-map-tools > small {
+  color: var(--muted);
+  font-size: 12px;
+}
+.flight-map-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px 15px;
+  padding: 9px 14px;
+  color: var(--muted);
+  font-size: 12px;
+  flex-shrink: 0;
+}
+.flight-map-legend > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.flight-map-legend i {
+  width: 22px;
+  border-top: 3px solid #467568;
+}
+.flight-map-legend .flight-line-key {
+  border-top: 3px dashed #79b8de;
+}
+.flight-map-legend small {
+  flex-basis: 100%;
+  font-size: 11px;
+}
+.flight-map-note {
+  margin: 0;
+  padding: 10px 14px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.flight-timeline-leg {
+  margin: 4px 0 6px calc(var(--time-column) + 14px);
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 9px;
+  border: 1px dashed color-mix(in srgb, #79b8de 50%, var(--border));
+  border-radius: 7px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.flight-timeline-leg svg {
+  flex-shrink: 0;
+}
+.flight-sketch svg {
+  width: 100%;
+  display: block;
+}

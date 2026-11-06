@@ -28,9 +28,16 @@ export default function RoutePlanner({
       (e) =>
         e.data.date === date &&
         (e.data.endDate || e.data.date) === date &&
-        e.data.type !== "Lodging",
+        e.data.type !== "Lodging" &&
+        e.data.type !== "Flight",
     )
     .sort((a, b) => a.data.order - b.data.order);
+  const flightProtected = entries.some(
+    (entry) =>
+      entry.data.date === date &&
+      entry.data.type === "Flight" &&
+      !!entry.data.flight?.arrivalId,
+  );
   const transferProtected = hasSavedTransfers(entries, date);
   const initialDeparture =
     candidates
@@ -68,6 +75,10 @@ export default function RoutePlanner({
   async function preview() {
     setProposal(undefined);
     setUnverifiedHours([]);
+    if (flightProtected)
+      throw Error(
+        "This day includes a flight. Plan the flight separately; route optimization supports ground travel only.",
+      );
     if (transferProtected)
       throw Error(
         "Saved travel details protect this day from route rearrangement. Review or remove those details first.",
@@ -183,6 +194,12 @@ export default function RoutePlanner({
   }
   return (
     <div>
+      {flightProtected && (
+        <Notice>
+          This day includes a flight. Flight connections stay fixed; route
+          optimization is available on ground-only days.
+        </Notice>
+      )}
       {transferProtected && (
         <Notice>
           Route optimization is paused for this day because it has saved travel
@@ -298,7 +315,11 @@ export default function RoutePlanner({
       <Button
         className="primary"
         disabled={
-          a.busy || transferProtected || !candidates.length || !departure
+          a.busy ||
+          transferProtected ||
+          flightProtected ||
+          !candidates.length ||
+          !departure
         }
         onClick={() => a.run(preview)}
       >
@@ -392,7 +413,7 @@ export default function RoutePlanner({
                 <p>Original itinerary is unchanged.</p>
                 <Button
                   className="primary"
-                  disabled={a.busy || transferProtected}
+                  disabled={a.busy || transferProtected || flightProtected}
                   onClick={() =>
                     a.run(async () => {
                       for (let i = 0; i < proposal.entries.length; i++) {
@@ -406,7 +427,7 @@ export default function RoutePlanner({
                             data: {
                               ...next,
                               opening: entity.data.opening,
-                              order: i,
+                              order: candidates[i]?.data.order ?? i,
                             },
                           });
                       }

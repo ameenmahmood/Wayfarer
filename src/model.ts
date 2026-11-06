@@ -46,6 +46,7 @@ export type TransferBooking = {
 };
 export type Entry = {
   sourceIdeaId?: string;
+  flight?: { arrivalId: string; number?: string };
   title: string;
   type: string;
   date: string;

@@ -38,6 +38,7 @@ import {
 } from "./ui";
 import MapPanel from "./MapPanel";
 import TravelLeg from "./TravelLeg";
+import { flightTiming } from "./flights";
 import { preservesTransfers } from "./transfers";
 import NearbyPlaces from "./NearbyPlaces";
 import RoutePlanner from "./RoutePlanner";
@@ -164,6 +165,7 @@ export default function Itinerary({
         mode,
         undefined,
         (from, to) => {
+          if (from.type === "Flight") return 0;
           const fromEntity = dayEntries.find((e) => e.data === from);
           const leg =
             to.arrival?.fromId === fromEntity?.id ? to.arrival : undefined;
@@ -236,15 +238,32 @@ export default function Itinerary({
       pin = e.data.placeId ? pins?.[e.data.placeId] : undefined;
     return (
       <div key={e.id} className="timeline-wrap">
-        {previous && view !== "saved" && previous.data.date === e.data.date && (
-          <TravelLeg
-            key={`${previous.id}:${e.id}`}
-            previous={previous}
-            entry={e}
-            mode={mode}
-            canEdit={canEdit}
-          />
-        )}
+        {previous &&
+          view !== "saved" &&
+          previous.data.date === e.data.date &&
+          (previous.data.type === "Flight" ||
+          (e.data.type === "Flight" &&
+            e.data.flight?.arrivalId === previous.id) ? (
+            <div className="flight-timeline-leg">
+              <Plane size={15} />
+              <span>
+                {e.data.type === "Flight" &&
+                e.data.flight?.arrivalId === previous.id
+                  ? "Flight connection · move departure before arrival"
+                  : previous.data.flight?.arrivalId === e.id
+                    ? flightTiming({ from: previous, to: e })
+                    : "Flight · link its arrival airport in Edit plan"}
+              </span>
+            </div>
+          ) : (
+            <TravelLeg
+              key={`${previous.id}:${e.id}`}
+              previous={previous}
+              entry={e}
+              mode={mode}
+              canEdit={canEdit}
+            />
+          ))}
         <article
           id={e.id}
           className={`plan-card ${canEdit && view === "day" ? "can-reorder" : ""} ${drag === e.id ? "is-dragging" : ""} ${dropTarget === e.id && drag !== e.id ? "drop-target" : ""} ${selected === e.id ? "selected" : ""} ${expandedEntry === e.id ? "is-expanded" : ""}`}
@@ -544,6 +563,7 @@ export default function Itinerary({
     >
       <EntryForm
         entity={editing}
+        entries={entries}
         trip={trip}
         onDone={() => setEditing(undefined)}
       />
@@ -554,6 +574,7 @@ export default function Itinerary({
       <>
         <MapWorkspace
           entries={filtered}
+          contextEntries={entries}
           tripId={tripId}
           date={date}
           dates={dayList}
@@ -842,6 +863,7 @@ export default function Itinerary({
           </Field>
           <MapPanel
             entries={filtered}
+            contextEntries={entries}
             lookupPlace={lookupPin}
             selected={selected}
             onSelect={(id) => {

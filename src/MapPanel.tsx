@@ -1,8 +1,16 @@
 import { useEffect, useRef, useState } from "react";
-import { MapPin, Navigation, ExternalLink, RefreshCw } from "lucide-react";
+import {
+  MapPin,
+  Navigation,
+  ExternalLink,
+  RefreshCw,
+  Plane,
+} from "lucide-react";
 import type { Entity, Entry } from "./model";
 import { api, demo } from "./store";
 import { Notice, Button } from "./ui";
+import FlightSketch from "./FlightSketch";
+import { flightConnections, flightGroundPairs, flightTiming } from "./flights";
 declare global {
   interface Window {
     google: any;
@@ -44,6 +52,7 @@ function loadMaps() {
 }
 export default function MapPanel({
   entries,
+  contextEntries = entries,
   selected,
   onSelect,
   tripId,
@@ -52,6 +61,7 @@ export default function MapPanel({
   lookupPlace,
 }: {
   entries: Entity<Entry>[];
+  contextEntries?: Entity<Entry>[];
   selected: string;
   onSelect: (id: string) => void;
   tripId: string;
@@ -70,12 +80,39 @@ export default function MapPanel({
     [retry, setRetry] = useState(0);
   const onSelectRef = useRef(onSelect);
   onSelectRef.current = onSelect;
+  const flights = flightConnections(entries, contextEntries);
+  const mapEntries = [
+    ...new Map(
+      [
+        ...entries,
+        ...flights.flatMap((flight) => [flight.from, flight.to]),
+      ].map((entry) => [entry.id, entry]),
+    ).values(),
+  ];
+  const positions = useRef(new Map<string, { lat: number; lng: number }>());
+  const [geometryReady, setGeometryReady] = useState(false);
+  const [focusedFlightId, setFocusedFlightId] = useState("");
+  const focusedFlight =
+    flights.find((flight) => flight.from.id === focusedFlightId) || flights[0];
+  const [fitMode, setFitMode] = useState<"all" | "flight" | "local">("all");
+  const flightKey = flights
+    .map((flight) => `${flight.from.id}:${flight.to.id}`)
+    .join("|");
+  useEffect(() => {
+    const flight = flights.find(
+      (flight) => flight.from.id === selected || flight.to.id === selected,
+    );
+    if (flight) setFocusedFlightId(flight.from.id);
+  }, [selected, flightKey]);
   const locationKey = JSON.stringify(
-    entries.map((e) => [
+    mapEntries.map((e) => [
       e.id,
       e.data.placeId,
       e.data.lat,
       e.data.lng,
+      e.data.date,
+      e.data.type,
+      e.data.flight?.arrivalId,
       e.data.arrival?.fromId,
       e.data.arrival?.mode,
     ]),
@@ -83,9 +120,44 @@ export default function MapPanel({
   const [mapVersion, setMapVersion] = useState(0);
   const [routeWarnings, setRouteWarnings] = useState<string[]>([]);
   const configured = !demo && !!import.meta.env.VITE_GOOGLE_MAPS_BROWSER_KEY;
-  const located = entries.filter(
+  const located = mapEntries.filter(
     (e) => (e.data.lat != null && e.data.lng != null) || e.data.placeId,
   );
+  const localIds = focusedFlight
+    ? mapEntries
+        .filter(
+          (entry) =>
+            entry.data.date === focusedFlight.to.data.date &&
+            !flights.some((flight) => flight.from.id === entry.id),
+        )
+        .map((entry) => entry.id)
+    : [];
+  function fitIds(ids: string[]) {
+    const points = ids.flatMap((id) =>
+      positions.current.has(id) ? [positions.current.get(id)!] : [],
+    );
+    if (!map.current || !window.google?.maps || !points.length) return;
+    if (points.length === 1) {
+      map.current.setCenter(points[0]);
+      map.current.setZoom(14);
+    } else {
+      const bounds = new window.google.maps.LatLngBounds();
+      points.forEach((point) => bounds.extend(point));
+      map.current.fitBounds(bounds, 45);
+    }
+  }
+  function fitFlight(id = focusedFlight?.from.id) {
+    const flight = flights.find((flight) => flight.from.id === id);
+    if (!flight) return;
+    setFocusedFlightId(flight.from.id);
+    setFitMode("flight");
+    fitIds([flight.from.id, flight.to.id]);
+    onSelectRef.current(
+      entries.some((entry) => entry.id === flight.from.id)
+        ? flight.from.id
+        : flight.to.id,
+    );
+  }
   useEffect(() => {
     if (!configured || !navigator.onLine) return;
     setReady(false);
@@ -125,9 +197,13 @@ export default function MapPanel({
     markers.current.clear();
     paths.current = [];
     setRouteWarnings([]);
+    setGeometryReady(false);
+    positions.current.clear();
     const bounds = new window.google.maps.LatLngBounds();
     async function draw() {
-      const points: any[] = [];
+      const airportIds = new Set(
+        flights.flatMap((flight) => [flight.from.id, flight.to.id]),
+      );
       for (let i = 0; i < located.length; i++) {
         const e = located[i];
         let lat = e.data.lat,
@@ -151,55 +227,108 @@ export default function MapPanel({
           );
           continue;
         }
-        const position = { lat, lng };
-        points.push({ id: e.id, position });
+        const position = { lat: lat!, lng: lng! };
+        positions.current.set(e.id, position);
         const marker = new window.google.maps.Marker({
           position,
           map: map.current,
-          label: String(i + 1),
+          label: airportIds.has(e.id)
+            ? "✈"
+            : String(entries.findIndex((entry) => entry.id === e.id) + 1),
           title: e.data.title,
           zIndex: e.id === selected ? 10 : 1,
         });
-        marker.addListener("click", () => onSelectRef.current(e.id));
+        marker.addListener("click", () =>
+          onSelectRef.current(
+            entries.some((entry) => entry.id === e.id)
+              ? e.id
+              : flights.find((flight) => flight.to.id === e.id)?.from.id ||
+                  e.id,
+          ),
+        );
         markers.current.set(e.id, marker);
         bounds.extend(position);
       }
+      const points = [...positions.current.values()];
       if (points.length === 1) {
-        map.current.setCenter(points[0].position);
+        map.current.setCenter(points[0]);
         map.current.setZoom(15);
       } else if (points.length > 1) map.current.fitBounds(bounds, 50);
-      if (points.length > 1 && !demo) {
-        for (let i = 1; i < points.length; i++) {
+      for (const flight of flights) {
+        const from = positions.current.get(flight.from.id),
+          to = positions.current.get(flight.to.id);
+        if (!from || !to) {
+          setRouteWarnings((w) => [
+            ...new Set([
+              ...w,
+              "Flight connection needs a map location on both airport stops.",
+            ]),
+          ]);
+          continue;
+        }
+        const path = new window.google.maps.Polyline({
+          path: [from, to],
+          geodesic: true,
+          strokeColor: "#79b8de",
+          strokeOpacity: 0,
+          strokeWeight: 3,
+          icons: [
+            {
+              icon: {
+                path: "M 0,-1 0,1",
+                strokeOpacity: 1,
+                strokeColor: "#79b8de",
+                strokeWeight: 2,
+                scale: 3,
+              },
+              offset: "0",
+              repeat: "14px",
+            },
+          ],
+          map: map.current,
+          clickable: true,
+        });
+        path.addListener?.("click", () =>
+          onSelectRef.current(
+            entries.some((entry) => entry.id === flight.from.id)
+              ? flight.from.id
+              : flight.to.id,
+          ),
+        );
+        paths.current.push(path);
+      }
+      setGeometryReady(true);
+      if (!demo)
+        for (const { from, to } of flightGroundPairs(entries)) {
+          const origin = positions.current.get(from.id),
+            destination = positions.current.get(to.id);
+          if (!origin || !destination) continue;
           try {
+            const leg = to.data.arrival;
             const route = await api("route", tripId, {
-              origin: points[i - 1].position,
-              destination: points[i].position,
-              mode: (() => {
-                const leg = entries.find((e) => e.id === points[i].id)?.data
-                  .arrival;
-                return leg && leg.fromId === points[i - 1].id ? leg.mode : mode;
-              })(),
+              origin,
+              destination,
+              mode: leg?.fromId === from.id ? leg.mode : mode,
             });
             if (!active) return;
             setRouteWarnings((w) => [
               ...new Set([...w, ...(route.warnings || [])]),
             ]);
-            if (route.polyline) {
-              const path = new window.google.maps.Polyline({
-                path: window.google.maps.geometry.encoding.decodePath(
-                  route.polyline,
-                ),
-                strokeColor: "#467568",
-                strokeWeight: 4,
-                map: map.current,
-              });
-              paths.current.push(path);
-            }
+            if (route.polyline)
+              paths.current.push(
+                new window.google.maps.Polyline({
+                  path: window.google.maps.geometry.encoding.decodePath(
+                    route.polyline,
+                  ),
+                  strokeColor: "#467568",
+                  strokeWeight: 4,
+                  map: map.current,
+                }),
+              );
           } catch (err: any) {
             if (active) setError(err.message);
           }
         }
-      }
     }
     void draw();
     return () => {
@@ -217,9 +346,9 @@ export default function MapPanel({
     }
   }, [selected]);
   useEffect(() => {
-    for (const entry of entries)
+    for (const entry of mapEntries)
       markers.current.get(entry.id)?.setTitle(entry.data.title);
-  }, [entries.map((e) => `${e.id}:${e.data.title}`).join()]);
+  }, [mapEntries.map((e) => `${e.id}:${e.data.title}`).join()]);
   return (
     <section
       className={"map-card" + (expanded ? " expanded" : "")}
@@ -231,6 +360,66 @@ export default function MapPanel({
           <MapPin size={18} />
         </div>
       )}
+      {flights.length > 0 && (
+        <div className="flight-map-tools" aria-label="Flight map controls">
+          <div className="flight-map-chips">
+            {flights.map((flight) => (
+              <button
+                key={flight.from.id}
+                aria-pressed={focusedFlight?.from.id === flight.from.id}
+                className={
+                  focusedFlight?.from.id === flight.from.id ? "active" : ""
+                }
+                onClick={() => fitFlight(flight.from.id)}
+              >
+                <Plane size={14} />
+                <span>
+                  {flight.from.data.title}
+                  {flight.from.data.flight?.number &&
+                    ` · ${flight.from.data.flight.number}`}
+                </span>
+              </button>
+            ))}
+          </div>
+          <div className="flight-fit-controls">
+            <Button
+              disabled={configured && !geometryReady}
+              onClick={() => {
+                setFitMode("all");
+                fitIds(mapEntries.map((entry) => entry.id));
+              }}
+            >
+              Fit all stops
+            </Button>
+            <Button
+              disabled={configured && !geometryReady}
+              onClick={() => fitFlight()}
+            >
+              Fit flight
+            </Button>
+            <Button
+              disabled={configured && !geometryReady}
+              onClick={() => {
+                setFitMode("local");
+                fitIds(localIds);
+              }}
+            >
+              Fit local stops
+            </Button>
+          </div>
+          {focusedFlight && <small>{flightTiming(focusedFlight)}</small>}
+        </div>
+      )}
+      {entries.some(
+        (entry) =>
+          entry.data.type === "Flight" &&
+          !flights.some((flight) => flight.from.id === entry.id),
+      ) && (
+        <p className="flight-map-note">
+          Link the flight’s arrival-airport stop in Edit plan to show its
+          connection. Flights don’t use road directions.
+        </p>
+      )}
       {configured ? (
         <>
           <div ref={ref} className="google-map" />
@@ -238,7 +427,7 @@ export default function MapPanel({
             <div className="notice">Loading live Google map…</div>
           )}
         </>
-      ) : !tripId.startsWith("demo") ? (
+      ) : !tripId.startsWith("demo") && !(demo && flights.length) ? (
         <div className="empty">
           <MapPin size={28} />
           <h3>Your places, ready to connect</h3>
@@ -247,6 +436,21 @@ export default function MapPanel({
             coordinates to your itinerary offline.
           </p>
         </div>
+      ) : flights.length ? (
+        <FlightSketch
+          entries={mapEntries}
+          flights={flights}
+          focused={focusedFlight}
+          fitMode={fitMode}
+          localIds={localIds}
+          onSelect={(id) =>
+            onSelectRef.current(
+              entries.some((entry) => entry.id === id)
+                ? id
+                : focusedFlight?.from.id || id,
+            )
+          }
+        />
       ) : (
         <div className="sketch">
           <svg
@@ -336,6 +540,22 @@ export default function MapPanel({
           <span className="sketch-label">
             Illustrative area sketch · not for navigation
           </span>
+        </div>
+      )}
+      {flights.length > 0 && (
+        <div className="flight-map-legend">
+          <span>
+            <i className="flight-line-key" />
+            Flight connection
+          </span>
+          <span>
+            <i className="ground-line-key" />
+            Ground route
+          </span>
+          <small>
+            Planned airport connection, not an actual flight track. Scheduled
+            times are entered by you.
+          </small>
         </div>
       )}
       {routeWarnings.map((w) => (

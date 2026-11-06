@@ -425,3 +425,40 @@ it("keeps saved transfers connected when checking a reordered day", async () => 
     Date.parse("2026-10-28T16:00:00Z"),
   );
 });
+
+it("edits explicit flight endpoints and flight number without saving Google place content", async () => {
+  const { EntryForm } = await import("../src/Forms");
+  const u = userEvent.setup();
+  const trip = {
+    title: "Flight trip",
+    destinations: "Miami, Barranquilla",
+    start: first.data.date,
+    end: second.data.date,
+    zone: first.data.zone,
+    currency: "USD",
+    budget: 0,
+    categoryBudgets: {},
+    people: [],
+    description: "",
+  };
+  service.save.mockImplementation(async (entity) => entity);
+  render(
+    <EntryForm
+      entity={{ ...first, data: { ...first.data, type: "Flight" } }}
+      entries={[first, second]}
+      trip={trip}
+      onDone={() => {}}
+    />,
+  );
+  await u.selectOptions(
+    screen.getByLabelText("Arrival airport stop"),
+    second.id,
+  );
+  await u.type(screen.getByLabelText("Flight number (optional)"), "AA123");
+  await u.click(screen.getByRole("button", { name: "Save to itinerary" }));
+  await waitFor(() => expect(service.save).toHaveBeenCalled());
+  expect(service.save.mock.calls[0][0].data.flight).toEqual({
+    arrivalId: second.id,
+    number: "AA123",
+  });
+});

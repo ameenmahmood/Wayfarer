@@ -278,3 +278,26 @@ it("pauses optimization when a day has saved transfer details", () => {
   expect(store.api).not.toHaveBeenCalled();
   expect(store.save).not.toHaveBeenCalled();
 });
+
+it("keeps flight days out of ground-route optimization", () => {
+  const a = stop("Flight", {
+      type: "Flight",
+      flight: { arrivalId: "Arrival" },
+    }),
+    b = stop("Arrival", { start: "14:00" });
+  render(
+    <RoutePlanner
+      entries={[a, b]}
+      trip={trip}
+      date={trip.start}
+      tripId="trip"
+      onDone={() => {}}
+    />,
+  );
+  expect(screen.getByRole("button", { name: "Preview route" })).toHaveProperty(
+    "disabled",
+    true,
+  );
+  expect(store.api).not.toHaveBeenCalled();
+  expect(screen.getByText(/Flight connections stay fixed/)).toBeTruthy();
+});
