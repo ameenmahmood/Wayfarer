@@ -26,6 +26,24 @@ export type Idea = {
   cost?: number;
   currency: string;
 };
+export type TransferBooking = {
+  title: string;
+  transport:
+    | "Taxi"
+    | "Private transfer"
+    | "Rental car"
+    | "Train"
+    | "Bus"
+    | "Ferry"
+    | "Other";
+  status: "Considering" | "Planned" | "Booked";
+  company: string;
+  meetingPoint: string;
+  reference: string;
+  contact: string;
+  notes: string;
+  pickup?: { date: string; time: string };
+};
 export type Entry = {
   sourceIdeaId?: string;
   title: string;
@@ -49,7 +67,12 @@ export type Entry = {
   fixed: boolean;
   order: number;
   opening?: { open: number; close: number };
-  arrival?: { fromId: string; mode: string; manualMinutes?: number };
+  arrival?: {
+    fromId: string;
+    mode: string;
+    manualMinutes?: number;
+    booking?: TransferBooking;
+  };
 };
 export type SplitMode = "equal" | "exact" | "percentage" | "weighted";
 export type Expense = {

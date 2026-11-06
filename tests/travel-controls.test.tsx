@@ -15,6 +15,7 @@ vi.mock("../src/store", () => ({
 }));
 afterEach(cleanup);
 beforeEach(() => {
+  HTMLElement.prototype.scrollIntoView = vi.fn();
   service.api.mockReset();
   service.save.mockReset();
 });
@@ -295,4 +296,132 @@ it("marks an arrival on the following date and does not invent missing departure
   );
   expect(screen.getByText("Departure time needed")).toBeTruthy();
   expect(screen.queryByText(/hours late/)).toBeNull();
+});
+
+it("saves a named booked taxi with a fixed pickup, preserves its details through travel edits, and uses pickup for routing", async () => {
+  const u = userEvent.setup();
+  service.api.mockResolvedValue({ minutes: 22 });
+  const { container } = render(<Harness />);
+  await u.click(screen.getByRole("button", { name: "Add booking or pickup" }));
+  await u.type(
+    screen.getByLabelText("Travel title"),
+    "Airport taxi with Carlos",
+  );
+  await u.type(screen.getByLabelText("Company or driver"), "Caribe Transfers");
+  await u.selectOptions(screen.getByLabelText("Booking status"), "Booked");
+  await u.click(screen.getByLabelText("Fixed pickup time"));
+  await u.selectOptions(screen.getByLabelText("Pickup time hour"), "10");
+  await u.selectOptions(screen.getByLabelText("Pickup time minute"), "30");
+  await u.click(screen.getByRole("button", { name: "Save travel details" }));
+  await screen.findByText("Booked");
+  expect(service.save.mock.calls.at(-1)![0].data.arrival).toMatchObject({
+    mode: "DRIVE",
+    booking: {
+      title: "Airport taxi with Carlos",
+      status: "Booked",
+      pickup: { date: "2026-10-28", time: "10:30" },
+    },
+  });
+  await u.click(screen.getByLabelText("Set time manually"));
+  expect(service.save.mock.calls.at(-1)![0].data.arrival.booking.company).toBe(
+    "Caribe Transfers",
+  );
+  expect(container.querySelector(".travel-block-times")?.textContent).toContain(
+    "10:30 AM",
+  );
+  await u.click(screen.getByLabelText("Set time manually"));
+  await u.click(screen.getByRole("button", { name: "Calculate travel time" }));
+  await waitFor(() =>
+    expect(service.api).toHaveBeenCalledWith(
+      "route",
+      "trip",
+      expect.objectContaining({
+        mode: "DRIVE",
+        departure: "2026-10-28T14:30:00.000Z",
+      }),
+    ),
+  );
+  expect(container.querySelector(".travel-block-times")?.textContent).toContain(
+    "10:52 AM",
+  );
+  await u.click(screen.getByRole("button", { name: "Remove travel details" }));
+  await waitFor(() =>
+    expect(
+      service.save.mock.calls.at(-1)![0].data.arrival.booking,
+    ).toBeUndefined(),
+  );
+  expect(service.save.mock.calls.at(-1)![0].data.start).toBe("10:10");
+});
+it("warns about pickup before activity end and keeps booking controls unavailable to viewers", () => {
+  const destination = {
+    ...second,
+    data: {
+      ...second.data,
+      arrival: {
+        fromId: first.id,
+        mode: "DRIVE",
+        manualMinutes: 25,
+        booking: {
+          title: "Taxi",
+          transport: "Taxi" as const,
+          status: "Booked" as const,
+          company: "",
+          meetingPoint: "",
+          reference: "",
+          contact: "",
+          notes: "",
+          pickup: { date: "2026-10-28", time: "09:30" },
+        },
+      },
+    },
+  };
+  render(
+    <TravelLeg
+      previous={first}
+      entry={destination}
+      mode="DRIVE"
+      canEdit={false}
+    />,
+  );
+  expect(
+    screen.getByText("Pickup is before the previous activity ends"),
+  ).toBeTruthy();
+  expect(
+    screen.queryByRole("button", { name: "Edit travel details" }),
+  ).toBeNull();
+  expect(
+    screen.queryByRole("button", { name: "Remove travel details" }),
+  ).toBeNull();
+});
+it("keeps saved transfers connected when checking a reordered day", async () => {
+  const { preservesTransfers, transferDeparture } =
+    await import("../src/transfers");
+  const booking = {
+    title: "Taxi",
+    transport: "Taxi" as const,
+    status: "Booked" as const,
+    company: "",
+    meetingPoint: "",
+    reference: "",
+    contact: "",
+    notes: "",
+  };
+  const destination = {
+    ...second,
+    data: {
+      ...second.data,
+      arrival: { fromId: first.id, mode: "DRIVE", booking },
+    },
+  };
+  expect(preservesTransfers([first, destination])).toBe(true);
+  expect(preservesTransfers([destination, first])).toBe(false);
+  const stay = { ...first, data: { ...first.data, endDate: "2026-10-30" } };
+  expect(transferDeparture(stay, destination)).toBeUndefined();
+  destination.data.arrival.booking = {
+    ...booking,
+    pickup: { date: "2026-10-28", time: "12:00" },
+  } as any;
+  expect(transferDeparture(stay, destination)).toBe(
+    Date.parse("2026-10-28T16:00:00Z"),
+  );
 });

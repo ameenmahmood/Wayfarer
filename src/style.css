@@ -6481,3 +6481,89 @@ html {
     margin-left: calc(var(--time-column) + 8px);
   }
 }
+
+.timeline-view .transfer-status {
+  display: inline-block;
+  margin-left: 5px;
+  padding: 0 5px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--green) 12%, var(--bg));
+  color: var(--green);
+  font-size: 10px;
+  font-weight: 600;
+  vertical-align: middle;
+}
+.timeline-view .transfer-fixed-label {
+  margin: 0;
+}
+.transfer-booking-form {
+  display: grid;
+  gap: 10px;
+  padding-bottom: 12px;
+}
+.transfer-booking-form .form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.transfer-booking-form input,
+.transfer-booking-form select,
+.transfer-booking-form textarea {
+  min-width: 0;
+}
+.transfer-booking-form small,
+.transfer-details small {
+  color: var(--muted);
+  font-size: 12px;
+}
+.transfer-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 6px 0 10px;
+}
+.transfer-form-actions button {
+  font-size: 12px;
+  padding: 7px 10px;
+}
+.transfer-details {
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.transfer-details dl {
+  margin: 6px 0;
+}
+.transfer-details dl > div {
+  display: grid;
+  grid-template-columns: 90px minmax(0, 1fr);
+  gap: 8px;
+  padding-block: 3px;
+}
+.transfer-details dt {
+  color: var(--muted);
+}
+.transfer-details dd {
+  margin: 0;
+  white-space: pre-wrap;
+}
+@media (max-width: 650px) {
+  .transfer-booking-form .form-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.timeline-view .transfer-custom-title {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+.timeline-view .transfer-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.timeline-view .transfer-custom-title .transfer-status {
+  flex-shrink: 0;
+  margin-left: 0;
+}

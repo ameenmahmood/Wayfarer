@@ -38,6 +38,7 @@ import {
 } from "./ui";
 import MapPanel from "./MapPanel";
 import TravelLeg from "./TravelLeg";
+import { preservesTransfers } from "./transfers";
 import NearbyPlaces from "./NearbyPlaces";
 import RoutePlanner from "./RoutePlanner";
 type PinDetails = {
@@ -203,6 +204,10 @@ export default function Itinerary({
     if (from < 0 || to < 0 || from === to) return;
     const [item] = list.splice(from, 1);
     list.splice(to, 0, item);
+    if (!preservesTransfers(list))
+      throw Error(
+        "This move separates saved travel details from their stops. Remove the linked travel details first, then rearrange the activities.",
+      );
     for (let i = 0; i < list.length; i++)
       if (list[i].data.order !== i)
         await save({ ...list[i], data: { ...list[i].data, order: i } });
@@ -210,6 +215,12 @@ export default function Itinerary({
       `${item.data.title} moved to position ${to + 1}. Activity times have not changed.`,
     );
   }
+  const hasTransferFor = (id: string) =>
+    entries.some(
+      (e) =>
+        !!e.data.arrival?.booking &&
+        (e.id === id || e.data.arrival.fromId === id),
+    );
   const Icon = (type: string) =>
     type === "Flight"
       ? Plane
@@ -781,7 +792,15 @@ export default function Itinerary({
                             aria-label={`Delete ${e.data.title}`}
                             title="Delete"
                             disabled={a.busy}
-                            onClick={() => a.run(() => remove(e))}
+                            onClick={() =>
+                              a.run(async () => {
+                                if (hasTransferFor(e.id))
+                                  throw Error(
+                                    "Remove the linked travel details before deleting this activity.",
+                                  );
+                                await remove(e);
+                              })
+                            }
                           >
                             <Trash2 size={16} />
                           </button>
@@ -866,8 +885,17 @@ export default function Itinerary({
               a.run(async () => {
                 const target = String(f.get("date")),
                   duplicate = f.get("action") === "duplicate";
+                if (
+                  !duplicate &&
+                  target !== moving.data.date &&
+                  hasTransferFor(moving.id)
+                )
+                  throw Error(
+                    "Remove the linked travel details before moving this activity to another day.",
+                  );
                 const next = {
                   ...moving.data,
+                  ...(duplicate ? { arrival: undefined } : {}),
                   date: target,
                   endDate: target,
                   order: entries.length,

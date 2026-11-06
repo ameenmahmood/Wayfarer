@@ -1,4 +1,5 @@
 import TimeInput from "./TimeInput";
+import { hasSavedTransfers } from "./transfers";
 import { useEffect, useRef, useState } from "react";
 import { Route, Check } from "lucide-react";
 import type { Entity, Entry, Trip } from "./model";
@@ -30,6 +31,7 @@ export default function RoutePlanner({
         e.data.type !== "Lodging",
     )
     .sort((a, b) => a.data.order - b.data.order);
+  const transferProtected = hasSavedTransfers(entries, date);
   const initialDeparture =
     candidates
       .map((e) => e.data.start)
@@ -66,6 +68,10 @@ export default function RoutePlanner({
   async function preview() {
     setProposal(undefined);
     setUnverifiedHours([]);
+    if (transferProtected)
+      throw Error(
+        "Saved travel details protect this day from route rearrangement. Review or remove those details first.",
+      );
     if (!candidates.length)
       throw Error(
         "No single-day stops to optimize. Add an activity to this day; lodging and multi-day entries stay unchanged.",
@@ -177,6 +183,14 @@ export default function RoutePlanner({
   }
   return (
     <div>
+      {transferProtected && (
+        <Notice>
+          Route optimization is paused for this day because it has saved travel
+          details. This keeps bookings, fixed pickups, and their connected stops
+          together. Remove those details first if you want to optimize the stop
+          order.
+        </Notice>
+      )}
       <p className="route-intro">
         <b>
           {new Date(date + "T12:00:00").toLocaleDateString("en-US", {
@@ -283,7 +297,9 @@ export default function RoutePlanner({
       </details>
       <Button
         className="primary"
-        disabled={a.busy || !candidates.length || !departure}
+        disabled={
+          a.busy || transferProtected || !candidates.length || !departure
+        }
         onClick={() => a.run(preview)}
       >
         <Route size={16} />
@@ -376,7 +392,7 @@ export default function RoutePlanner({
                 <p>Original itinerary is unchanged.</p>
                 <Button
                   className="primary"
-                  disabled={a.busy}
+                  disabled={a.busy || transferProtected}
                   onClick={() =>
                     a.run(async () => {
                       for (let i = 0; i < proposal.entries.length; i++) {

@@ -1,4 +1,4 @@
-import { useEffect, useState, useId } from "react";
+import { useEffect, useState, useId, useRef } from "react";
 import { Temporal } from "@js-temporal/polyfill";
 import {
   Footprints,
@@ -17,6 +17,8 @@ import {
   formatTime,
 } from "./schedule";
 import { Button, Notice, useAsyncAction } from "./ui";
+import TransferBookingForm from "./TransferBookingForm";
+import { transferDeparture } from "./transfers";
 
 export default function TravelLeg({
   previous,
@@ -33,6 +35,8 @@ export default function TravelLeg({
 }) {
   const arrival =
     entry.data.arrival?.fromId === previous.id ? entry.data.arrival : undefined;
+  const booking = arrival?.booking;
+  const [editingBooking, setEditingBooking] = useState(false);
   const selectedMode = arrival?.mode || mode;
   const [manual, setManual] = useState(String(arrival?.manualMinutes ?? 15));
   const [live, setLive] = useState<{
@@ -43,6 +47,7 @@ export default function TravelLeg({
   const a = useAsyncAction();
   const [expanded, setExpanded] = useState(false);
   const detailsId = useId();
+  const summaryRef = useRef<HTMLButtonElement>(null);
   const LegIcon =
     (
       {
@@ -71,13 +76,18 @@ export default function TravelLeg({
   let gap = Infinity;
   let departureLabel = "";
   let arrivalLabel = "";
+  let pickupConflict = false;
+  let suggestedPickup: { date: string; time: string } | undefined;
   try {
-    // A stay's checkout is not the departure for outings during that stay.
-    if (
-      previous.data.start &&
-      (previous.data.endDate || previous.data.date) <= entry.data.date
-    ) {
-      const departure = entryBounds(previous.data).end;
+    const departure = transferDeparture(previous, entry);
+    if (departure !== undefined) {
+      const localDeparture = Temporal.Instant.fromEpochMilliseconds(
+        departure,
+      ).toZonedDateTimeISO(previous.data.endZone || previous.data.zone);
+      suggestedPickup = {
+        date: localDeparture.toPlainDate().toString(),
+        time: localDeparture.toPlainTime().toString({ smallestUnit: "minute" }),
+      };
       const label = (epoch: number, zone: string) => {
         const local =
           Temporal.Instant.fromEpochMilliseconds(epoch).toZonedDateTimeISO(
@@ -99,6 +109,12 @@ export default function TravelLeg({
           departure + Math.ceil(duration) * 60000,
           entry.data.zone,
         );
+      if (
+        booking?.pickup &&
+        previous.data.start &&
+        (previous.data.endDate || previous.data.date) <= booking.pickup.date
+      )
+        pickupConflict = departure < entryBounds(previous.data).end;
       if (entry.data.start)
         gap = (entryBounds(entry.data).start - departure) / 60000;
     }
@@ -120,7 +136,7 @@ export default function TravelLeg({
   useEffect(() => {
     setManual(String(arrival?.manualMinutes ?? 15));
   }, [arrival?.manualMinutes]);
-  async function update(next: Entry["arrival"]) {
+  async function update(next: Entry["arrival"], clearBooking = false) {
     if (
       next?.manualMinutes !== undefined &&
       (!Number.isInteger(next.manualMinutes) ||
@@ -128,7 +144,20 @@ export default function TravelLeg({
         next.manualMinutes > 10080)
     )
       throw Error("Enter 0–10080 whole minutes.");
-    await save({ ...entry, data: { ...entry.data, arrival: next } });
+    await save({
+      ...entry,
+      data: {
+        ...entry.data,
+        arrival: next
+          ? {
+              ...next,
+              ...(next.booking || (!clearBooking && booking)
+                ? { booking: next.booking || booking }
+                : {}),
+            }
+          : next,
+      },
+    });
     onScheduleChange?.();
   }
   return (
@@ -138,35 +167,62 @@ export default function TravelLeg({
     >
       <button
         className="travel-summary"
-        aria-label={`${modeLabel} to ${entry.data.title} · travel settings`}
+        ref={summaryRef}
+        aria-label={`${booking?.title || `${modeLabel} to ${entry.data.title}`} · travel settings`}
         aria-expanded={expanded}
         aria-controls={detailsId}
         onClick={() => setExpanded((v) => !v)}
       >
         <LegIcon className="travel-block-icon" size={15} />
-        <span className="travel-block-title">
-          {journeyLabel} ·{" "}
-          {Number.isFinite(duration)
-            ? `${manualTime === undefined && !estimate ? "~" : ""}${formatTravelDuration(duration)}`
-            : "Set time"}
-          {Number.isFinite(duration) && (
-            <small>
-              {" "}
-              ·{" "}
-              {manualTime !== undefined
-                ? "manual"
-                : estimate
-                  ? "Google Maps"
-                  : "rough"}
-            </small>
+        <span
+          className={`travel-block-title ${booking ? "transfer-custom-title" : ""}`}
+        >
+          {booking ? (
+            <>
+              <span className="transfer-name">
+                {booking.title || booking.transport}
+              </span>
+              <span className="transfer-status">{booking.status}</span>
+            </>
+          ) : (
+            <>
+              {journeyLabel} ·{" "}
+              {Number.isFinite(duration)
+                ? `${manualTime === undefined && !estimate ? "~" : ""}${formatTravelDuration(duration)}`
+                : "Set time"}
+              {Number.isFinite(duration) && (
+                <small>
+                  {" "}
+                  ·{" "}
+                  {manualTime !== undefined
+                    ? "manual"
+                    : estimate
+                      ? "Google Maps"
+                      : "rough"}
+                </small>
+              )}
+            </>
           )}
         </span>
         <ChevronDown className="travel-summary-chevron" size={16} />
         <span className="travel-block-times">
           {departureLabel ? (
             <>
+              {booking?.pickup && (
+                <span className="transfer-fixed-label" title="Fixed pickup">
+                  Pickup ·{" "}
+                </span>
+              )}
               {departureLabel} <span aria-hidden="true">→</span>{" "}
-              {arrivalLabel || "Arrival not calculated"}
+              {arrivalLabel
+                ? `${booking && manualTime === undefined && !estimate ? "~" : ""}${arrivalLabel}`
+                : "Arrival not calculated"}
+              {booking && estimate && (
+                <span className="google-attribution" translate="no">
+                  {" "}
+                  · Google Maps
+                </span>
+              )}
             </>
           ) : duringStay ? (
             "Departure varies during stay"
@@ -174,6 +230,12 @@ export default function TravelLeg({
             "Departure time needed"
           )}
         </span>
+        {pickupConflict && (
+          <span className="travel-block-conflict">
+            <TriangleAlert size={14} aria-hidden="true" />
+            Pickup is before the previous activity ends
+          </span>
+        )}
         {conflict && (
           <span className="travel-block-conflict">
             <TriangleAlert size={14} aria-hidden="true" />
@@ -185,6 +247,107 @@ export default function TravelLeg({
         className={`travel-expanded ${expanded ? "open" : ""}`}
         id={detailsId}
       >
+        {editingBooking && canEdit ? (
+          <TransferBookingForm
+            booking={booking}
+            date={suggestedPickup?.date || entry.data.date}
+            defaultTime={
+              suggestedPickup?.time || previous.data.end || previous.data.start
+            }
+            zone={previous.data.endZone || previous.data.zone}
+            onCancel={() => setEditingBooking(false)}
+            onSave={async (next) => {
+              const routingMode = [
+                "Taxi",
+                "Private transfer",
+                "Rental car",
+              ].includes(next.transport)
+                ? "DRIVE"
+                : ["Train", "Bus", "Ferry"].includes(next.transport)
+                  ? "TRANSIT"
+                  : selectedMode;
+              await update({
+                fromId: previous.id,
+                mode: routingMode,
+                ...(manualTime !== undefined
+                  ? { manualMinutes: manualTime }
+                  : {}),
+                booking: next,
+              });
+              setEditingBooking(false);
+              requestAnimationFrame(() => {
+                summaryRef.current?.focus({ preventScroll: true });
+                summaryRef.current?.scrollIntoView({ block: "nearest" });
+              });
+            }}
+          />
+        ) : (
+          <>
+            {booking && (
+              <div className="transfer-details">
+                <b>{booking.title || booking.transport}</b>
+                <dl>
+                  {[
+                    ["Transport", booking.transport],
+                    ["Company", booking.company],
+                    ["Meeting point", booking.meetingPoint],
+                    ["Reference", booking.reference],
+                    ["Contact", booking.contact],
+                    ["Notes", booking.notes],
+                  ]
+                    .filter(([, value]) => value)
+                    .map(([label, value]) => (
+                      <div key={label}>
+                        <dt>{label}</dt>
+                        <dd>{value}</dd>
+                      </div>
+                    ))}
+                </dl>
+                {booking.pickup && (
+                  <small>
+                    Fixed pickup: {booking.pickup.date} ·{" "}
+                    {formatTime(booking.pickup.time)}. Activity times stay
+                    unchanged.
+                  </small>
+                )}
+                {pickupConflict && (
+                  <Notice>
+                    Pickup is before {previous.data.title} ends. Review the
+                    activity duration or the booked pickup time.
+                  </Notice>
+                )}
+              </div>
+            )}
+            {canEdit && (
+              <div className="transfer-form-actions">
+                <Button onClick={() => setEditingBooking(true)}>
+                  {booking ? "Edit travel details" : "Add booking or pickup"}
+                </Button>
+                {booking && (
+                  <Button
+                    onClick={() =>
+                      a.run(() =>
+                        update(
+                          {
+                            fromId: previous.id,
+                            mode: selectedMode,
+                            ...(manualTime !== undefined
+                              ? { manualMinutes: manualTime }
+                              : {}),
+                          },
+                          true,
+                        ),
+                      )
+                    }
+                    disabled={a.busy}
+                  >
+                    Remove travel details
+                  </Button>
+                )}
+              </div>
+            )}
+          </>
+        )}
         <div className="travel-controls">
           <label>
             <span className="visually-hidden">
@@ -283,9 +446,12 @@ export default function TravelLeg({
                     throw Error(
                       "Choose a Google place or add coordinates for both activities, or enter travel time manually.",
                     );
-                  const departure = new Date(
-                    entryBounds(previous.data).end,
-                  ).toISOString();
+                  const departureInstant = transferDeparture(previous, entry);
+                  if (departureInstant === undefined)
+                    throw Error(
+                      "Add a fixed pickup time or set the previous activity’s end time before calculating.",
+                    );
+                  const departure = new Date(departureInstant).toISOString();
                   const r = await api("route", entry.tripId, {
                     origin: point(previous.data),
                     destination: point(entry.data),

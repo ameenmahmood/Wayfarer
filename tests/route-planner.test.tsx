@@ -240,3 +240,41 @@ it("does not silently substitute rough estimates for a malformed live matrix", a
     screen.queryByRole("button", { name: "Accept proposed itinerary" }),
   ).toBeNull();
 });
+
+it("pauses optimization when a day has saved transfer details", () => {
+  const a = stop("A"),
+    b = stop("B", {
+      order: 1,
+      arrival: {
+        fromId: "A",
+        mode: "DRIVE",
+        booking: {
+          title: "Airport taxi",
+          transport: "Taxi",
+          status: "Booked",
+          company: "",
+          meetingPoint: "",
+          reference: "",
+          contact: "",
+          notes: "",
+          pickup: { date: trip.start, time: "09:00" },
+        },
+      },
+    });
+  render(
+    <RoutePlanner
+      entries={[a, b]}
+      trip={trip}
+      date={trip.start}
+      tripId="trip"
+      onDone={() => {}}
+    />,
+  );
+  expect(screen.getByText(/Route optimization is paused/)).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Preview route" })).toHaveProperty(
+    "disabled",
+    true,
+  );
+  expect(store.api).not.toHaveBeenCalled();
+  expect(store.save).not.toHaveBeenCalled();
+});

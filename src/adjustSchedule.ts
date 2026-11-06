@@ -1,3 +1,4 @@
+import { hasSavedTransfers } from "./transfers";
 import { Temporal } from "@js-temporal/polyfill";
 import type { Entity, Entry } from "./model";
 import { entryBounds, instant, travel } from "./schedule";
@@ -65,6 +66,15 @@ export function adjustSchedule(
   entries: Entity<Entry>[],
   options: AdjustmentOptions,
 ) {
+  if (hasSavedTransfers(entries, options.date))
+    return {
+      rows: [] as AdjustmentRow[],
+      changes: [] as Entity<Entry>[],
+      conflicts: [
+        "This day has saved travel details. Review them before adjusting the schedule.",
+      ],
+      notes: [] as string[],
+    };
   const list = scheduleCandidates(entries, options.date),
     anchorIndex = list.findIndex((e) => e.id === options.anchorId);
   const conflicts: string[] = [],
