@@ -248,6 +248,7 @@ Deno.serve(async (req: Request) => {
         origin: waypoint(input.origin),
         destination: waypoint(input.destination),
         travelMode: input.mode,
+        languageCode: "en-US",
       };
       if (input.departure && input.mode === "TRANSIT")
         params.departureTime = input.departure;

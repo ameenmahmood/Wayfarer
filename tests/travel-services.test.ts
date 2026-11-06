@@ -425,6 +425,7 @@ it.each(["route", "matrix"])(
       expect(response.status).toBe(200);
       const payload = JSON.parse(service.google.mock.calls[0][1].body);
       expect(payload.travelMode).toBe(mode);
+      if (action === "route") expect(payload.languageCode).toBe("en-US");
       if (mode === "TRANSIT") expect(payload.departureTime).toBe(departure);
       else expect(payload).not.toHaveProperty("departureTime");
     }
