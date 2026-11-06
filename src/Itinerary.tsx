@@ -695,39 +695,37 @@ export default function Itinerary({
         }
       >
         <section className="timeline-panel">
-          <div className="day-heading">
-            <div>
-              <span className="eyebrow">
-                {view === "saved"
-                  ? "YOUR LITTLE COLLECTION"
-                  : view === "all"
-                    ? "THE ADVENTURE"
+          {view !== "all" && (
+            <div className="day-heading">
+              <div>
+                <span className="eyebrow">
+                  {view === "saved"
+                    ? "YOUR LITTLE COLLECTION"
                     : "DAY " + (dayList.indexOf(date) + 1)}
-              </span>
-              <h3>
-                {view === "saved"
-                  ? "For when inspiration strikes"
-                  : view === "all"
-                    ? trip.destinations
+                </span>
+                <h3>
+                  {view === "saved"
+                    ? "For when inspiration strikes"
                     : new Date(date + "T12:00:00").toLocaleDateString("en-US", {
                         weekday: "long",
                         month: "long",
                         day: "numeric",
                       })}
-              </h3>
-              <small className="day-context">
-                {filtered.length} {filtered.length === 1 ? "plan" : "plans"}
-              </small>
+                </h3>
+                <small className="day-context">
+                  {filtered.length} {filtered.length === 1 ? "plan" : "plans"}
+                </small>
+              </div>
+              {alerts.length > 0 && view === "day" && (
+                <button
+                  className="pill amber"
+                  onClick={() => setShowWarnings(!showWarnings)}
+                >
+                  {alerts.length} checks <ChevronRight size={13} />
+                </button>
+              )}
             </div>
-            {alerts.length > 0 && view === "day" && (
-              <button
-                className="pill amber"
-                onClick={() => setShowWarnings(!showWarnings)}
-              >
-                {alerts.length} checks <ChevronRight size={13} />
-              </button>
-            )}
-          </div>
+          )}
           {showWarnings && alerts.length > 0 && view === "day" && (
             <div className="schedule-alerts">
               {alerts.map((msg, i) => (
