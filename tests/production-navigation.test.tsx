@@ -539,3 +539,32 @@ it("shows the linked Google pin name and address beside the activity title", asy
     placeId: "airport-pin",
   });
 });
+
+it("collapses and expands desktop navigation, remembers the preference, and keeps account screens closed", async () => {
+  const u = await openApp();
+  const collapse = screen.getByRole("button", { name: "Collapse sidebar" });
+  expect(collapse.getAttribute("aria-expanded")).toBe("true");
+  await u.click(collapse);
+  expect(
+    screen
+      .getByRole("button", { name: "Expand sidebar" })
+      .getAttribute("aria-expanded"),
+  ).toBe("false");
+  expect(
+    document
+      .querySelector(".app-shell")
+      ?.classList.contains("sidebar-collapsed"),
+  ).toBe(true);
+  expect(localStorage.getItem("wayfarer-sidebar-collapsed")).toBe("true");
+  expect(screen.queryByRole("dialog")).toBeNull();
+  cleanup();
+  render(<App />);
+  const expand = await screen.findByRole("button", { name: "Expand sidebar" });
+  await u.click(expand);
+  expect(
+    document
+      .querySelector(".app-shell")
+      ?.classList.contains("sidebar-collapsed"),
+  ).toBe(false);
+  expect(localStorage.getItem("wayfarer-sidebar-collapsed")).toBe("false");
+});

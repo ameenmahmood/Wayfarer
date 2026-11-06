@@ -6567,3 +6567,23 @@ html {
   flex-shrink: 0;
   margin-left: 0;
 }
+
+/* Desktop navigation can be hidden without affecting the mobile drawer. */
+.desktop-sidebar-toggle {
+  display: none;
+}
+@media (min-width: 651px) {
+  .desktop-sidebar-toggle {
+    display: inline-flex;
+    flex-shrink: 0;
+  }
+  .sidebar-collapsed .sidebar {
+    display: none;
+  }
+  .sidebar-collapsed .main-shell {
+    margin-left: 0;
+  }
+  .map-workspace .desktop-sidebar-toggle {
+    display: none;
+  }
+}

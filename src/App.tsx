@@ -20,6 +20,8 @@ import {
   ArrowUpRight,
   Cloud,
   Menu,
+  PanelLeftClose,
+  PanelLeftOpen,
   X,
   Check,
   WifiOff,
@@ -121,6 +123,9 @@ export default function App() {
       return undefined;
     }),
     [sidebar, setSidebar] = useState(false),
+    [sidebarCollapsed, setSidebarCollapsed] = useState(
+      () => localStorage.getItem("wayfarer-sidebar-collapsed") === "true",
+    ),
     [namePromptDismissed, setNamePromptDismissed] = useState(""),
     [status, setStatus] = useState("Loading…"),
     [role, setRole] = useState<Role>("viewer"),
@@ -304,10 +309,14 @@ export default function App() {
         (!overview && trip && !["itinerary", "map"].includes(tab)
           ? " secondary-section"
           : "") +
-        (tripDetails ? " show-trip-details" : "")
+        (tripDetails ? " show-trip-details" : "") +
+        (sidebarCollapsed ? " sidebar-collapsed" : "")
       }
     >
-      <aside className={"sidebar " + (sidebar ? "open" : "")}>
+      <aside
+        id="main-navigation"
+        className={"sidebar " + (sidebar ? "open" : "")}
+      >
         <a
           className="brand"
           href={appBasePath}
@@ -480,6 +489,33 @@ export default function App() {
             <Menu size={21} />
           </button>
           <div className="breadcrumb">
+            <button
+              className="desktop-sidebar-toggle icon-button"
+              aria-label={
+                sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"
+              }
+              title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+              aria-expanded={!sidebarCollapsed}
+              aria-controls="main-navigation"
+              onClick={() => {
+                const next = !sidebarCollapsed;
+                setSidebarCollapsed(next);
+                try {
+                  localStorage.setItem(
+                    "wayfarer-sidebar-collapsed",
+                    String(next),
+                  );
+                } catch {
+                  /* The toggle still works if browser preferences cannot be saved. */
+                }
+              }}
+            >
+              {sidebarCollapsed ? (
+                <PanelLeftOpen size={20} />
+              ) : (
+                <PanelLeftClose size={20} />
+              )}
+            </button>
             <button
               onClick={() => {
                 setOverview(true);
