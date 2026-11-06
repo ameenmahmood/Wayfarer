@@ -1,4 +1,5 @@
 import { useEffect, useState, useId } from "react";
+import { Temporal } from "@js-temporal/polyfill";
 import {
   Footprints,
   Car,
@@ -9,7 +10,12 @@ import {
 } from "lucide-react";
 import type { Entity, Entry } from "./model";
 import { api, demo, save } from "./store";
-import { travel, entryBounds, formatTravelDuration } from "./schedule";
+import {
+  travel,
+  entryBounds,
+  formatTravelDuration,
+  formatTime,
+} from "./schedule";
 import { Button, Notice, useAsyncAction } from "./ui";
 
 export default function TravelLeg({
@@ -60,15 +66,57 @@ export default function TravelLeg({
   const estimate = live?.key === key ? live : undefined;
   const rough = travel(previous.data, entry.data, selectedMode);
   const duration = manualTime ?? estimate?.minutes ?? rough;
+  const duringStay =
+    (previous.data.endDate || previous.data.date) > entry.data.date;
   let gap = Infinity;
+  let departureLabel = "";
+  let arrivalLabel = "";
   try {
-    if ((previous.data.endDate || previous.data.date) <= entry.data.date)
-      gap =
-        (entryBounds(entry.data).start - entryBounds(previous.data).end) /
-        60000;
+    // A stay's checkout is not the departure for outings during that stay.
+    if (
+      previous.data.start &&
+      (previous.data.endDate || previous.data.date) <= entry.data.date
+    ) {
+      const departure = entryBounds(previous.data).end;
+      const label = (epoch: number, zone: string) => {
+        const local =
+          Temporal.Instant.fromEpochMilliseconds(epoch).toZonedDateTimeISO(
+            zone,
+          );
+        const clock = formatTime(
+          `${String(local.hour).padStart(2, "0")}:${String(local.minute).padStart(2, "0")}`,
+        );
+        return local.toPlainDate().toString() === previous.data.date
+          ? clock
+          : `${local.month}/${local.day} · ${clock}`;
+      };
+      departureLabel = label(
+        departure,
+        previous.data.endZone || previous.data.zone,
+      );
+      if (Number.isFinite(duration))
+        arrivalLabel = label(
+          departure + Math.ceil(duration) * 60000,
+          entry.data.zone,
+        );
+      if (entry.data.start)
+        gap = (entryBounds(entry.data).start - departure) / 60000;
+    }
   } catch {
-    /* Schedule warnings handle invalid times. */
+    // Unknown or invalid departure times must not produce a made-up arrival.
+    departureLabel = "";
+    arrivalLabel = "";
   }
+  const conflict = Number.isFinite(duration) && gap < duration;
+  const journeyLabel =
+    (
+      {
+        DRIVE: "Drive",
+        WALK: "Walk",
+        BICYCLE: "Cycle",
+        TRANSIT: "Transit",
+      } as Record<string, string>
+    )[selectedMode] || "Travel";
   useEffect(() => {
     setManual(String(arrival?.manualMinutes ?? 15));
   }, [arrival?.manualMinutes]);
@@ -90,21 +138,48 @@ export default function TravelLeg({
     >
       <button
         className="travel-summary"
+        aria-label={`${modeLabel} to ${entry.data.title} · travel settings`}
         aria-expanded={expanded}
         aria-controls={detailsId}
         onClick={() => setExpanded((v) => !v)}
       >
-        <LegIcon size={15} />
-        <span>
-          {modeLabel} ·{" "}
+        <LegIcon className="travel-block-icon" size={15} />
+        <span className="travel-block-title">
+          {journeyLabel} ·{" "}
           {Number.isFinite(duration)
-            ? `${manualTime === undefined && !estimate ? "~" : ""}${formatTravelDuration(duration)}${manualTime !== undefined ? " · manual" : " estimate"}`
-            : "Set travel time"}
+            ? `${manualTime === undefined && !estimate ? "~" : ""}${formatTravelDuration(duration)}`
+            : "Set time"}
+          {Number.isFinite(duration) && (
+            <small>
+              {" "}
+              ·{" "}
+              {manualTime !== undefined
+                ? "manual"
+                : estimate
+                  ? "Google Maps"
+                  : "rough"}
+            </small>
+          )}
         </span>
-        {Number.isFinite(duration) && gap < duration && (
-          <TriangleAlert size={13} aria-label="Insufficient travel time" />
+        <ChevronDown className="travel-summary-chevron" size={16} />
+        <span className="travel-block-times">
+          {departureLabel ? (
+            <>
+              {departureLabel} <span aria-hidden="true">→</span>{" "}
+              {arrivalLabel || "Arrival not calculated"}
+            </>
+          ) : duringStay ? (
+            "Departure varies during stay"
+          ) : (
+            "Departure time needed"
+          )}
+        </span>
+        {conflict && (
+          <span className="travel-block-conflict">
+            <TriangleAlert size={14} aria-hidden="true" />
+            {formatTravelDuration(Math.ceil(duration - gap))} late
+          </span>
         )}
-        <ChevronDown className="travel-summary-chevron" size={14} />
       </button>
       <div
         className={`travel-expanded ${expanded ? "open" : ""}`}
@@ -250,7 +325,7 @@ export default function TravelLeg({
             </details>
           )}
         </div>
-        {Number.isFinite(duration) && gap < duration && (
+        {conflict && (
           <Notice>
             Insufficient travel time before {entry.data.title}: allow{" "}
             {formatTravelDuration(duration)}.

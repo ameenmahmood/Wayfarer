@@ -247,3 +247,52 @@ it("compact travel options expand and collapse without triggering a route reques
   expect(toggle.getAttribute("aria-expanded")).toBe("false");
   expect(service.api).not.toHaveBeenCalled();
 });
+
+it("shows departure, calculated arrival, and lateness without rescheduling activities", () => {
+  const destination = {
+    ...second,
+    data: {
+      ...second.data,
+      arrival: { fromId: first.id, mode: "DRIVE", manualMinutes: 146 },
+    },
+  };
+  const { container } = render(
+    <TravelLeg previous={first} entry={destination} mode="WALK" canEdit />,
+  );
+  expect(container.querySelector(".travel-block-times")?.textContent).toBe(
+    "10:00 AM → 12:26 PM",
+  );
+  expect(
+    container.querySelector(".travel-block-conflict")?.textContent,
+  ).toContain("2:16 hours late");
+  expect(destination.data.start).toBe("10:10");
+  expect(service.save).not.toHaveBeenCalled();
+});
+it("marks an arrival on the following date and does not invent missing departure times", () => {
+  const late = { ...first, data: { ...first.data, start: "23:00" } };
+  const destination = {
+    ...second,
+    data: {
+      ...second.data,
+      date: "2026-10-29",
+      endDate: "2026-10-29",
+      arrival: { fromId: late.id, mode: "DRIVE", manualMinutes: 146 },
+    },
+  };
+  const { container, rerender } = render(
+    <TravelLeg previous={late} entry={destination} mode="DRIVE" canEdit />,
+  );
+  expect(container.querySelector(".travel-block-times")?.textContent).toBe(
+    "10/29 · 12:00 AM → 10/29 · 2:26 AM",
+  );
+  rerender(
+    <TravelLeg
+      previous={{ ...late, data: { ...late.data, start: "" } }}
+      entry={destination}
+      mode="DRIVE"
+      canEdit
+    />,
+  );
+  expect(screen.getByText("Departure time needed")).toBeTruthy();
+  expect(screen.queryByText(/hours late/)).toBeNull();
+});

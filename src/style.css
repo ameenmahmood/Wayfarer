@@ -6406,3 +6406,78 @@ html {
 .timeline-view .plan-card.is-expanded .compact-location {
   display: none;
 }
+
+/* Compact travel rows remain visually secondary to activities. */
+.timeline-view .travel-leg {
+  margin: 2px 0 4px calc(var(--time-column) + 14px);
+  padding: 0;
+  background: color-mix(in srgb, var(--green) 3%, var(--bg));
+  border: 1px solid color-mix(in srgb, var(--muted) 12%, transparent);
+  border-radius: 7px;
+}
+.timeline-view .travel-summary {
+  display: grid;
+  grid-template-columns: 15px minmax(0, 1fr) 14px;
+  gap: 2px 7px;
+  min-height: 44px;
+  padding: 6px 9px;
+  color: var(--muted);
+  border-radius: 7px;
+  font-size: 12px;
+  line-height: 1.4;
+}
+.timeline-view .travel-block-icon {
+  grid-column: 1;
+  grid-row: 1;
+}
+.timeline-view .travel-block-title {
+  grid-column: 2;
+  grid-row: 1;
+  font-weight: 500;
+}
+.timeline-view .travel-block-title small {
+  font-size: 11px;
+  font-weight: 400;
+}
+.timeline-view .travel-summary-chevron {
+  grid-column: 3;
+  grid-row: 1 / 3;
+  margin: 0;
+  align-self: center;
+}
+.timeline-view .travel-summary[aria-expanded="true"] .travel-summary-chevron {
+  transform: rotate(180deg);
+}
+.timeline-view .travel-block-times {
+  grid-column: 2;
+  font-weight: 400;
+  font-size: 12px;
+  line-height: 1.4;
+}
+.timeline-view .travel-block-times > span {
+  margin-inline: 3px;
+}
+.timeline-view .travel-block-conflict {
+  grid-column: 2 / 4;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: light-dark(#8b5314, #efbc7b);
+  font-size: 11px;
+}
+.timeline-view .travel-block-conflict svg {
+  flex-shrink: 0;
+}
+.timeline-view .travel-expanded.open {
+  margin: 0;
+  padding: 9px;
+  border: 0;
+  border-top: 1px solid var(--border);
+  border-radius: 0 0 7px 7px;
+  background: transparent;
+}
+@media (max-width: 650px) {
+  .timeline-view .travel-leg {
+    margin-left: calc(var(--time-column) + 8px);
+  }
+}
