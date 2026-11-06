@@ -36,7 +36,8 @@ async function openApp() {
   await waitFor(() =>
     expect(screen.getByRole("button", { name: "Edit trip" })).toBeTruthy(),
   );
-  await screen.findByRole("button", { name: "Add a plan" });
+  // The first lazy itinerary import can take longer than the default 1s on CI.
+  await screen.findByRole("button", { name: "Add a plan" }, { timeout: 5000 });
   return userEvent.setup();
 }
 function dialog() {
