@@ -24,22 +24,30 @@ export function flightConnections(
       return to && (ids.has(from.id) || ids.has(to.id)) ? [{ from, to }] : [];
     });
 }
-export function flightTiming({ from, to }: FlightConnection) {
+export function flightTimingParts({ from, to }: FlightConnection) {
   if (!from.data.date || !from.data.start || !to.data.date || !to.data.start)
-    return "Add departure and arrival times";
+    return { times: "Add departure and arrival times", duration: "" };
   try {
     const duration = Math.round(
       (instant(to.data.date, to.data.start, to.data.zone) -
         instant(from.data.date, from.data.start, from.data.zone)) /
         60000,
     );
-    if (duration <= 0) return "Check flight dates and times";
+    if (duration <= 0)
+      return { times: "Check flight dates and times", duration: "" };
     const arrivalDate =
       from.data.date !== to.data.date ? `${to.data.date} · ` : "";
-    return `${formatTime(from.data.start)} → ${arrivalDate}${formatTime(to.data.start)} · ${Math.floor(duration / 60)}h ${duration % 60}m scheduled`;
+    return {
+      times: `${formatTime(from.data.start)} → ${arrivalDate}${formatTime(to.data.start)}`,
+      duration: `${Math.floor(duration / 60)}h ${duration % 60}m scheduled`,
+    };
   } catch {
-    return "Check flight dates and times";
+    return { times: "Check flight dates and times", duration: "" };
   }
+}
+export function flightTiming(connection: FlightConnection) {
+  const { times, duration } = flightTimingParts(connection);
+  return duration ? `${times} · ${duration}` : times;
 }
 export function flightGroundPairs(entries: Entity<Entry>[]) {
   return entries.slice(1).flatMap((to, index) => {

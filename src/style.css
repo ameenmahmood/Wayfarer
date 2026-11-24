@@ -6756,6 +6756,27 @@ html {
 .flight-timeline-leg svg {
   flex-shrink: 0;
 }
+.flight-timeline-summary {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 3px 7px;
+  min-width: 0;
+}
+.flight-timeline-number {
+  color: var(--text);
+  padding-right: 9px;
+  margin-right: 2px;
+  border-right: 1px solid var(--border);
+  overflow-wrap: anywhere;
+}
+.flight-timeline-duration::before { content: "· "; }
+@media (max-width: 650px) {
+  .flight-timeline-summary { column-gap: 7px; }
+  .flight-timeline-number { padding: 0; margin: 0; border: 0; }
+  .flight-timeline-duration { flex-basis: 100%; }
+  .flight-timeline-duration::before { content: none; }
+}
 .flight-sketch svg {
   width: 100%;
   display: block;

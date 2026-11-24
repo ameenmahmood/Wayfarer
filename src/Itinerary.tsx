@@ -38,7 +38,7 @@ import {
 } from "./ui";
 import MapPanel from "./MapPanel";
 import TravelLeg from "./TravelLeg";
-import { flightTiming } from "./flights";
+import { flightTimingParts } from "./flights";
 import { preservesTransfers } from "./transfers";
 import NearbyPlaces from "./NearbyPlaces";
 import RoutePlanner from "./RoutePlanner";
@@ -229,6 +229,13 @@ export default function Itinerary({
       pin = e.data.placeId
         ? placeDetails[e.data.placeId] || pins?.[e.data.placeId]
         : undefined;
+    const flightNumber = (
+      previous?.data.type === "Flight" ? previous : e
+    ).data.flight?.number?.trim();
+    const flightSummary =
+      previous?.data.flight?.arrivalId === e.id
+        ? flightTimingParts({ from: previous, to: e })
+        : undefined;
     return (
       <div key={e.id} className="timeline-wrap">
         {previous &&
@@ -239,13 +246,23 @@ export default function Itinerary({
             e.data.flight?.arrivalId === previous.id) ? (
             <div className="flight-timeline-leg">
               <Plane size={15} />
-              <span>
-                {e.data.type === "Flight" &&
-                e.data.flight?.arrivalId === previous.id
-                  ? "Flight connection · move departure before arrival"
-                  : previous.data.flight?.arrivalId === e.id
-                    ? flightTiming({ from: previous, to: e })
-                    : "Flight · link its arrival airport in Edit plan"}
+              <span className="flight-timeline-summary">
+                {flightNumber && (
+                  <b className="flight-timeline-number">{flightNumber}</b>
+                )}
+                <span className="flight-timeline-times">
+                  {e.data.type === "Flight" &&
+                  e.data.flight?.arrivalId === previous.id
+                    ? "Flight connection · move departure before arrival"
+                    : previous.data.flight?.arrivalId === e.id
+                      ? flightSummary?.times
+                      : "Flight · link its arrival airport in Edit plan"}
+                </span>
+                {flightSummary?.duration && (
+                  <span className="flight-timeline-duration">
+                    {flightSummary.duration}
+                  </span>
+                )}
               </span>
             </div>
           ) : (
