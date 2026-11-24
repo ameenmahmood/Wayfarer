@@ -20,12 +20,11 @@ See [Google's service-specific terms, sections 15.3 and 20.3](https://cloud.goog
 * Cache hits do not extend expiry. After expiry, coordinates are fetched again as
   needed. No full Google response, name, address, opening hours, route polyline,
   duration or matrix is stored in the coordinate table or browser storage.
-* **Show routes** calculates road/transit routes explicitly. In the expanded map,
-  open **Info** to find it. Changing the locations, day or transport mode clears
-  the displayed routes; it does not automatically request replacements. Refreshing
-  the page also does not recalculate those routes. **Refresh routes** recalculates
-  the current view when requested. Flight connectors are drawn from airport
-  coordinates without a Routes request.
+* Road/transit routes calculate automatically when the map loads, locations change
+  or the transport mode changes. Refreshes request fresh routes. Route results
+  are not persisted; the coordinate cache is reused separately. Title/note edits
+  do not recalculate routes. Flight connectors use airport coordinates without
+  a Routes request.
 * **Load place details** in an activity's expanded details fetches Google names and
   addresses for display in the current UI. Those details are not persisted. A full
   detail request also seeds the coordinate cache for later map use.
@@ -62,5 +61,5 @@ Embedded PostgreSQL tests exercise the cache table, RPC permissions, expiry and
 deletion SQL. They exclude the hosted-only scheduler setup; verify `cron.job`
 after deployment. Endpoint tests verify that a cache hit makes no upstream call
 and no paid reservation, that misses use the minimal field mask, and that access
-failures do not expose cached coordinates. UI tests cover explicit route requests
+failures do not expose cached coordinates. UI tests cover automatic route requests
 and retaining existing coordinate lookups.

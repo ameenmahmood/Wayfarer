@@ -110,7 +110,7 @@ function entry(title: string, placeId: string) {
     order: 0,
   });
 }
-it("reuses existing coordinates and only calculates routes on demand", async () => {
+it("automatically calculates routes while reusing coordinates and ignoring title edits", async () => {
   const entries = [entry("First", "one"), entry("Second", "two")];
   const { rerender } = render(
     <MapPanel
@@ -121,13 +121,6 @@ it("reuses existing coordinates and only calculates routes on demand", async () 
     />,
   );
   await waitFor(() => expect(markers).toHaveLength(2));
-  expect(service.api).toHaveBeenCalledTimes(3);
-  expect(service.api.mock.calls.some((call) => call[0] === "route")).toBe(
-    false,
-  );
-  await userEvent
-    .setup()
-    .click(screen.getByRole("button", { name: "Show routes" }));
   await waitFor(() => expect(service.api).toHaveBeenCalledTimes(4));
   rerender(
     <MapPanel
@@ -146,7 +139,7 @@ it("reuses existing coordinates and only calculates routes on demand", async () 
     />,
   );
   expect(service.api).toHaveBeenCalledTimes(4);
-  expect(markers.at(-2).setTitle).toHaveBeenCalledWith("First renamed");
+  expect(markers[0].setTitle).toHaveBeenCalledWith("First renamed");
   rerender(
     <MapPanel
       entries={entries}
@@ -156,14 +149,11 @@ it("reuses existing coordinates and only calculates routes on demand", async () 
       mode="DRIVE"
     />,
   );
-  await waitFor(() =>
-    expect(screen.getByRole("button", { name: "Show routes" })).toBeTruthy(),
-  );
-  expect(service.api).toHaveBeenCalledTimes(4);
-  await userEvent
-    .setup()
-    .click(screen.getByRole("button", { name: "Show routes" }));
   await waitFor(() => expect(service.api).toHaveBeenCalledTimes(5));
+  expect(
+    service.api.mock.calls.filter((call) => call[0] === "place"),
+  ).toHaveLength(2);
+  expect(screen.queryByRole("button", { name: "Show routes" })).toBeNull();
 });
 it("selection and click callbacks use entry IDs even when an earlier place could not load", async () => {
   const entries = [entry("Unavailable", "missing"), entry("Visible", "valid")];
@@ -192,7 +182,7 @@ it("selection and click callbacks use entry IDs even when an earlier place could
   expect(newSelect).toHaveBeenCalledWith(entries[1].id);
   expect(oldSelect).not.toHaveBeenCalled();
 });
-it("adding a new location only looks up that new ID and does not recalculate routes", async () => {
+it("adding a new location only looks up that new ID while updating routes", async () => {
   const entries = [entry("First", "one"), entry("Second", "two")];
   const { rerender } = render(
     <MapPanel
@@ -221,8 +211,10 @@ it("adding a new location only looks up that new ID and does not recalculate rou
       .filter((call) => call[0] === "place")
       .map((call) => call[2].placeId),
   ).toEqual(["one", "two", "three"]);
-  expect(service.api.mock.calls.some((call) => call[0] === "route")).toBe(
-    false,
+  await waitFor(() =>
+    expect(
+      service.api.mock.calls.filter((call) => call[0] === "route"),
+    ).toHaveLength(3),
   );
 });
 
@@ -260,9 +252,6 @@ it("draws each leg with its saved transport method", async () => {
     />,
   );
   await waitFor(() => expect(markers).toHaveLength(2));
-  await userEvent
-    .setup()
-    .click(screen.getByRole("button", { name: "Show routes" }));
   await waitFor(() =>
     expect(service.api).toHaveBeenCalledWith(
       "route",
@@ -340,17 +329,7 @@ it("draws a dashed airport connection while requesting only the ground route, wi
       tripId="trip"
     />,
   );
-  await waitFor(() => expect(polylines).toHaveLength(1));
-  expect(service.api.mock.calls.some((call) => call[0] === "route")).toBe(
-    false,
-  );
-  await userEvent
-    .setup()
-    .click(screen.getByRole("button", { name: "Map information" }));
-  await userEvent
-    .setup()
-    .click(screen.getByRole("button", { name: "Show routes" }));
-  await waitFor(() => expect(polylines).toHaveLength(3));
+  await waitFor(() => expect(polylines).toHaveLength(2));
   expect(service.api).toHaveBeenCalledTimes(2);
   expect(service.api).toHaveBeenCalledWith(
     "route",
@@ -491,8 +470,6 @@ it("focused maps keep route warnings on demand and close information with Escape
     />,
   );
   await waitFor(() => expect(markers).toHaveLength(2));
-  await u.click(screen.getByRole("button", { name: "Map information" }));
-  await u.click(screen.getByRole("button", { name: "Show routes" }));
   const notes = await screen.findByRole("button", { name: "Route notes (1)" });
   expect(screen.queryByText("This route has tolls.")).toBeNull();
   await u.click(notes);
