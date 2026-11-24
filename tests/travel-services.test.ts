@@ -22,6 +22,9 @@ function handler({
   approved = true,
   budgetLimited = false,
   budgetFailure = false,
+  cachedCoordinates = undefined as
+    { latitude: number; longitude: number } | undefined,
+  cacheFailure = false,
 } = {}) {
   let serve: (req: Request) => Promise<Response> = async () => new Response();
   const google = vi.fn<(...args: any[]) => Promise<Response>>(
@@ -38,6 +41,25 @@ function handler({
     eq: () => membership,
     maybeSingle: async () => ({ data: member ? { role } : null }),
   };
+  const rpc = vi.fn(async (name: string) =>
+    name === "get_place_coordinates"
+      ? {
+          data: { approved, location: cachedCoordinates },
+          error: cacheFailure ? Error("cache unavailable") : null,
+        }
+      : name === "reserve_paid_service"
+        ? {
+            data: {
+              allowed: approved && !budgetLimited,
+              approval_required: !approved,
+              reason: "Paid allowance unavailable",
+              retry_after: 60,
+              lease_id: "test-lease",
+            },
+            error: budgetFailure ? Error("Unavailable") : null,
+          }
+        : { data: !limited, error: null },
+  );
   const createClient = () => ({
     auth: {
       getUser: async () => ({
@@ -57,19 +79,7 @@ function handler({
             }),
           }
         : membership,
-    rpc: async (name: string) =>
-      name === "reserve_paid_service"
-        ? {
-            data: {
-              allowed: approved && !budgetLimited,
-              approval_required: !approved,
-              reason: "Paid allowance unavailable",
-              retry_after: 60,
-              lease_id: "test-lease",
-            },
-            error: budgetFailure ? Error("Unavailable") : null,
-          }
-        : { data: !limited, error: null },
+    rpc,
   });
   const context = vm.createContext({
     z,
@@ -115,7 +125,7 @@ function handler({
     }).outputText,
     context,
   );
-  return { invoke: (request: Request) => serve(request), google };
+  return { invoke: (request: Request) => serve(request), google, rpc };
 }
 function request(origin = local, method = "POST") {
   return new Request("https://test.supabase.co/functions/v1/travel-services", {
@@ -136,6 +146,74 @@ function request(origin = local, method = "POST") {
       : {}),
   });
 }
+
+it("serves cached coordinates across requests without Google or a budget reservation", async () => {
+  const location = { latitude: 40.75, longitude: -73.98 };
+  const service = handler({ cachedCoordinates: location, budgetLimited: true });
+  for (let i = 0; i < 2; i++) {
+    const response = await service.invoke(
+      nearbyRequest({
+        action: "place",
+        placeId: "existing",
+        coordinatesOnly: true,
+      }),
+    );
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ location });
+  }
+  expect(service.google).not.toHaveBeenCalled();
+  expect(
+    service.rpc.mock.calls.some(([name]) => name === "reserve_paid_service"),
+  ).toBe(false);
+});
+it("fetches missing coordinates once with a minimal field mask and persists only coordinates", async () => {
+  const service = handler();
+  const location = { latitude: 40.75, longitude: -73.98 };
+  service.google.mockResolvedValueOnce(
+    new Response(
+      JSON.stringify({ location, displayName: { text: "Do not cache" } }),
+    ),
+  );
+  const response = await service.invoke(
+    nearbyRequest({ action: "place", placeId: "new", coordinatesOnly: true }),
+  );
+  expect(response.status).toBe(200);
+  expect(await response.json()).toEqual({ location });
+  expect(service.google.mock.calls[0][1].headers["X-Goog-FieldMask"]).toBe(
+    "location",
+  );
+  expect(service.rpc).toHaveBeenCalledWith("store_place_coordinates", {
+    target_place: "new",
+    lat: 40.75,
+    lng: -73.98,
+  });
+});
+it.each([
+  { approved: false },
+  { member: false },
+  { deleted: true },
+  { cacheFailure: true },
+])(
+  "does not expose cached coordinates when access checks fail: %j",
+  async (options) => {
+    const service = handler({
+      ...options,
+      cachedCoordinates: { latitude: 1, longitude: 2 },
+    });
+    expect(
+      (
+        await service.invoke(
+          nearbyRequest({
+            action: "place",
+            placeId: "known",
+            coordinatesOnly: true,
+          }),
+        )
+      ).status,
+    ).not.toBe(200);
+    expect(service.google).not.toHaveBeenCalled();
+  },
+);
 
 it("CORS accepts exact dev/production origins and all SDK headers while rejecting unknown origins", async () => {
   const service = handler();

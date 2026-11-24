@@ -62,10 +62,12 @@ beforeAll(async () => {
     .filter((x) => x.endsWith(".sql") && !x.startsWith("008"))
     .sort())
     await db.exec(
-      readFileSync(new URL(file, migrations), "utf8").replace(
-        "create extension if not exists pgcrypto with schema extensions;",
-        "",
-      ),
+      readFileSync(new URL(file, migrations), "utf8")
+        .split("-- Hosted scheduler:")[0]
+        .replace(
+          "create extension if not exists pgcrypto with schema extensions;",
+          "",
+        ),
     );
   await actor(owner);
   await change(

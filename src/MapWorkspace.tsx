@@ -26,6 +26,7 @@ export default function MapWorkspace({
   onSelect,
   onEdit,
   onBack,
+  lookupPlace,
 }: {
   entries: Entity<Entry>[];
   contextEntries?: Entity<Entry>[];
@@ -41,6 +42,9 @@ export default function MapWorkspace({
   onSelect: (id: string) => void;
   onEdit: (entry: Entity<Entry>) => void;
   onBack?: () => void;
+  lookupPlace?: (
+    id: string,
+  ) => Promise<{ location: { latitude: number; longitude: number } }>;
 }) {
   const stop = entries.find((e) => e.id === selected);
   const flight = flightConnections(entries, contextEntries || entries).find(
@@ -144,6 +148,7 @@ export default function MapWorkspace({
           onSelect={onSelect}
           tripId={tripId}
           mode={mode}
+          lookupPlace={lookupPlace}
         />
         {!located.length && (
           <div className="map-workspace-empty">

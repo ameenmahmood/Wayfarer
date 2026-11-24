@@ -112,3 +112,5 @@ site does not protect the public Supabase endpoint.
 The endpoint returns 403 for missing approval, 429 plus `Retry-After` for exhausted
 allowances, and 503 if budget enforcement is unavailable. Budget enforcement fails
 closed. Leases are released in `finally`; errors leave them to expire safely.
+
+Coordinate-only map lookups now use a shared 29-day cache. Cache hits require approval but do not reserve paid allowance. See [location caching](location-caching.md).

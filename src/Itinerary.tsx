@@ -42,6 +42,7 @@ import { flightTiming } from "./flights";
 import { preservesTransfers } from "./transfers";
 import NearbyPlaces from "./NearbyPlaces";
 import RoutePlanner from "./RoutePlanner";
+import { createCoordinateLookup } from "./placeCoordinates";
 type PinDetails = {
   displayName?: { text?: string };
   formattedAddress?: string;
@@ -51,20 +52,7 @@ type PinDetails = {
 
 function useItineraryPins(tripId: string, placeIds: string[]) {
   const key = JSON.stringify([...new Set(placeIds)].sort());
-  const lookup = useMemo(() => {
-    const requests = new Map<string, Promise<PinDetails>>();
-    return (id: string) => {
-      let request = requests.get(id);
-      if (!request) {
-        request = api("place", tripId, { placeId: id }).catch((error) => {
-          requests.delete(id);
-          throw error;
-        });
-        requests.set(id, request);
-      }
-      return request;
-    };
-  }, [tripId, key]);
+  const lookup = useMemo(() => createCoordinateLookup(tripId, api), [tripId]);
   const [result, setResult] = useState<{
     lookup: typeof lookup;
     pins: Record<string, PinDetails>;
@@ -132,6 +120,7 @@ export default function Itinerary({
     [reorderMessage, setReorderMessage] = useState(""),
     [mode, setMode] = useState("WALK"),
     [showWarnings, setShowWarnings] = useState(false),
+    [placeDetails, setPlaceDetails] = useState<Record<string, PinDetails>>({}),
     a = useAsyncAction();
   const dayList = days(trip.start, trip.end),
     filtered = entries
@@ -237,7 +226,9 @@ export default function Itinerary({
   const renderEntry = (e: Entity<Entry>, i: number, list: Entity<Entry>[]) => {
     const EIcon = Icon(e.data.type),
       previous = list[i - 1],
-      pin = e.data.placeId ? pins?.[e.data.placeId] : undefined;
+      pin = e.data.placeId
+        ? placeDetails[e.data.placeId] || pins?.[e.data.placeId]
+        : undefined;
     return (
       <div key={e.id} className="timeline-wrap">
         {previous &&
@@ -403,7 +394,9 @@ export default function Itinerary({
                   : `${e.data.duration} min`}
               </span>
               <span className="compact-location">
-                {pin ? "" : e.data.address || e.data.type}
+                {pin?.displayName?.text || pin?.formattedAddress
+                  ? ""
+                  : e.data.address || e.data.type}
               </span>
               {e.data.fixed && <span className="compact-fixed">Fixed</span>}
             </div>
@@ -453,6 +446,27 @@ export default function Itinerary({
                 </p>
               )}
               {e.data.notes && <p className="plan-notes">{e.data.notes}</p>}
+              {e.data.placeId && !placeDetails[e.data.placeId] && (
+                <Button
+                  disabled={a.busy || demo || !navigator.onLine}
+                  aria-label={`Load Google details for ${e.data.title}`}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    const id = e.data.placeId!;
+                    void a.run(async () => {
+                      const details = await api("place", tripId, {
+                        placeId: id,
+                      });
+                      setPlaceDetails((current) => ({
+                        ...current,
+                        [id]: details,
+                      }));
+                    });
+                  }}
+                >
+                  Load place details
+                </Button>
+              )}
               <div className="plan-details">
                 <span className="desktop-duration">
                   <Clock size={13} />
@@ -584,6 +598,7 @@ export default function Itinerary({
           selected={selected}
           mode={mode}
           canEdit={canEdit}
+          lookupPlace={lookupPin}
           onDate={setDate}
           onView={setView}
           onSelect={setSelected}

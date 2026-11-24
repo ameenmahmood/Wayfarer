@@ -515,17 +515,32 @@ it("saving a budget preserves canonical membership names after applying display 
   expect(backend.saved[0].data.people).toEqual(originalPeople);
 });
 
-it("shows the linked Google pin name and address beside the activity title", async () => {
+it("loads Google name and address on request while automatic lookups use coordinates only", async () => {
   backend.session = { user: { id: "owner-test", email: "owner@example.test" } };
   backend.records = seed();
   const entry = backend.records.find((record) => record.kind === "entry");
   entry.data.placeId = "airport-pin";
-  backend.api.mockResolvedValue({
-    displayName: { text: "Haneda Airport" },
-    formattedAddress: "Hanedakuko, Ota City, Tokyo",
-    location: { latitude: 35.55, longitude: 139.78 },
-  });
+  backend.api.mockImplementation(async (_action, _tripId, body) =>
+    body.coordinatesOnly
+      ? { location: { latitude: 35.55, longitude: 139.78 } }
+      : {
+          displayName: { text: "Haneda Airport" },
+          formattedAddress: "Hanedakuko, Ota City, Tokyo",
+          location: { latitude: 35.55, longitude: 139.78 },
+        },
+  );
   render(<App />);
+  await screen.findByRole("heading", { name: entry.data.title });
+  expect(screen.queryByText("Haneda Airport", { exact: true })).toBeNull();
+  const u = userEvent.setup();
+  await u.click(
+    screen.getByRole("button", { name: "Details for " + entry.data.title }),
+  );
+  await u.click(
+    screen.getByRole("button", {
+      name: "Load Google details for " + entry.data.title,
+    }),
+  );
   const address = await screen.findByText("Hanedakuko, Ota City, Tokyo");
   const card = address.closest("article")!;
   expect(
@@ -534,6 +549,10 @@ it("shows the linked Google pin name and address beside the activity title", asy
   expect(
     within(card).getByRole("heading", { name: entry.data.title }),
   ).toBeTruthy();
+  expect(backend.api).toHaveBeenCalledWith("place", entry.tripId, {
+    placeId: "airport-pin",
+    coordinatesOnly: true,
+  });
   expect(backend.api).toHaveBeenCalledWith("place", entry.tripId, {
     placeId: "airport-pin",
   });

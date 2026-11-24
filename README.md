@@ -148,7 +148,7 @@ Under **Members**, owners create email-bound editor/viewer invitations. Wayfarer
 4. Deploy `travel-services`, set the browser key, and rebuild the frontend. Place search and route calculations require a signed-in, explicitly approved trip member. Browser origins are restricted separately. A Places-enabled browser key alone does not configure the server function.
 5. Publish and review the bundled privacy/terms pages, including your operator/contact details. Keep Google and third-party attribution visible.
 
-Place lookup and nearby discovery retain only a linked **place ID**, plus the traveler’s own entered plan fields. Google result names, addresses, coordinates, opening hours, matrices, and polylines are fetched into UI memory and are not stored in IndexedDB, Postgres, or the service-worker cache. Map errors leave the itinerary usable. **Offline Google map tiles are not provided.**
+Linked **place IDs** and the traveler’s own entered fields are retained. Map coordinates are cached in Supabase for 29 days with hourly expiry cleanup, so refreshes reuse existing locations without another Google lookup. Google names, addresses, opening hours, matrices and polylines remain in UI memory only. Full place details and map routes load on request. See [location caching](docs/location-caching.md). Map errors leave the itinerary usable. **Offline Google map tiles are not provided.**
 
 Route optimization uses supported pairwise estimates and a bounded scheduling heuristic, rather than assuming Google’s waypoint optimization handles every mode and scheduling constraint. Transit does not support intermediate waypoints. The app limits a proposal to 10 single-day stops plus optional endpoints and chunks matrix requests to at most 96 elements.
 

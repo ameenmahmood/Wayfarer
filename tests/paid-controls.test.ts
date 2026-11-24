@@ -30,13 +30,97 @@ beforeAll(async () => {
       "utf8",
     ),
   );
+  await db.exec(
+    readFileSync(
+      new URL(
+        "../supabase/migrations/012_place_coordinate_cache.sql",
+        import.meta.url,
+      ),
+      "utf8",
+    ).split("-- Hosted scheduler:")[0],
+  );
 }, 20000);
 beforeEach(async () => {
-  await db.exec(`reset role; truncate public.paid_feature_access,public.paid_service_usage,public.paid_service_leases;
+  await db.exec(`reset role; truncate public.place_coordinate_cache,public.paid_feature_access,public.paid_service_usage,public.paid_service_leases;
     update public.paid_service_settings set enabled=true,monthly_cents=1000,daily_cents=300,user_daily_cents=300;
     insert into public.paid_feature_access(user_id,approved) values('${owner}',true),('${friend}',true);`);
 });
 afterAll(() => db.close());
+
+it("shares fresh coordinates across approved accounts without spending allowance", async () => {
+  await db.query("select public.store_place_coordinates('place-one',1,2)");
+  for (const user of [owner, friend]) {
+    const result = (
+      await db.query<any>(
+        "select public.get_place_coordinates($1,'place-one') as r",
+        [user],
+      )
+    ).rows[0].r;
+    expect(result).toEqual({
+      approved: true,
+      location: { latitude: 1, longitude: 2 },
+    });
+  }
+  expect(
+    (await db.query("select * from public.paid_service_usage")).rows,
+  ).toHaveLength(0);
+  const before = (
+    await db.query<any>("select expires_at from public.place_coordinate_cache")
+  ).rows[0].expires_at;
+  await db.query("select public.get_place_coordinates($1,'place-one')", [
+    owner,
+  ]);
+  expect(
+    (
+      await db.query<any>(
+        "select expires_at from public.place_coordinate_cache",
+      )
+    ).rows[0].expires_at,
+  ).toEqual(before);
+});
+it("ignores expired coordinates and denies revoked accounts even for cache hits", async () => {
+  await db.query("select public.store_place_coordinates('place-one',1,2)");
+  await db.exec(
+    `update public.paid_feature_access set approved=false where user_id='${owner}'`,
+  );
+  expect(
+    (
+      await db.query<any>(
+        "select public.get_place_coordinates($1,'place-one') as r",
+        [owner],
+      )
+    ).rows[0].r,
+  ).toEqual({ approved: false });
+  await db.exec(
+    "update public.place_coordinate_cache set expires_at=now()-interval '1 second'",
+  );
+  expect(
+    (
+      await db.query<any>(
+        "select public.get_place_coordinates($1,'place-one') as r",
+        [friend],
+      )
+    ).rows[0].r,
+  ).toEqual({ approved: true });
+  await db.exec(
+    "delete from public.place_coordinate_cache where expires_at<=now()",
+  );
+  expect(
+    (await db.query("select * from public.place_coordinate_cache")).rows,
+  ).toHaveLength(0);
+});
+it("prevents browser clients reading, poisoning or directly calling the coordinate cache", async () => {
+  for (const role of ["anon", "authenticated"]) {
+    await db.exec(`set role ${role}`);
+    for (const sql of [
+      "select * from public.place_coordinate_cache",
+      "select public.store_place_coordinates('poison',1,2)",
+      `select public.get_place_coordinates('${owner}','place-one')`,
+    ])
+      await expect(db.exec(sql)).rejects.toThrow(/permission denied/);
+    await db.exec("reset role");
+  }
+});
 
 it("requires explicit account approval even for trip owners and map loads", async () => {
   await db.exec("delete from paid_feature_access");

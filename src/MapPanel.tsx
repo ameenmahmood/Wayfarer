@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   MapPin,
   Navigation,
@@ -12,6 +12,7 @@ import { Notice, Button } from "./ui";
 import FlightSketch from "./FlightSketch";
 import MapPopover from "./MapPopover";
 import { flightConnections, flightGroundPairs } from "./flights";
+import { createCoordinateLookup } from "./placeCoordinates";
 declare global {
   interface Window {
     google: any;
@@ -80,6 +81,11 @@ export default function MapPanel({
     [ready, setReady] = useState(false),
     [retry, setRetry] = useState(0);
   const onSelectRef = useRef(onSelect);
+  const fallbackLookup = useMemo(
+    () => createCoordinateLookup(tripId, api),
+    [tripId],
+  );
+  const resolvePlace = lookupPlace || fallbackLookup;
   onSelectRef.current = onSelect;
   const flights = flightConnections(entries, contextEntries);
   const mapEntries = [
@@ -106,6 +112,12 @@ export default function MapPanel({
   );
   const [mapVersion, setMapVersion] = useState(0);
   const [routeWarnings, setRouteWarnings] = useState<string[]>([]);
+  const [routeRequest, setRouteRequest] = useState({ key: "", count: 0 });
+  const routeKey = JSON.stringify([locationKey, mode, tripId]);
+  const showRoutes = routeRequest.key === routeKey;
+  useEffect(() => {
+    setRouteRequest({ key: "", count: 0 });
+  }, [routeKey]);
   const configured = !demo && !!import.meta.env.VITE_GOOGLE_MAPS_BROWSER_KEY;
   const located = mapEntries.filter(
     (e) => (e.data.lat != null && e.data.lng != null) || e.data.placeId,
@@ -166,9 +178,7 @@ export default function MapPanel({
           lng = e.data.lng;
         if (e.data.placeId && !demo) {
           try {
-            const p = lookupPlace
-              ? await lookupPlace(e.data.placeId)
-              : await api("place", tripId, { placeId: e.data.placeId });
+            const p = await resolvePlace(e.data.placeId);
             lat = p.location.latitude;
             lng = p.location.longitude;
           } catch (err: any) {
@@ -253,7 +263,7 @@ export default function MapPanel({
         );
         paths.current.push(path);
       }
-      if (!demo)
+      if (!demo && showRoutes)
         for (const { from, to } of flightGroundPairs(entries)) {
           const origin = positions.current.get(from.id),
             destination = positions.current.get(to.id);
@@ -291,7 +301,16 @@ export default function MapPanel({
       markers.current.forEach((m) => m.setMap(null));
       paths.current.forEach((p) => p.setMap(null));
     };
-  }, [ready, mapVersion, locationKey, mode, tripId, lookupPlace]);
+  }, [
+    ready,
+    mapVersion,
+    locationKey,
+    mode,
+    tripId,
+    resolvePlace,
+    showRoutes,
+    routeRequest.count,
+  ]);
   useEffect(() => {
     const marker = markers.current.get(selected);
     if (marker && window.google?.maps) {
@@ -346,6 +365,17 @@ export default function MapPanel({
       {routeWarnings.map((w) => (
         <Notice key={w}>{w}</Notice>
       ))}
+      {configured && flightGroundPairs(entries).length > 0 && (
+        <Button
+          disabled={!ready || !navigator.onLine}
+          onClick={() =>
+            setRouteRequest({ key: routeKey, count: routeRequest.count + 1 })
+          }
+        >
+          <Navigation size={15} />
+          {showRoutes ? "Refresh routes" : "Show routes"}
+        </Button>
+      )}
       {configured && !navigator.onLine && (
         <Notice>
           Offline · live Google maps require internet. Saved itinerary details
@@ -527,6 +557,7 @@ export default function MapPanel({
       )}
       {expanded ? (
         <MapPopover
+          closeOnAction
           label={
             error
               ? "Map issue"

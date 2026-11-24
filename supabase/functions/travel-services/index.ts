@@ -136,18 +136,6 @@ Deno.serve(async (req: Request) => {
         }),
         { status: 403, headers },
       );
-    const { data: withinLimit, error: limitError } = await sb.rpc(
-      "consume_limit",
-      {
-        bucket_name: body.action === "map" ? "place" : body.action,
-        max_hits: 20,
-      },
-    );
-    if (limitError || !withinLimit)
-      return new Response(
-        JSON.stringify({ error: "Rate limit reached. Try again in a minute." }),
-        { status: 429, headers: { ...headers, "Retry-After": "60" } },
-      );
     const serverKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     if (!serverKey)
       return new Response(
@@ -160,6 +148,54 @@ Deno.serve(async (req: Request) => {
     budgetClient = createClient(Deno.env.get("SUPABASE_URL")!, serverKey, {
       auth: { persistSession: false, autoRefreshToken: false },
     });
+    const coordinatesOnly =
+      body.action === "place" && body.coordinatesOnly === true;
+    if (coordinatesOnly) {
+      const placeId = z
+        .string()
+        .regex(/^[A-Za-z0-9_-]+$/)
+        .max(300)
+        .parse(body.placeId);
+      const { data: cached, error } = await budgetClient.rpc(
+        "get_place_coordinates",
+        {
+          target_user: user.id,
+          target_place: placeId,
+        },
+      );
+      if (error || !cached)
+        return new Response(
+          JSON.stringify({
+            error: "Location lookup is temporarily unavailable.",
+          }),
+          { status: 503, headers },
+        );
+      if (!cached.approved)
+        return new Response(
+          JSON.stringify({
+            error:
+              "The site owner must approve your account before you can use paid features.",
+          }),
+          { status: 403, headers },
+        );
+      // Cache hits require approval but do not reserve budget or call Google.
+      if (cached.location)
+        return new Response(JSON.stringify({ location: cached.location }), {
+          headers,
+        });
+    }
+    const { data: withinLimit, error: limitError } = await sb.rpc(
+      "consume_limit",
+      {
+        bucket_name: body.action === "map" ? "place" : body.action,
+        max_hits: 20,
+      },
+    );
+    if (limitError || !withinLimit)
+      return new Response(
+        JSON.stringify({ error: "Rate limit reached. Try again in a minute." }),
+        { status: 429, headers: { ...headers, "Retry-After": "60" } },
+      );
     const matrixPoints =
       body.action === "matrix"
         ? z
@@ -297,14 +333,33 @@ Deno.serve(async (req: Request) => {
         {
           headers: {
             "X-Goog-Api-Key": key,
-            "X-Goog-FieldMask":
-              "id,location,regularOpeningHours,attributions,googleMapsUri,displayName,formattedAddress",
+            "X-Goog-FieldMask": coordinatesOnly
+              ? "location"
+              : "id,location,regularOpeningHours,attributions,googleMapsUri,displayName,formattedAddress",
           },
           signal: AbortSignal.timeout(15000),
         },
       );
       result = await r.json();
       if (!r.ok) throw Error(googleFailure(r.status, result, key));
+      const location = z
+        .object({
+          latitude: z.number().min(-90).max(90),
+          longitude: z.number().min(-180).max(180),
+        })
+        .parse(result.location);
+      // Full detail requests also seed the coordinate cache, without storing names,
+      // addresses, hours, attribution text or the full provider response.
+      const { error: cacheError } = await budgetClient.rpc(
+        "store_place_coordinates",
+        {
+          target_place: placeId,
+          lat: location.latitude,
+          lng: location.longitude,
+        },
+      );
+      if (cacheError) console.warn("Place coordinate cache write failed.");
+      if (coordinatesOnly) result = { location };
     }
     if (body.action === "route") {
       const input = z
