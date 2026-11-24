@@ -54,6 +54,9 @@ npm ci
 npm run dev -- --port 5174
 ```
 
+Once dev has been run once, navigate to wayfarer folder and run npm run dev -- --port 5174 for future runs.
+If dependencies are missing, run npm install once, then rerun the dev command.
+
 Open [http://127.0.0.1:5174/](http://127.0.0.1:5174/).
 
 Without Supabase configuration, the app starts a clearly labeled **local demo** with a separate Japan sample trip. Demo travelers, maps, and route estimates are illustrative; it does not simulate successful authentication, invitations, or collaboration. To connect to your backend, copy `.env.example` to `.env.local` and configure both Supabase variables below. Restart after changing environment variables.
