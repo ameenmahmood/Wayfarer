@@ -19,6 +19,9 @@ function handler({
   deleted = false,
   role = "owner",
   limited = false,
+  approved = true,
+  budgetLimited = false,
+  budgetFailure = false,
 } = {}) {
   let serve: (req: Request) => Promise<Response> = async () => new Response();
   const google = vi.fn<(...args: any[]) => Promise<Response>>(
@@ -54,7 +57,19 @@ function handler({
             }),
           }
         : membership,
-    rpc: async () => ({ data: !limited, error: null }),
+    rpc: async (name: string) =>
+      name === "reserve_paid_service"
+        ? {
+            data: {
+              allowed: approved && !budgetLimited,
+              approval_required: !approved,
+              reason: "Paid allowance unavailable",
+              retry_after: 60,
+              lease_id: "test-lease",
+            },
+            error: budgetFailure ? Error("Unavailable") : null,
+          }
+        : { data: !limited, error: null },
   });
   const context = vm.createContext({
     z,
@@ -78,6 +93,7 @@ function handler({
               GOOGLE_MAPS_SERVER_KEY: key,
               SUPABASE_URL: "https://test.supabase.co",
               SUPABASE_ANON_KEY: "public-test-key",
+              SUPABASE_SERVICE_ROLE_KEY: "private-test-key",
             }) as any
           )[name],
       },
@@ -331,6 +347,27 @@ it("rejects oversized bodies before an upstream call, including multibyte input"
 it("fails closed on exhausted service quotas", async () => {
   const service = handler({ limited: true });
   expect((await service.invoke(request())).status).toBe(429);
+  expect(service.google).not.toHaveBeenCalled();
+});
+it.each([
+  [{ approved: false }, 403],
+  [{ budgetLimited: true }, 429],
+  [{ budgetFailure: true }, 503],
+] as const)(
+  "blocks upstream spending when paid access or budget is unavailable: %j",
+  async (options, status) => {
+    const service = handler(options);
+    const response = await service.invoke(request());
+    expect(response.status).toBe(status);
+    expect(service.google).not.toHaveBeenCalled();
+    if (status === 429) expect(response.headers.get("Retry-After")).toBe("60");
+  },
+);
+it("authorizes map loads without making an upstream API call", async () => {
+  const service = handler();
+  const response = await service.invoke(nearbyRequest({ action: "map" }));
+  expect(response.status).toBe(200);
+  expect(await response.json()).toEqual({ allowed: true });
   expect(service.google).not.toHaveBeenCalled();
 });
 it("viewers cannot invoke the optional AI endpoint", async () => {

@@ -119,7 +119,12 @@ export default function MapPanel({
         "Google Maps authorization or billing failed. Check key restrictions and enabled APIs. Your itinerary is still available.",
       );
     let canceled = false;
-    loadMaps()
+    // Reserve each map instance before loading Google's browser SDK. The public
+    // browser key still requires Google-side restrictions and quotas.
+    api("map", tripId)
+      .then(() => {
+        if (!canceled) return loadMaps();
+      })
       .then(() => {
         if (canceled) return;
         map.current = new window.google.maps.Map(ref.current, {
@@ -140,7 +145,7 @@ export default function MapPanel({
     return () => {
       canceled = true;
     };
-  }, [configured, retry]);
+  }, [configured, retry, tripId]);
   useEffect(() => {
     if (!ready) return;
     let active = true;

@@ -72,6 +72,23 @@ beforeEach(() => {
   );
 });
 afterEach(cleanup);
+it("does not construct a map or fetch places before owner approval", async () => {
+  service.api.mockRejectedValue(
+    Error("The site owner must approve your account."),
+  );
+  render(
+    <MapPanel
+      entries={[entry("Stop", "one")]}
+      selected=""
+      onSelect={() => {}}
+      tripId="trip"
+    />,
+  );
+  await screen.findByText("The site owner must approve your account.");
+  expect(mapOptions).toBeUndefined();
+  expect(service.api).toHaveBeenCalledTimes(1);
+  expect(service.api).toHaveBeenCalledWith("map", "trip");
+});
 function entry(title: string, placeId: string) {
   return makeEntity<Entry>("entry", "trip", {
     title,
@@ -103,7 +120,7 @@ it("notes/title edits do not repeat place or route requests, while route mode ch
       tripId="trip"
     />,
   );
-  await waitFor(() => expect(service.api).toHaveBeenCalledTimes(3));
+  await waitFor(() => expect(service.api).toHaveBeenCalledTimes(4));
   rerender(
     <MapPanel
       entries={entries.map((e) => ({
@@ -120,7 +137,7 @@ it("notes/title edits do not repeat place or route requests, while route mode ch
       tripId="trip"
     />,
   );
-  expect(service.api).toHaveBeenCalledTimes(3);
+  expect(service.api).toHaveBeenCalledTimes(4);
   expect(markers[0].setTitle).toHaveBeenCalledWith("First renamed");
   rerender(
     <MapPanel
@@ -131,7 +148,7 @@ it("notes/title edits do not repeat place or route requests, while route mode ch
       mode="DRIVE"
     />,
   );
-  await waitFor(() => expect(service.api).toHaveBeenCalledTimes(6));
+  await waitFor(() => expect(service.api).toHaveBeenCalledTimes(7));
 });
 it("selection and click callbacks use entry IDs even when an earlier place could not load", async () => {
   const entries = [entry("Unavailable", "missing"), entry("Visible", "valid")];
@@ -178,7 +195,7 @@ it("retrying a failed map rebuilds its markers even when the map SDK was already
   const u = userEvent.setup();
   await u.click(screen.getByRole("button", { name: "Retry map" }));
   await waitFor(() => expect(markers).toHaveLength(2));
-  expect(service.api).toHaveBeenCalledTimes(2);
+  expect(service.api).toHaveBeenCalledTimes(4);
 });
 
 it("draws each leg with its saved transport method", async () => {
@@ -272,7 +289,7 @@ it("draws a dashed airport connection while requesting only the ground route, wi
     />,
   );
   await waitFor(() => expect(polylines).toHaveLength(2));
-  expect(service.api).toHaveBeenCalledTimes(1);
+  expect(service.api).toHaveBeenCalledTimes(2);
   expect(service.api).toHaveBeenCalledWith(
     "route",
     "trip",
@@ -327,9 +344,11 @@ it("resolves an overnight flight's airport outside the visible day and does not 
   );
   await waitFor(() => expect(polylines).toHaveLength(1));
   expect(markers).toHaveLength(2);
-  expect(service.api.mock.calls.every((call) => call[0] === "place")).toBe(
-    true,
-  );
+  expect(
+    service.api.mock.calls.every(
+      (call) => call[0] === "place" || call[0] === "map",
+    ),
+  ).toBe(true);
   expect(screen.queryByRole("button", { name: "Fit flight" })).toBeNull();
 });
 it("does not guess a destination or fall back to walking for an unlinked flight", async () => {

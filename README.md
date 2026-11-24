@@ -145,7 +145,7 @@ Under **Members**, owners create email-bound editor/viewer invitations. Wayfarer
 1. Enable Google Cloud billing and **Maps JavaScript API**, **Places API (New)**, and **Routes API**.
 2. Restrict the browser key to Maps JavaScript API and the allowed websites. Include the production URL `https://ameenmahmood.github.io/Wayfarer/` and the local development URLs you use. A `RefererNotAllowedMapError` points to the browser key’s website restrictions.
 3. Set **`GOOGLE_MAPS_SERVER_KEY`** in Supabase Edge Function secrets. Use a separate key restricted to Places API (New) and Routes API, with application restrictions appropriate for the server environment. A website-restricted browser key cannot serve server requests with no HTTP referrer.
-4. Deploy `travel-services`, set the browser key, and rebuild the frontend. Place search and route calculations require a signed-in trip member and a matching CORS origin. A Places-enabled browser key alone does not configure the server function.
+4. Deploy `travel-services`, set the browser key, and rebuild the frontend. Place search and route calculations require a signed-in, explicitly approved trip member. Browser origins are restricted separately. A Places-enabled browser key alone does not configure the server function.
 5. Publish and review the bundled privacy/terms pages, including your operator/contact details. Keep Google and third-party attribution visible.
 
 Place lookup and nearby discovery retain only a linked **place ID**, plus the traveler’s own entered plan fields. Google result names, addresses, coordinates, opening hours, matrices, and polylines are fetched into UI memory and are not stored in IndexedDB, Postgres, or the service-worker cache. Map errors leave the itinerary usable. **Offline Google map tiles are not provided.**
@@ -158,7 +158,7 @@ Fixed reservations retain their times; flexible stops use supplied/supported ope
 
 `EXCHANGE_RATE_URL` can point to an HTTPS provider accepting `base` and `symbols` and returning a date/rates object. `EXCHANGE_RATE_KEY` is sent server-side as a Bearer token. Adapt the provider response if needed; no public rate feed is assumed. Each expense saves its own rate snapshot and date.
 
-The Edge Function retains a legacy AI action for older clients. The current nearby-place interface does not call it, and **does not require an OpenAI key or AI billing**. Any optional provider secrets remain server-side.
+Paid Google features require explicit operator approval and server-side usage reservations capped at $10 per UTC calendar month. Daily, minute and concurrency limits also apply. The legacy AI and automatic exchange-provider endpoints are disabled. See [paid-feature approvals and cost controls](docs/paid-feature-controls.md) for approval steps, deployment and provider-side limits.
 
 ## Money rules
 
@@ -196,7 +196,7 @@ npm run preview -- --port 4173
 
 Visit `http://127.0.0.1:4173/Wayfarer/`. Invitation URLs, callbacks, legal links, the manifest, and offline caches respect the base path. Refresh after a production deployment if the browser still shows an older cached interface.
 
-Google Maps/Places/Routes usage, Supabase usage beyond plan allowances, SMTP delivery, and any configured exchange provider can incur charges. Set quotas and alerts appropriate to your accounts; this repository does not provision paid subscriptions or quote current prices.
+Google Maps/Places/Routes usage, Supabase usage beyond plan allowances and SMTP delivery can incur charges. The app reserves a conservative $10 monthly allowance for approved paid requests, but this does not cap the total provider invoice. Browser-key abuse and infrastructure charges need provider-side quotas and spend controls. See [the operator guide](docs/paid-feature-controls.md).
 
 ## Verification and remaining limits
 
