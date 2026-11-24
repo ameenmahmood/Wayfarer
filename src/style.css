@@ -7167,3 +7167,37 @@ html {
     min-height: 0;
   }
 }
+.expense-title-line {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: .5rem;
+}
+.expense-shares {
+  margin: .6rem 0;
+  border-top: 1px solid var(--border);
+}
+.expense-share {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: .5rem;
+  padding: .5rem 0;
+}
+.expense-share .button, .expense-share button {
+  font-size: .8rem;
+}
+.expense-payment-history {
+  border-top: 1px solid var(--border);
+  padding-top: .5rem;
+}
+@media (max-width: 600px) {
+  .expense-title-line .pill { font-size: .7rem; }
+  .expense-share { align-items: flex-start; }
+}
+.expense-record { align-items: flex-start; }
+@media (max-width: 600px) {
+  .expense-title-line > b { font-size: 14px; }
+  .expense-share small { font-size: 12px; }
+}

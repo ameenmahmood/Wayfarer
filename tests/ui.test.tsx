@@ -176,6 +176,27 @@ it("expense editing recalculates spending and repayment records leave trip spend
   await screen.findByText("$5,000.00");
 });
 
+it("records a partial repayment against an expense and restores its status when undone", async () => {
+  const u = await openApp();
+  await u.click(screen.getByRole("button", { name: "Expenses" }));
+  const title = await screen.findByText("First-night izakaya");
+  const row = within(title.closest(".expense-row") as HTMLElement);
+  await u.click(row.getByText("Details"));
+  expect(row.getByText("Unsettled")).toBeTruthy();
+  await u.click(row.getAllByRole("button", { name: "Record repayment" })[0]);
+  const select = dialog().getByLabelText("Apply to") as HTMLSelectElement;
+  expect(select.selectedOptions[0].textContent).toBe("First-night izakaya");
+  await u.clear(dialog().getByLabelText("Amount · USD"));
+  await u.type(dialog().getByLabelText("Amount · USD"), "1");
+  await u.click(dialog().getByRole("button", { name: "Record repayment" }));
+  await row.findByText("Partially settled");
+  expect(row.getByText("$1.00 repaid")).toBeTruthy();
+  expect(screen.getAllByText("$80.40").length).toBeGreaterThan(0);
+  await u.click(row.getByRole("button", { name: "Undo full repayment" }));
+  await row.findByText("Unsettled");
+  expect(row.queryByText("$1.00 repaid")).toBeNull();
+});
+
 it("route preview preserves the itinerary until accepted and displays conflicts rather than applying an impossible plan", async () => {
   const u = await openApp();
   await u.click(screen.getByRole("button", { name: "Optimize day" }));

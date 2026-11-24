@@ -96,6 +96,7 @@ export type Expense = {
   entryId?: string;
 };
 export type Repayment = {
+  expenseId?: string;
   from: string;
   to: string;
   amount: number;

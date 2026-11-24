@@ -14,6 +14,7 @@ import { save, remove } from "./store";
 import { expenseCSV, report, money, minor, precision } from "./money";
 import { Button, Modal, Field, Notice, Empty, useAsyncAction } from "./ui";
 import { ExpenseForm, newExpense } from "./Forms";
+import { expenseSettlements } from "./expenseSettlements";
 export default function Budget({
   trip,
   tripEntity,
@@ -36,6 +37,7 @@ export default function Budget({
       from: string;
       to: string;
       amount: number;
+      expenseId?: string;
     }>(),
     [budgeting, setBudgeting] = useState(false),
     a = useAsyncAction();
@@ -45,6 +47,7 @@ export default function Budget({
     trip.currency,
     trip.people.map((p) => p.id),
   );
+  const coverage = expenseSettlements(expenses, repayments, trip.currency);
   const name = (id: string) =>
     trip.people.find((p) => p.id === id)?.name || "Former traveler";
   function csv() {
@@ -161,50 +164,134 @@ export default function Budget({
               Add an expense and choose who shared it.
             </Empty>
           )}
-          {expenses.map((e) => (
-            <div className="expense-row" key={e.id}>
-              <div className="category-icon">
-                <Receipt size={19} />
-              </div>
-              <div className="grow">
-                <b>{e.data.title}</b>
-                <small>
-                  {e.data.date} · {e.data.category} · paid by{" "}
-                  {name(e.data.payer)}
-                </small>
-                <details className="record-details">
-                  <summary>Details</summary>
+          {expenses.map((e) => {
+            const row = coverage.rows.find((row) => row.expense.id === e.id)!;
+            const others = row.shares.filter(
+              (s) => s.personId !== e.data.payer,
+            );
+            const remaining = others.reduce(
+              (sum, s) => sum + s.amount - s.repaid,
+              0,
+            );
+            const repaid = others.reduce((sum, s) => sum + s.repaid, 0);
+            return (
+              <div className="expense-row expense-record" key={e.id}>
+                <div className="category-icon">
+                  <Receipt size={19} />
+                </div>
+                <div className="grow">
+                  <div className="expense-title-line">
+                    <b>{e.data.title}</b>
+                    <span className={`pill ${remaining === 0 ? "green" : ""}`}>
+                      {remaining === 0
+                        ? "Settled"
+                        : repaid > 0
+                          ? "Partially settled"
+                          : "Unsettled"}
+                    </span>
+                  </div>
                   <small>
-                    {e.data.items.length ? "Itemized" : "Split " + e.data.mode}{" "}
-                    · {e.data.rate.source}, {e.data.rate.date}
+                    {e.data.date} · {e.data.category} · paid by{" "}
+                    {name(e.data.payer)}
                   </small>
-                  <small>
-                    Changed {new Date(e.updatedAt).toLocaleString()} ·{" "}
-                    {name(e.updatedBy)}
-                  </small>
-                </details>
+                  <details className="record-details">
+                    <summary>Details</summary>
+                    <div className="expense-shares">
+                      {row.shares.map((share) => (
+                        <div className="expense-share" key={share.personId}>
+                          <div>
+                            <b>{name(share.personId)}</b>
+                            <small>
+                              {money(share.amount, trip.currency)} share ·{" "}
+                              {share.personId === e.data.payer
+                                ? "Paid by payer"
+                                : share.amount === share.repaid
+                                  ? "Settled"
+                                  : `${money(share.amount - share.repaid, trip.currency)} remaining`}
+                            </small>
+                            {share.repaid > 0 && (
+                              <small>
+                                {money(share.repaid, trip.currency)} repaid
+                              </small>
+                            )}
+                          </div>
+                          {canEdit &&
+                            share.personId !== e.data.payer &&
+                            share.amount > share.repaid && (
+                              <Button
+                                onClick={() =>
+                                  setSettle({
+                                    from: share.personId,
+                                    to: e.data.payer,
+                                    amount: share.amount - share.repaid,
+                                    expenseId: e.id,
+                                  })
+                                }
+                              >
+                                Record repayment
+                              </Button>
+                            )}
+                        </div>
+                      ))}
+                      {row.payments.length > 0 && (
+                        <div className="expense-payment-history">
+                          <b>Repayment history</b>
+                          {row.payments.map(({ repayment, amount }) => (
+                            <div className="expense-share" key={repayment.id}>
+                              <small>
+                                {name(repayment.data.from)} paid{" "}
+                                {name(repayment.data.to)}{" "}
+                                {money(amount, trip.currency)} ·{" "}
+                                {repayment.data.date}
+                              </small>
+                              {canEdit && (
+                                <button
+                                  className="text-button"
+                                  disabled={a.busy}
+                                  onClick={() => a.run(() => remove(repayment))}
+                                >
+                                  Undo full repayment
+                                </button>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <small>
+                      {e.data.items.length
+                        ? "Itemized"
+                        : "Split " + e.data.mode}{" "}
+                      · {e.data.rate.source}, {e.data.rate.date}
+                    </small>
+                    <small>
+                      Changed {new Date(e.updatedAt).toLocaleString()} ·{" "}
+                      {name(e.updatedBy)}
+                    </small>
+                  </details>
+                </div>
+                <b>{money(e.data.total, e.data.currency)}</b>
+                {canEdit && (
+                  <>
+                    <button
+                      aria-label={`Edit ${e.data.title}`}
+                      className="icon-button"
+                      onClick={() => setEditing(e)}
+                    >
+                      <Pencil size={15} />
+                    </button>
+                    <button
+                      aria-label={`Delete ${e.data.title}`}
+                      className="icon-button"
+                      onClick={() => a.run(() => remove(e))}
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  </>
+                )}
               </div>
-              <b>{money(e.data.total, e.data.currency)}</b>
-              {canEdit && (
-                <>
-                  <button
-                    aria-label={`Edit ${e.data.title}`}
-                    className="icon-button"
-                    onClick={() => setEditing(e)}
-                  >
-                    <Pencil size={15} />
-                  </button>
-                  <button
-                    aria-label={`Delete ${e.data.title}`}
-                    className="icon-button"
-                    onClick={() => a.run(() => remove(e))}
-                  >
-                    <Trash2 size={15} />
-                  </button>
-                </>
-              )}
-            </div>
-          ))}
+            );
+          })}
         </section>
         <div className="stack">
           <section className="panel">
@@ -306,6 +393,20 @@ export default function Budget({
       {repayments.length > 0 && (
         <section className="panel">
           <h3>Recorded repayments</h3>
+          {coverage.unallocated.length > 0 && (
+            <Notice>
+              {money(
+                coverage.unallocated.reduce(
+                  (sum, item) => sum + item.amount,
+                  0,
+                ),
+                trip.currency,
+              )}{" "}
+              in repayments affects the trip balance without matching an
+              outstanding share. This can happen with net settlements or changed
+              expenses.
+            </Notice>
+          )}
           {repayments.map((e) => (
             <div key={e.id} className="expense-row">
               <Check size={17} />
@@ -356,9 +457,29 @@ export default function Budget({
                   throw Error(
                     "Enter a positive amount up to the remaining balance.",
                   );
+                const expenseId = String(f.get("expenseId") || "");
+                if (expenseId) {
+                  const row = coverage.rows.find(
+                    (row) => row.expense.id === expenseId,
+                  );
+                  const share = row?.shares.find(
+                    (share) => share.personId === settle.from,
+                  );
+                  if (
+                    !row ||
+                    row.expense.data.payer !== settle.to ||
+                    !share ||
+                    amount > share.amount - share.repaid
+                  )
+                    throw Error(
+                      "The amount exceeds this expense's remaining share. Refresh and try again.",
+                    );
+                }
                 await save(
                   makeEntity("repayment", tripEntity.id, {
-                    ...settle,
+                    from: settle.from,
+                    to: settle.to,
+                    ...(expenseId ? { expenseId } : {}),
                     amount,
                     date: String(f.get("date")),
                     notes: String(f.get("notes")),
@@ -374,6 +495,26 @@ export default function Budget({
             <p>
               {name(settle.from)} → {name(settle.to)}
             </p>
+            <Field label="Apply to">
+              <select name="expenseId" defaultValue={settle.expenseId || ""}>
+                <option value="">Oldest unsettled shares first</option>
+                {coverage.rows
+                  .filter(
+                    (row) =>
+                      row.expense.data.payer === settle.to &&
+                      row.shares.some(
+                        (share) =>
+                          share.personId === settle.from &&
+                          share.amount > share.repaid,
+                      ),
+                  )
+                  .map((row) => (
+                    <option key={row.expense.id} value={row.expense.id}>
+                      {row.expense.data.title}
+                    </option>
+                  ))}
+              </select>
+            </Field>
             <Field label={`Amount · ${trip.currency}`}>
               <input
                 required
