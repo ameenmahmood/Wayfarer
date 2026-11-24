@@ -7,6 +7,7 @@ import {
   Receipt,
   Trash2,
   Pencil,
+  History,
 } from "lucide-react";
 import type { Entity, Expense, Repayment, Trip, Entry } from "./model";
 import { makeEntity, today } from "./model";
@@ -194,31 +195,34 @@ export default function Budget({
                     {e.data.date} · {e.data.category} · paid by{" "}
                     {name(e.data.payer)}
                   </small>
-                  <details className="record-details">
+                  <details className="record-details expense-details">
                     <summary>Details</summary>
                     <div className="expense-shares">
                       {row.shares.map((share) => (
                         <div className="expense-share" key={share.personId}>
-                          <div>
-                            <b>{name(share.personId)}</b>
-                            <small>
-                              {money(share.amount, trip.currency)} share ·{" "}
-                              {share.personId === e.data.payer
-                                ? "Paid by payer"
-                                : share.amount === share.repaid
-                                  ? "Settled"
-                                  : `${money(share.amount - share.repaid, trip.currency)} remaining`}
-                            </small>
-                            {share.repaid > 0 && (
-                              <small>
-                                {money(share.repaid, trip.currency)} repaid
-                              </small>
-                            )}
-                          </div>
+                          <b>{name(share.personId)}</b>
+                          <span className="expense-share-amount">
+                            {money(share.amount, trip.currency)}
+                          </span>
+                          <span
+                            className={
+                              share.personId !== e.data.payer &&
+                              share.amount === share.repaid
+                                ? "expense-paid"
+                                : "muted"
+                            }
+                          >
+                            {share.personId === e.data.payer
+                              ? "Payer"
+                              : share.amount === share.repaid
+                                ? "Settled"
+                                : `${money(share.amount - share.repaid, trip.currency)} remaining`}
+                          </span>
                           {canEdit &&
                             share.personId !== e.data.payer &&
                             share.amount > share.repaid && (
                               <Button
+                                className="expense-repay-button"
                                 onClick={() =>
                                   setSettle({
                                     from: share.personId,
@@ -235,22 +239,31 @@ export default function Budget({
                       ))}
                       {row.payments.length > 0 && (
                         <div className="expense-payment-history">
-                          <b>Repayment history</b>
                           {row.payments.map(({ repayment, amount }) => (
-                            <div className="expense-share" key={repayment.id}>
-                              <small>
+                            <div
+                              className="expense-payment-line"
+                              key={repayment.id}
+                            >
+                              <History size={14} aria-hidden="true" />
+                              <span>
                                 {name(repayment.data.from)} paid{" "}
-                                {name(repayment.data.to)}{" "}
                                 {money(amount, trip.currency)} ·{" "}
-                                {repayment.data.date}
-                              </small>
+                                {new Date(
+                                  repayment.data.date + "T12:00:00",
+                                ).toLocaleDateString("en-US", {
+                                  month: "short",
+                                  day: "numeric",
+                                })}
+                              </span>
                               {canEdit && (
                                 <button
                                   className="text-button"
+                                  aria-label="Undo full repayment"
+                                  title={`Undo the full ${money(repayment.data.amount, trip.currency)} repayment to ${name(repayment.data.to)}`}
                                   disabled={a.busy}
                                   onClick={() => a.run(() => remove(repayment))}
                                 >
-                                  Undo full repayment
+                                  Undo
                                 </button>
                               )}
                             </div>
@@ -258,15 +271,21 @@ export default function Budget({
                         </div>
                       )}
                     </div>
-                    <small>
+                    <small
+                      className="expense-detail-meta"
+                      title={`Rate ${e.data.rate.source}, ${e.data.rate.date}. Updated ${new Date(e.updatedAt).toLocaleString()}`}
+                    >
                       {e.data.items.length
                         ? "Itemized"
-                        : "Split " + e.data.mode}{" "}
-                      · {e.data.rate.source}, {e.data.rate.date}
-                    </small>
-                    <small>
-                      Changed {new Date(e.updatedAt).toLocaleString()} ·{" "}
-                      {name(e.updatedBy)}
+                        : e.data.mode === "equal"
+                          ? "Equal split"
+                          : "Split " + e.data.mode}{" "}
+                      · {trip.currency} · Updated{" "}
+                      {new Date(e.updatedAt).toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                      })}{" "}
+                      by {name(e.updatedBy)}
                     </small>
                   </details>
                 </div>

@@ -7173,31 +7173,65 @@ html {
   flex-wrap: wrap;
   gap: .5rem;
 }
-.expense-shares {
-  margin: .6rem 0;
-  border-top: 1px solid var(--border);
+/* Expanded expense details share the row width with the header controls. */
+.expense-record:has(.expense-details[open]) {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto auto;
+  column-gap: 12px;
+  row-gap: 4px;
 }
+.expense-record:has(.expense-details[open]) > .grow { display: contents; }
+.expense-record:has(.expense-details[open]) .expense-title-line { grid-column: 2; grid-row: 1; }
+.expense-record:has(.expense-details[open]) > .grow > small { grid-column: 2 / -1; grid-row: 2; }
+.expense-record:has(.expense-details[open]) > .category-icon { grid-column: 1; grid-row: 1 / 3; }
+.expense-record:has(.expense-details[open]) > b { grid-column: 3; grid-row: 1; }
+.expense-record:has(.expense-details[open]) > button[aria-label^="Edit"] { grid-column: 4; grid-row: 1; }
+.expense-record:has(.expense-details[open]) > button[aria-label^="Delete"] { grid-column: 5; grid-row: 1; }
+.expense-record .expense-details[open] { grid-column: 2 / -1; grid-row: 3; padding-bottom: 0; }
+.expense-details .expense-shares { margin: 4px 0; border: 0; }
 .expense-share {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(65px, 1fr) auto minmax(60px, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: .5rem;
-  padding: .5rem 0;
+  gap: 6px 12px;
+  padding: 4px 0;
+  font-size: 12px;
 }
-.expense-share .button, .expense-share button {
-  font-size: .8rem;
+.expense-share > :nth-child(3) { text-align: right; }
+.expense-share-amount { white-space: nowrap; }
+.expense-paid { color: var(--green); }
+.expense-share .expense-repay-button {
+  grid-column: 4;
+  grid-row: 1;
+  justify-self: end;
+  min-height: 32px;
+  padding: 5px 10px;
+  font-size: 12px;
 }
-.expense-payment-history {
-  border-top: 1px solid var(--border);
-  padding-top: .5rem;
-}
-@media (max-width: 600px) {
-  .expense-title-line .pill { font-size: .7rem; }
-  .expense-share { align-items: flex-start; }
-}
+.expense-payment-history { border-top: 1px solid var(--border); margin-top: 4px; padding-top: 4px; }
+.expense-payment-line { display: flex; align-items: center; gap: 6px; min-height: 32px; font-size: 12px; }
+.expense-payment-line > span { flex: 1; min-width: 0; }
+.expense-payment-line > svg { flex-shrink: 0; color: var(--muted); }
+.expense-payment-line .text-button { min-height: 32px; padding: 4px; font-size: 12px; }
+.expense-details .expense-detail-meta { margin: 2px 0 0; line-height: 1.5; }
 .expense-record { align-items: flex-start; }
 @media (max-width: 600px) {
   .expense-title-line > b { font-size: 14px; }
-  .expense-share small { font-size: 12px; }
+  .expense-title-line .pill { font-size: .7rem; }
+  .expense-record:has(.expense-details[open]) { grid-template-columns: minmax(0, 1fr) auto auto auto; column-gap: 6px; }
+  .expense-record:has(.expense-details[open]) .expense-title-line { grid-column: 1; }
+  .expense-record:has(.expense-details[open]) > .grow > small { grid-column: 1 / -1; }
+  .expense-record:has(.expense-details[open]) > b { grid-column: 2; }
+  .expense-record:has(.expense-details[open]) > button[aria-label^="Edit"] { grid-column: 3; }
+  .expense-record:has(.expense-details[open]) > button[aria-label^="Delete"] { grid-column: 4; }
+  .expense-record .expense-details[open] { grid-column: 1 / -1; }
+  .expense-share { font-size: 13px; gap: 4px 8px; }
+}
+
+@media (max-width: 600px) {
+  .expense-share { grid-template-columns: minmax(65px, 1fr) auto auto; }
+  .expense-share:has(.expense-repay-button) > b { grid-column: 1; grid-row: 1; }
+  .expense-share:has(.expense-repay-button) .expense-share-amount { grid-column: 2; grid-row: 1; }
+  .expense-share:has(.expense-repay-button) > :nth-child(3) { grid-column: 1 / 3; grid-row: 2; text-align: left; }
+  .expense-share .expense-repay-button { grid-column: 3; grid-row: 1 / 3; font-size: 11px; padding: 5px 8px; }
 }

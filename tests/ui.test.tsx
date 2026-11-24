@@ -190,11 +190,11 @@ it("records a partial repayment against an expense and restores its status when 
   await u.type(dialog().getByLabelText("Amount · USD"), "1");
   await u.click(dialog().getByRole("button", { name: "Record repayment" }));
   await row.findByText("Partially settled");
-  expect(row.getByText("$1.00 repaid")).toBeTruthy();
+  expect(row.getByText(/paid \$1.00/)).toBeTruthy();
   expect(screen.getAllByText("$80.40").length).toBeGreaterThan(0);
   await u.click(row.getByRole("button", { name: "Undo full repayment" }));
   await row.findByText("Unsettled");
-  expect(row.queryByText("$1.00 repaid")).toBeNull();
+  expect(row.queryByText(/paid \$1.00/)).toBeNull();
 });
 
 it("route preview preserves the itinerary until accepted and displays conflicts rather than applying an impossible plan", async () => {
