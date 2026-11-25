@@ -371,6 +371,10 @@ it("activity handles reorder by drag and keyboard without changing reservation t
   const before = (await all()).filter(
     (e) => e.kind === "entry" && e.tripId === "demo-japan",
   );
+  expect(screen.queryByRole("button", { name: /^Reorder / })).toBeNull();
+  await userEvent
+    .setup()
+    .click(screen.getByRole("button", { name: /^Reorder$/ }));
   const handles = screen.getAllByRole("button", { name: /^Reorder / });
   const source = handles[handles.length - 1];
   const sourceName = source.getAttribute("aria-label");

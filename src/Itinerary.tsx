@@ -13,7 +13,6 @@ import {
   Plane,
   Building2,
   Utensils,
-  Footprints,
   Bookmark,
   Route,
   ChevronRight,
@@ -21,6 +20,7 @@ import {
   ChevronDown,
   ExternalLink,
   CalendarDays,
+  Car,
 } from "lucide-react";
 import { days, makeEntity, type Entity, type Trip, type Entry } from "./model";
 import { api, save, remove, userId, demo } from "./store";
@@ -110,6 +110,7 @@ export default function Itinerary({
     [view, setView] = useState("day"),
     [selected, setSelected] = useState(""),
     [expandedEntry, setExpandedEntry] = useState<string>(),
+    [reordering, setReordering] = useState(false),
     [collapsedDays, setCollapsedDays] = useState<Record<string, boolean>>({}),
     [editing, setEditing] = useState<Entity<Entry>>(),
     [route, setRoute] = useState(false),
@@ -222,7 +223,9 @@ export default function Itinerary({
         ? Building2
         : type === "Restaurant"
           ? Utensils
-          : Footprints;
+          : type === "Transportation"
+            ? Car
+            : MapPin;
   const renderEntry = (e: Entity<Entry>, i: number, list: Entity<Entry>[]) => {
     const EIcon = Icon(e.data.type),
       previous = list[i - 1],
@@ -236,6 +239,10 @@ export default function Itinerary({
       previous?.data.flight?.arrivalId === e.id
         ? flightTimingParts({ from: previous, to: e })
         : undefined;
+    const flightArrival =
+      e.data.type === "Flight" && e.data.flight?.arrivalId
+        ? entries.find((entry) => entry.id === e.data.flight?.arrivalId)
+        : undefined;
     return (
       <div key={e.id} className="timeline-wrap">
         {previous &&
@@ -244,7 +251,9 @@ export default function Itinerary({
           (previous.data.type === "Flight" ||
           (e.data.type === "Flight" &&
             e.data.flight?.arrivalId === previous.id) ? (
-            <div className="flight-timeline-leg">
+            <div
+              className={`flight-timeline-leg ${flightSummary ? "agenda-linked-flight" : ""}`}
+            >
               <Plane size={15} />
               <span className="flight-timeline-summary">
                 {flightNumber && (
@@ -278,7 +287,7 @@ export default function Itinerary({
           id={e.id}
           className={`plan-card ${canEdit && view === "day" ? "can-reorder" : ""} ${drag === e.id ? "is-dragging" : ""} ${dropTarget === e.id && drag !== e.id ? "drop-target" : ""} ${selected === e.id ? "selected" : ""} ${expandedEntry === e.id ? "is-expanded" : ""}`}
         >
-          {canEdit && view === "day" && (
+          {canEdit && view === "day" && reordering && (
             <button
               className="activity-drag-handle"
               aria-label={`Reorder ${e.data.title}`}
@@ -355,12 +364,16 @@ export default function Itinerary({
               if (ev.key === "Enter" || ev.key === " ") {
                 ev.preventDefault();
                 setSelected(e.id);
-                setExpandedEntry(e.id);
+                setExpandedEntry((current) =>
+                  current === e.id ? undefined : e.id,
+                );
               }
             }}
             onClick={() => {
               setSelected(e.id);
-              setExpandedEntry(e.id);
+              setExpandedEntry((current) =>
+                current === e.id ? undefined : e.id,
+              );
               if (mapOnly)
                 document
                   .querySelector(".map-card")
@@ -404,6 +417,16 @@ export default function Itinerary({
               </div>
             )}
             <div className="plan-summary">
+              {e.data.type === "Flight" && e.data.flight?.number && (
+                <span className="agenda-flight-number">
+                  {e.data.flight.number}
+                </span>
+              )}
+              {flightArrival?.data.start && (
+                <span className="agenda-flight-arrival">
+                  Arrives {formatTime(flightArrival.data.start)}
+                </span>
+              )}
               <span className="compact-duration">
                 <EIcon size={14} aria-label={e.data.type} />
                 {e.data.endDate > e.data.date
@@ -413,8 +436,11 @@ export default function Itinerary({
               <span className="compact-location">
                 {pin?.displayName?.text || pin?.formattedAddress
                   ? ""
-                  : e.data.address || e.data.type}
+                  : e.data.address}
               </span>
+              {e.data.notes && (
+                <span className="agenda-note">{e.data.notes}</span>
+              )}
               {e.data.fixed && <span className="compact-fixed">Fixed</span>}
             </div>
             <div
@@ -704,7 +730,7 @@ export default function Itinerary({
         {reorderMessage}
       </span>
       {view === "day" && (
-        <ScrollRail className="day-strip" label="Trip days">
+        <ScrollRail className="day-strip agenda-days" label="Trip days">
           {dayList.map((d, i) => (
             <button
               key={d}
@@ -745,7 +771,9 @@ export default function Itinerary({
       )}
       <div
         className={
-          "itinerary-columns timeline-view " + (mapOnly ? "map-first" : "")
+          "itinerary-columns timeline-view agenda-view " +
+          (reordering ? "agenda-reordering " : "") +
+          (mapOnly ? "map-first" : "")
         }
       >
         <section className="timeline-panel">
@@ -770,14 +798,25 @@ export default function Itinerary({
                   {filtered.length} {filtered.length === 1 ? "plan" : "plans"}
                 </small>
               </div>
-              {alerts.length > 0 && view === "day" && (
-                <button
-                  className="pill amber"
-                  onClick={() => setShowWarnings(!showWarnings)}
-                >
-                  {alerts.length} checks <ChevronRight size={13} />
-                </button>
-              )}
+              <div className="agenda-day-actions">
+                {canEdit && view === "day" && filtered.length > 1 && (
+                  <Button
+                    aria-pressed={reordering}
+                    onClick={() => setReordering((value) => !value)}
+                  >
+                    <DragHandleIcon size={14} />
+                    {reordering ? "Done reordering" : "Reorder"}
+                  </Button>
+                )}
+                {alerts.length > 0 && view === "day" && (
+                  <button
+                    className="pill amber"
+                    onClick={() => setShowWarnings(!showWarnings)}
+                  >
+                    {alerts.length} checks <ChevronRight size={13} />
+                  </button>
+                )}
+              </div>
             </div>
           )}
           {showWarnings && alerts.length > 0 && view === "day" && (

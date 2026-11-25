@@ -7256,3 +7256,242 @@ html {
   .expense-share:has(.expense-repay-button) > :nth-child(3) { grid-column: 1 / 3; grid-row: 2; text-align: left; }
   .expense-share .expense-repay-button { grid-column: 3; grid-row: 1 / 3; font-size: 11px; padding: 5px 8px; }
 }
+.agenda-note {
+  display: none;
+}
+
+/* The agenda uses one icon, title and right-aligned time for each plan. */
+.agenda-view .timeline-wrap {
+  margin: 0;
+  padding: 0;
+}
+.agenda-view .timeline-wrap::before,
+.agenda-view .plan-card::before,
+.agenda-view .activity-clock,
+.agenda-view .timeline-dot,
+.agenda-view .agenda-linked-flight {
+  display: none;
+}
+.agenda-view .plan-card {
+  display: block;
+  padding: 0;
+  border-bottom: 1px solid var(--border);
+}
+.agenda-view .plan-card .plan-main,
+.agenda-view .plan-card.can-reorder .plan-main {
+  position: relative;
+  padding: 13px 0 13px 49px;
+  min-height: 68px;
+}
+.agenda-view .plan-top {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0 0 3px;
+}
+.agenda-view .plan-top h3 {
+  font-size: 16px;
+  line-height: 1.4;
+  flex: 1;
+  min-width: 0;
+}
+.agenda-view .plan-top .type-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: absolute;
+  top: 14px;
+  left: 0;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: 50%;
+  background: var(--green-soft);
+  color: var(--green);
+}
+.agenda-view .type-icon.flight {
+  background: light-dark(#e5f3ff, #1b3446);
+  color: light-dark(#087ac6, #83c8ff);
+}
+.agenda-view .type-icon.lodging {
+  background: light-dark(#f0e6fb, #382c46);
+  color: light-dark(#8851ae, #d4a4fc);
+}
+.agenda-view .type-icon.transportation {
+  background: light-dark(#fff0d6, #463824);
+  color: light-dark(#a06406, #f4c471);
+}
+.agenda-view .plan-top .plan-time {
+  display: block;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 650;
+  margin-left: auto;
+}
+.agenda-view .plan-summary {
+  font-size: 13px;
+  gap: 2px 7px;
+}
+.agenda-view .plan-card:not(.is-expanded) .compact-duration {
+  display: none;
+}
+.agenda-view .plan-google-pin {
+  margin: 2px 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+.agenda-view .plan-google-pin b {
+  display: inline;
+  font-size: 13px;
+  font-weight: 400;
+}
+.agenda-view .plan-google-pin .pin-address-short {
+  display: inline;
+  margin-left: 5px;
+}
+.agenda-view .plan-google-pin .google-attribution {
+  font-size: 11px;
+  margin-left: 6px;
+}
+.agenda-view .agenda-flight-number {
+  color: var(--text);
+  font-weight: 550;
+}
+.agenda-view .plan-card:not(.is-expanded) .agenda-note {
+  display: block;
+  flex-basis: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  font-size: 12px;
+}
+.agenda-view .plan-card .plan-details-toggle {
+  display: none;
+}
+.agenda-view .plan-card.is-expanded .plan-details-toggle {
+  display: flex;
+  top: auto;
+  bottom: 0;
+}
+.agenda-view .plan-card .activity-drag-handle {
+  display: none;
+}
+.agenda-reordering .plan-card .activity-drag-handle {
+  display: flex;
+  left: 0;
+  right: auto;
+  top: 10px;
+  background: var(--surface);
+  z-index: 2;
+}
+.agenda-view .plan-card .plan-actions {
+  padding: 0 40px 6px 49px;
+}
+.agenda-day-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.agenda-day-actions .button {
+  min-height: 32px;
+  padding: 5px 8px;
+  font-size: 12px;
+  background: transparent;
+}
+.agenda-view .day-heading {
+  padding: 8px 10px;
+  margin: 8px 0 0;
+  border-radius: 6px;
+  background: var(--green-soft);
+  gap: 8px;
+}
+.agenda-view .day-heading h3 {
+  font-size: 15px;
+  margin: 0;
+}
+.agenda-view .day-heading .eyebrow,
+.agenda-view .day-heading .day-context {
+  display: none;
+}
+.agenda-view .travel-leg {
+  margin: 0 0 0 49px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  border-bottom: 1px solid var(--border);
+}
+.agenda-view .travel-summary {
+  background: transparent;
+  padding: 8px 0;
+  border-radius: 0;
+}
+.agenda-view .agenda-booked-transfer {
+  margin-left: 0;
+}
+.agenda-view .agenda-booked-transfer .travel-summary {
+  grid-template-columns: 36px minmax(0, 1fr) 16px;
+  gap: 3px 13px;
+  padding: 12px 0;
+}
+.agenda-view .agenda-booked-transfer .travel-block-icon {
+  box-sizing: content-box;
+  padding: 10px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: light-dark(#fff0d6, #463824);
+  color: light-dark(#a06406, #f4c471);
+  grid-row: 1 / 3;
+}
+.agenda-view .agenda-booked-transfer .travel-block-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+}
+@media (max-width: 650px) {
+  .agenda-view .plan-card .plan-main,
+  .agenda-view .plan-card.can-reorder .plan-main {
+    padding: 12px 0 12px 44px;
+  }
+  .agenda-view .plan-top h3 { font-size: 15px; }
+  .agenda-view .plan-top .type-icon { width: 32px; height: 32px; }
+  .agenda-view .plan-top .plan-time { font-size: 12px; }
+  .agenda-view .travel-leg { margin-left: 44px; }
+  .agenda-view .agenda-booked-transfer { margin-left: 0; }
+  .agenda-view .plan-card .plan-actions { padding-left: 44px; }
+  .agenda-view .day-heading { padding: 6px 8px; }
+  .agenda-view .day-heading h3 { font-size: 14px; }
+}
+.agenda-view .travel-leg:not(.agenda-booked-transfer) .travel-summary[aria-expanded="false"] .travel-block-times {
+  display: none;
+}
+.agenda-view .agenda-flight-number + .agenda-flight-arrival::before {
+  content: "\00b7 ";
+}
+.agenda-view .day-heading { flex-wrap: wrap; }
+.agenda-view .agenda-day-actions { margin-left: auto; }
+
+.agenda-days { gap: 6px; margin-block: 10px 16px; }
+.agenda-days button { flex: 0 0 86px; min-height: 54px; padding: 7px 12px; border-radius: 7px; }
+.agenda-days button small { display: none; }
+.agenda-days button b { font-size: 13px; }
+.agenda-days button span { font-size: 12px; }
+@media (max-width: 650px) {
+  .agenda-view .day-aside .map-card { display: none; }
+}
+.agenda-transfer-time { display: none; }
+.agenda-view .agenda-booked-transfer .travel-summary {
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+}
+.agenda-view .agenda-booked-transfer .agenda-transfer-time {
+  display: block;
+  grid-column: 3;
+  grid-row: 1;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+}
+.agenda-view .agenda-booked-transfer .travel-summary-chevron { display: none; }
+.agenda-view .agenda-booked-transfer .travel-block-times { grid-column: 2 / -1; }

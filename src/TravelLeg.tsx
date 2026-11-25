@@ -162,7 +162,7 @@ export default function TravelLeg({
   }
   return (
     <section
-      className="travel-leg"
+      className={`travel-leg ${booking ? "agenda-booked-transfer" : ""}`}
       aria-label={`Travel from ${previous.data.title} to ${entry.data.title}`}
     >
       <button
@@ -204,25 +204,30 @@ export default function TravelLeg({
             </>
           )}
         </span>
+        {booking && departureLabel && (
+          <span className="agenda-transfer-time">
+            {booking.pickup ? "Pickup " : ""}
+            {departureLabel}
+          </span>
+        )}
         <ChevronDown className="travel-summary-chevron" size={16} />
         <span className="travel-block-times">
-          {departureLabel ? (
+          {booking ? (
             <>
-              {booking?.pickup && (
-                <span className="transfer-fixed-label" title="Fixed pickup">
-                  Pickup ·{" "}
-                </span>
-              )}
-              {departureLabel} <span aria-hidden="true">→</span>{" "}
               {arrivalLabel
-                ? `${booking && manualTime === undefined && !estimate ? "~" : ""}${arrivalLabel}`
+                ? `Arrives ${manualTime === undefined && !estimate ? "~" : ""}${arrivalLabel}`
                 : "Arrival not calculated"}
-              {booking && estimate && (
+              {estimate && (
                 <span className="google-attribution" translate="no">
                   {" "}
                   · Google Maps
                 </span>
               )}
+            </>
+          ) : departureLabel ? (
+            <>
+              {departureLabel} <span aria-hidden="true">→</span>{" "}
+              {arrivalLabel || "Arrival not calculated"}
             </>
           ) : duringStay ? (
             "Departure varies during stay"

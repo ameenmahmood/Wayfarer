@@ -326,7 +326,7 @@ it("saves a named booked taxi with a fixed pickup, preserves its details through
   expect(service.save.mock.calls.at(-1)![0].data.arrival.booking.company).toBe(
     "Caribe Transfers",
   );
-  expect(container.querySelector(".travel-block-times")?.textContent).toContain(
+  expect(container.querySelector(".agenda-transfer-time")?.textContent).toContain(
     "10:30 AM",
   );
   await u.click(screen.getByLabelText("Set time manually"));
