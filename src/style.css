@@ -7495,3 +7495,18 @@ html {
 }
 .agenda-view .agenda-booked-transfer .travel-summary-chevron { display: none; }
 .agenda-view .agenda-booked-transfer .travel-block-times { grid-column: 2 / -1; }
+/* Title-only rows collapse the unused subtitle area while keeping a touch target. */
+.agenda-view .plan-card.no-summary:not(.is-expanded) .plan-main {
+  min-height: 52px;
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+.agenda-view .plan-card.no-summary:not(.is-expanded) .plan-top {
+  margin-bottom: 0;
+}
+.agenda-view .plan-card.no-summary:not(.is-expanded) .plan-summary {
+  display: none;
+}
+.agenda-view .plan-card.no-summary:not(.is-expanded) .type-icon {
+  top: 8px;
+}

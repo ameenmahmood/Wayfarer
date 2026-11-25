@@ -243,6 +243,15 @@ export default function Itinerary({
       e.data.type === "Flight" && e.data.flight?.arrivalId
         ? entries.find((entry) => entry.id === e.data.flight?.arrivalId)
         : undefined;
+    const hasSummary = Boolean(
+      pin?.displayName?.text?.trim() ||
+      pin?.formattedAddress?.trim() ||
+      e.data.address?.trim() ||
+      e.data.notes?.trim() ||
+      e.data.fixed ||
+      (e.data.type === "Flight" && e.data.flight?.number?.trim()) ||
+      flightArrival?.data.start,
+    );
     return (
       <div key={e.id} className="timeline-wrap">
         {previous &&
@@ -285,7 +294,7 @@ export default function Itinerary({
           ))}
         <article
           id={e.id}
-          className={`plan-card ${canEdit && view === "day" ? "can-reorder" : ""} ${drag === e.id ? "is-dragging" : ""} ${dropTarget === e.id && drag !== e.id ? "drop-target" : ""} ${selected === e.id ? "selected" : ""} ${expandedEntry === e.id ? "is-expanded" : ""}`}
+          className={`plan-card ${hasSummary ? "has-summary" : "no-summary"} ${canEdit && view === "day" ? "can-reorder" : ""} ${drag === e.id ? "is-dragging" : ""} ${dropTarget === e.id && drag !== e.id ? "drop-target" : ""} ${selected === e.id ? "selected" : ""} ${expandedEntry === e.id ? "is-expanded" : ""}`}
         >
           {canEdit && view === "day" && reordering && (
             <button
