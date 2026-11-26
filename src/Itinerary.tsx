@@ -730,7 +730,9 @@ export default function Itinerary({
             <span className="view-label-compact" aria-hidden="true">
               Saved
             </span>{" "}
-            <span>{entries.filter((e) => !e.data.date).length}</span>
+            <span className="saved-count">
+              {entries.filter((e) => !e.data.date).length}
+            </span>
           </button>
         </div>
         {canEdit && view === "day" && dayEntries.length > 0 && (
@@ -941,6 +943,18 @@ export default function Itinerary({
                   renderEntry(entry, index, filtered),
                 )}
           </div>
+          {canEdit && view !== "all" && (
+            <button
+              className="add-plan itinerary-end-add"
+              aria-label={
+                view === "saved" ? "Save a place" : "Add a plan to this day"
+              }
+              onClick={() => add(view === "saved" ? "" : date)}
+            >
+              <Plus size={17} />
+              {view === "saved" ? "Save a place" : "Add a plan"}
+            </button>
+          )}
         </section>
         <aside className="day-aside">
           <Field label="Preferred transport">
