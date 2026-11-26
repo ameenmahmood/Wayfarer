@@ -254,44 +254,6 @@ export default function Itinerary({
     );
     return (
       <div key={e.id} className="timeline-wrap">
-        {previous &&
-          view !== "saved" &&
-          previous.data.date === e.data.date &&
-          (previous.data.type === "Flight" ||
-          (e.data.type === "Flight" &&
-            e.data.flight?.arrivalId === previous.id) ? (
-            <div
-              className={`flight-timeline-leg ${flightSummary ? "agenda-linked-flight" : ""}`}
-            >
-              <Plane size={15} />
-              <span className="flight-timeline-summary">
-                {flightNumber && (
-                  <b className="flight-timeline-number">{flightNumber}</b>
-                )}
-                <span className="flight-timeline-times">
-                  {e.data.type === "Flight" &&
-                  e.data.flight?.arrivalId === previous.id
-                    ? "Flight connection · move departure before arrival"
-                    : previous.data.flight?.arrivalId === e.id
-                      ? flightSummary?.times
-                      : "Flight · link its arrival airport in Edit plan"}
-                </span>
-                {flightSummary?.duration && (
-                  <span className="flight-timeline-duration">
-                    {flightSummary.duration}
-                  </span>
-                )}
-              </span>
-            </div>
-          ) : (
-            <TravelLeg
-              key={`${previous.id}:${e.id}`}
-              previous={previous}
-              entry={e}
-              mode={mode}
-              canEdit={canEdit}
-            />
-          ))}
         <article
           id={e.id}
           className={`plan-card ${hasSummary ? "has-summary" : "no-summary"} ${canEdit && view === "day" ? "can-reorder" : ""} ${drag === e.id ? "is-dragging" : ""} ${dropTarget === e.id && drag !== e.id ? "drop-target" : ""} ${selected === e.id ? "selected" : ""} ${expandedEntry === e.id ? "is-expanded" : ""}`}
@@ -366,6 +328,8 @@ export default function Itinerary({
           </div>
           <div className="timeline-dot">{i + 1}</div>
           <div
+            aria-expanded={expandedEntry === e.id}
+            aria-controls={`plan-details-${e.id}`}
             className="plan-main"
             role="button"
             tabIndex={0}
@@ -396,7 +360,14 @@ export default function Itinerary({
               <h3>{e.data.title}</h3>
               <span className="plan-type">{e.data.type}</span>
               {e.data.fixed && <span className="pill">Fixed</span>}
-              <span className="plan-time">{formatTime(e.data.start)}</span>
+              <span className="plan-time">
+                {e.data.start ? formatTime(e.data.start) : "Set time"}
+              </span>
+              <ChevronRight
+                className="activity-chevron"
+                size={17}
+                aria-hidden="true"
+              />
             </div>
             {(pin?.displayName?.text || pin?.formattedAddress) && (
               <div className="plan-google-pin">
@@ -535,6 +506,53 @@ export default function Itinerary({
                 )}
                 {e.data.reservation && <span>{e.data.reservation}</span>}
               </div>
+              <div
+                className="activity-travel-details"
+                onClick={(event) => event.stopPropagation()}
+                onKeyDown={(event) => event.stopPropagation()}
+              >
+                {expandedEntry === e.id &&
+                  previous &&
+                  view !== "saved" &&
+                  previous.data.date === e.data.date &&
+                  (previous.data.type === "Flight" ||
+                  (e.data.type === "Flight" &&
+                    e.data.flight?.arrivalId === previous.id) ? (
+                    <div
+                      className={`flight-timeline-leg ${flightSummary ? "agenda-linked-flight" : ""}`}
+                    >
+                      <Plane size={15} />
+                      <span className="flight-timeline-summary">
+                        {flightNumber && (
+                          <b className="flight-timeline-number">
+                            {flightNumber}
+                          </b>
+                        )}
+                        <span className="flight-timeline-times">
+                          {e.data.type === "Flight" &&
+                          e.data.flight?.arrivalId === previous.id
+                            ? "Flight connection · move departure before arrival"
+                            : previous.data.flight?.arrivalId === e.id
+                              ? flightSummary?.times
+                              : "Flight · link its arrival airport in Edit plan"}
+                        </span>
+                        {flightSummary?.duration && (
+                          <span className="flight-timeline-duration">
+                            {flightSummary.duration}
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                  ) : (
+                    <TravelLeg
+                      key={`${previous.id}:${e.id}`}
+                      previous={previous}
+                      entry={e}
+                      mode={mode}
+                      canEdit={canEdit}
+                    />
+                  ))}
+              </div>
               {e.data.link && (
                 <a
                   className="plan-link"
@@ -668,7 +686,7 @@ export default function Itinerary({
         </div>
         {canEdit && (
           <Button
-            className="primary"
+            className="primary itinerary-add"
             onClick={() => add(view === "saved" ? "" : date)}
           >
             <Plus size={17} />
@@ -685,9 +703,9 @@ export default function Itinerary({
             onClick={() => setView("day")}
           >
             <CalendarDays size={15} />
-            <span className="view-label-full">Daily plan</span>
+            <span className="view-label-full">Day</span>
             <span className="view-label-compact" aria-hidden="true">
-              Day plan
+              Day
             </span>
           </button>
           <button
@@ -696,9 +714,9 @@ export default function Itinerary({
             className={view === "all" ? "active" : ""}
             onClick={() => setView("all")}
           >
-            <span className="view-label-full">Whole trip</span>
+            <span className="view-label-full">Trip</span>
             <span className="view-label-compact" aria-hidden="true">
-              Whole trip
+              Trip
             </span>
           </button>
           <button
@@ -708,7 +726,7 @@ export default function Itinerary({
             onClick={() => setView("saved")}
           >
             <Bookmark size={14} />
-            <span className="view-label-full">Saved places</span>
+            <span className="view-label-full">Saved</span>
             <span className="view-label-compact" aria-hidden="true">
               Saved
             </span>{" "}
@@ -727,7 +745,7 @@ export default function Itinerary({
               aria-label="Optimize day"
             >
               <Route size={15} />
-              <span className="optimize-label">Optimize day</span>
+              <span className="optimize-label">Route</span>
               <span className="optimize-label-mobile" aria-hidden="true">
                 Route
               </span>
@@ -794,7 +812,7 @@ export default function Itinerary({
                     ? "YOUR LITTLE COLLECTION"
                     : "DAY " + (dayList.indexOf(date) + 1)}
                 </span>
-                <h3>
+                <h3 className="day-title">
                   {view === "saved"
                     ? "For when inspiration strikes"
                     : new Date(date + "T12:00:00").toLocaleDateString("en-US", {
@@ -835,8 +853,8 @@ export default function Itinerary({
               ))}
               <small>
                 Travel checks use saved manual times where available, otherwise
-                rough straight-line estimates for each travel method. Live leg
-                estimates appear beside their activities.
+                rough straight-line estimates for each travel method. Open an
+                activity to view its travel settings and live estimates.
               </small>
             </div>
           )}
@@ -923,15 +941,6 @@ export default function Itinerary({
                   renderEntry(entry, index, filtered),
                 )}
           </div>
-          {canEdit && view !== "all" && (
-            <button
-              className="add-plan"
-              onClick={() => add(view === "saved" ? "" : date)}
-            >
-              <Plus size={17} />
-              {view === "saved" ? "Save a place" : "Add something to this day"}
-            </button>
-          )}
         </section>
         <aside className="day-aside">
           <Field label="Preferred transport">

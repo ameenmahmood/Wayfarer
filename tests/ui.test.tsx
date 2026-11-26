@@ -483,6 +483,43 @@ it("compact activity details expand by keyboard, preserve edit actions, and coll
   expect(toggle.getAttribute("aria-expanded")).toBe("false");
 });
 
+it("keeps travel settings inside the opened activity instead of between agenda rows", async () => {
+  localStorage.setItem("wayfarer-trip", "demo-japan");
+  const u = await openApp();
+  expect(document.querySelector(".timeline .travel-leg")).toBeNull();
+  const title = "A slow afternoon in Shinjuku Gyoen";
+  const toggle = screen.getByRole("button", { name: `Details for ${title}` });
+  await u.click(toggle);
+  const card = toggle.closest(".plan-card")!;
+  expect(card.querySelector(".plan-secondary .travel-leg")).toBeTruthy();
+  expect(document.querySelector(".timeline-wrap > .travel-leg")).toBeNull();
+  await u.click(
+    within(card as HTMLElement).getByRole("button", {
+      name: /travel settings/,
+    }),
+  );
+  expect(toggle.getAttribute("aria-expanded")).toBe("true");
+  await u.click(toggle);
+  expect(document.querySelector(".timeline .travel-leg")).toBeNull();
+});
+
+it("opens secondary sections from More and closes the dropdown after selection", async () => {
+  const u = await openApp();
+  expect(
+    screen.queryByRole("button", { name: "Open Packing list" }),
+  ).toBeNull();
+  await u.click(screen.getByLabelText("More sections"));
+  await u.click(
+    await screen.findByRole("button", { name: "Open Packing list" }),
+  );
+  await screen.findByRole("heading", { name: "Packing list" });
+  await waitFor(() =>
+    expect(document.querySelector(".mobile-more")?.hasAttribute("open")).toBe(
+      false,
+    ),
+  );
+});
+
 it("trip context opens from the itinerary header and resets when switching sections", async () => {
   localStorage.setItem("wayfarer-trip", "demo-japan");
   const u = await openApp();

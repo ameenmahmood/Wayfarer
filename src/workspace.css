@@ -1,0 +1,667 @@
+/* Responsive workspace: one agenda row per plan, details on demand. */
+:root {
+  --bg: #f5f8f5;
+  --surface: #ffffff;
+  --surface2: #edf3ee;
+  --text: #183b2c;
+  --muted: #607269;
+  --border: #dbe6de;
+  --green: #246e4a;
+  --green-soft: #e1f1e6;
+  --action: #246e4a;
+  --action-text: #ffffff;
+}
+:root[data-theme="dark"] {
+  --bg: #0c2119;
+  --surface: #142d23;
+  --surface2: #1a3529;
+  --text: #edf6ef;
+  --muted: #b0c5b7;
+  --border: #314c3e;
+  --green: #a0e7b9;
+  --green-soft: #234b36;
+  --action: #a0e7b9;
+  --action-text: #0b2b1b;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0c2119;
+    --surface: #142d23;
+    --surface2: #1a3529;
+    --text: #edf6ef;
+    --muted: #b0c5b7;
+    --border: #314c3e;
+    --green: #a0e7b9;
+    --green-soft: #234b36;
+    --action: #a0e7b9;
+    --action-text: #0b2b1b;
+  }
+}
+.trip-active .button.primary,
+.trip-active .itinerary-add {
+  background: var(--action);
+  color: var(--action-text);
+  border-color: transparent;
+  border-radius: 999px;
+  min-height: 44px;
+  font-size: 14px;
+}
+.trip-active .topbar {
+  background: var(--bg);
+}
+.trip-active:not(.show-trip-details) .trip-hero,
+.trip-active:not(.show-trip-details) .trip-overview {
+  display: none;
+}
+.trip-active .tab-content {
+  padding-top: 16px;
+}
+.trip-active .itinerary-heading {
+  margin: 0 0 18px;
+}
+.trip-active .itinerary-heading h2 {
+  font-size: 30px;
+}
+.trip-active .itinerary-toolbar {
+  margin-bottom: 14px;
+}
+.trip-active .itinerary-toolbar .segmented {
+  padding: 3px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+.trip-active .itinerary-toolbar .segmented button {
+  min-height: 40px;
+  min-width: 100px;
+  padding: 8px 20px;
+  border-radius: 9px;
+  font-size: 14px;
+}
+.trip-active .itinerary-toolbar .segmented button.active {
+  background: var(--action);
+  color: var(--action-text);
+  box-shadow: none;
+}
+.trip-active .itinerary-toolbar .segmented button > svg {
+  display: none;
+}
+.trip-active .itinerary-tools .button {
+  min-height: 44px;
+  border-radius: 10px;
+  font-size: 14px;
+}
+.agenda-view.itinerary-columns {
+  gap: 22px;
+  align-items: start;
+}
+.agenda-view .timeline-panel {
+  min-width: 0;
+}
+.agenda-view .day-heading {
+  margin: 0 0 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface2);
+}
+.agenda-view .day-heading h3 {
+  font-size: 16px;
+}
+.agenda-day-actions .button,
+.agenda-day-actions .pill {
+  min-height: 40px;
+  font-size: 14px;
+}
+.agenda-day-actions .pill {
+  border-radius: 9px;
+}
+.agenda-view .timeline {
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface);
+  overflow: clip;
+}
+.agenda-view .timeline:empty {
+  display: none;
+}
+.agenda-view .timeline-wrap {
+  margin: 0;
+}
+.agenda-view .timeline-wrap:last-child > .plan-card {
+  border-bottom: 0;
+}
+.agenda-view .plan-card {
+  background: transparent;
+  margin: 0;
+  padding: 0;
+  border-radius: 0;
+}
+.agenda-view .plan-card.selected {
+  background: color-mix(in srgb, var(--green) 7%, var(--surface));
+}
+.agenda-view .plan-card .plan-main,
+.agenda-view .plan-card.can-reorder .plan-main,
+.agenda-view .plan-card.no-summary:not(.is-expanded) .plan-main {
+  min-height: 78px;
+  padding: 20px 16px 20px 68px;
+}
+.agenda-view .plan-top {
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+}
+.agenda-view .plan-top h3 {
+  font-size: 16px;
+  line-height: 1.5;
+  letter-spacing: -0.2px;
+}
+.agenda-view .plan-top .type-icon,
+.agenda-view .plan-card.no-summary:not(.is-expanded) .type-icon {
+  left: 16px;
+  top: 19px;
+  width: 38px;
+  height: 38px;
+}
+.agenda-view .plan-top .plan-time {
+  font-size: 14px;
+  font-weight: 500;
+}
+.agenda-view .activity-chevron {
+  display: block;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+.agenda-view .plan-card.is-expanded .activity-chevron {
+  transform: rotate(90deg);
+}
+.agenda-view .type-icon.transportation {
+  background: light-dark(#d5f4f5, #a8edf1);
+  color: #155a61;
+}
+.agenda-view .type-icon.restaurant {
+  background: light-dark(#fff0cf, #ffd99c);
+  color: #8d540d;
+}
+.agenda-view .plan-card:not(.is-expanded) .plan-summary,
+.agenda-view .plan-card:not(.is-expanded) .plan-google-pin {
+  display: none;
+}
+.agenda-view .plan-card.is-expanded .plan-summary {
+  margin-top: 10px;
+}
+.agenda-view .plan-card.is-expanded .plan-secondary {
+  margin-top: 12px;
+  padding-top: 12px;
+}
+.agenda-view .plan-card .plan-actions {
+  padding: 0 16px 12px 68px;
+}
+.agenda-view .plan-card .plan-details-toggle,
+.agenda-view .plan-card.is-expanded .plan-details-toggle {
+  display: none;
+}
+.agenda-view .plan-card .activity-drag-handle {
+  left: 12px;
+  top: 17px;
+}
+.agenda-reordering .plan-top .type-icon {
+  visibility: hidden;
+}
+.agenda-view .plan-card .activity-travel-details .travel-leg {
+  margin: 12px 0 0;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.agenda-view .activity-travel-details .travel-summary {
+  padding: 10px;
+}
+.agenda-view .activity-travel-details .agenda-linked-flight {
+  display: flex;
+  margin: 12px 0 0;
+}
+.agenda-view .day-aside .map-card {
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: none;
+}
+.agenda-view .day-aside > .field {
+  margin: 0 0 12px;
+}
+.agenda-view .day-aside .inspiration-card {
+  margin-top: 14px;
+  padding: 14px;
+  border-radius: 14px;
+}
+.agenda-view .inspiration-card > .type-icon,
+.agenda-view .inspiration-card > p,
+.agenda-view .inspiration-card > h3,
+.agenda-view .inspiration-card > small {
+  display: none;
+}
+.agenda-view .inspiration-card .button {
+  width: 100%;
+  font-size: 14px;
+}
+.whole-trip-day {
+  margin-bottom: 0;
+}
+.whole-trip-day-heading {
+  margin: 0;
+}
+.whole-trip-day-heading > button {
+  border: 0;
+  border-radius: 0;
+  padding: 14px 16px;
+  background: var(--surface2);
+}
+.whole-trip-day-heading > button > span {
+  font-size: 16px;
+}
+.whole-trip-day-plans .day-add-plan {
+  margin: 10px 16px;
+}
+.mobile-more {
+  display: none;
+}
+.more-sections[hidden] {
+  display: none;
+}
+@media (min-width: 651px) {
+  .trip-active:not(.map-workspace) .breadcrumb-title {
+    display: none;
+  }
+  .trip-active:not(.map-workspace) .mobile-trip-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: transparent;
+    border: 0;
+    color: var(--text);
+    text-align: left;
+  }
+  .trip-active .mobile-trip-heading {
+    display: flex;
+    flex-direction: column;
+  }
+  .trip-active .mobile-trip-heading > span {
+    font-size: 19px;
+    font-weight: 700;
+  }
+  .trip-active .mobile-trip-heading > small {
+    font-size: 13px;
+  }
+}
+@media (min-width: 1001px) {
+  .trip-active:not(.map-workspace) .sidebar {
+    width: 220px;
+  }
+  .trip-active:not(.map-workspace):not(.sidebar-collapsed) .main-shell {
+    margin-left: 220px;
+  }
+  .trip-active:not(.map-workspace)
+    .sidebar
+    > :not(.brand):not(.sidebar-bottom):not(.mobile-close) {
+    display: none;
+  }
+  .trip-active:not(.map-workspace) .section-navigation {
+    position: fixed;
+    top: 135px;
+    left: 12px;
+    width: 196px;
+    z-index: 31;
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+  .trip-active:not(.map-workspace) .section-navigation > .tabs {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 5px;
+    border: 0;
+    margin: 0;
+    padding: 0;
+    overflow: visible;
+  }
+  .trip-active:not(.map-workspace) .section-navigation .tabs > button {
+    justify-content: flex-start;
+    min-height: 48px;
+    padding: 12px 16px;
+    border: 0;
+    border-radius: 12px;
+    font-size: 15px;
+  }
+  .trip-active:not(.map-workspace) .section-navigation .tabs > button.active {
+    background: var(--green-soft);
+    color: var(--green);
+  }
+  .trip-active:not(.map-workspace) .section-navigation .rail-arrow,
+  .trip-active:not(.map-workspace) .section-navigation .grow,
+  .trip-active:not(.map-workspace) .section-navigation .trip-role {
+    display: none;
+  }
+  .trip-active.sidebar-collapsed:not(.map-workspace) .section-navigation {
+    position: static;
+    width: auto;
+  }
+  .trip-active.sidebar-collapsed:not(.map-workspace)
+    .section-navigation
+    > .tabs {
+    flex-direction: row;
+  }
+  .trip-active:not(.map-workspace) .breadcrumb-title {
+    display: none;
+  }
+  .trip-active:not(.map-workspace) .mobile-trip-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: transparent;
+    border: 0;
+    color: var(--text);
+    text-align: left;
+  }
+  .trip-active .mobile-trip-heading {
+    display: flex;
+    flex-direction: column;
+  }
+  .trip-active .mobile-trip-heading > span {
+    font-size: 19px;
+    font-weight: 700;
+  }
+  .trip-active .mobile-trip-heading > small {
+    font-size: 13px;
+  }
+  .trip-active main {
+    max-width: 1700px;
+    padding: 20px 28px 36px;
+  }
+  .agenda-view.itinerary-columns {
+    grid-template-columns: minmax(0, 1.2fr) minmax(340px, 1fr);
+  }
+  .trip-active .agenda-days button {
+    flex: 0 0 96px;
+    min-height: 70px;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface);
+  }
+  .trip-active .agenda-days button b {
+    font-size: 15px;
+  }
+  .trip-active .agenda-days button .day-label-full {
+    font-size: 14px;
+  }
+  .trip-active .agenda-days button.active {
+    border-color: var(--green);
+    background: var(--green-soft);
+    box-shadow: inset 0 0 0 1px var(--green);
+  }
+}
+@media (max-width: 650px) {
+  .trip-active {
+    --mobile-nav-height: calc(72px + env(safe-area-inset-bottom, 0px));
+  }
+  .trip-active main {
+    padding: 12px 16px calc(var(--mobile-nav-height) + 88px);
+  }
+  .trip-active .topbar {
+    min-height: 88px;
+    height: auto;
+    padding: 12px;
+    gap: 8px;
+    border-bottom: 0;
+  }
+  .trip-active .mobile-trip-heading > span {
+    font-size: 23px;
+  }
+  .trip-active .mobile-trip-heading > small {
+    font-size: 13px;
+  }
+  .trip-active .sync-indicator {
+    font-size: 12px;
+    max-width: 100px;
+  }
+  .trip-active .tab-content {
+    padding-top: 0;
+  }
+  .trip-active .itinerary-heading {
+    margin: 0;
+  }
+  .trip-active .itinerary-heading h2 {
+    display: none;
+  }
+  .trip-active .itinerary-heading .itinerary-add {
+    position: fixed;
+    bottom: calc(var(--mobile-nav-height) + 12px);
+    left: 16px;
+    right: 16px;
+    width: calc(100% - 32px);
+    min-height: 48px;
+    z-index: 18;
+    font-size: 16px;
+    box-shadow: 0 5px 18px #0002;
+  }
+  .trip-active .itinerary-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    margin-bottom: 0;
+    gap: 8px;
+  }
+  .trip-active .itinerary-toolbar .segmented {
+    flex: 1;
+    width: auto;
+    min-width: 0;
+  }
+  .trip-active .itinerary-toolbar .segmented button {
+    flex: 1;
+    min-width: 0;
+    min-height: 40px;
+    padding: 8px;
+    font-size: 14px;
+  }
+  .trip-active .itinerary-tools {
+    margin: 0;
+  }
+  .trip-active .itinerary-tools .button {
+    padding: 8px;
+    font-size: 13px;
+  }
+  .trip-active .scroll-rail:has(> .agenda-days) {
+    margin: 12px 0 8px;
+  }
+  .trip-active .scroll-rail > .agenda-days {
+    gap: 2px;
+    padding: 4px 0 8px;
+    scrollbar-width: none;
+  }
+  .trip-active .agenda-days button {
+    flex: 0 0 calc((100% - 12px) / 7);
+    min-width: 32px;
+    min-height: 64px;
+    padding: 4px 0;
+    border: 0;
+    background: transparent;
+    border-radius: 24px;
+  }
+  .trip-active .agenda-days button b {
+    font-size: 12px;
+    font-weight: 500;
+    text-transform: uppercase;
+  }
+  .trip-active .agenda-days button .day-number {
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    margin: 2px auto;
+    border-radius: 50%;
+    font-size: 18px;
+  }
+  .trip-active .agenda-days button .day-label-full {
+    display: none;
+  }
+  .trip-active .agenda-days button.active {
+    background: transparent;
+    box-shadow: none;
+    color: var(--green);
+  }
+  .trip-active .agenda-days button.active .day-number {
+    background: var(--action);
+    color: var(--action-text);
+  }
+  .trip-active .agenda-days button i {
+    position: static;
+    margin: 3px auto 0;
+  }
+  .agenda-view .day-heading {
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    padding: 8px 0;
+    margin: 0 0 6px;
+  }
+  .agenda-view .day-heading .day-title {
+    display: none;
+  }
+  .agenda-view .day-heading .day-context {
+    display: block;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--green);
+  }
+  .agenda-view .agenda-day-actions {
+    gap: 4px;
+  }
+  .agenda-view .agenda-day-actions .button {
+    font-size: 12px;
+    padding: 6px;
+  }
+  .agenda-view .agenda-day-actions .pill {
+    font-size: 12px;
+    padding: 6px 8px;
+  }
+  .agenda-view .plan-card .plan-main,
+  .agenda-view .plan-card.can-reorder .plan-main,
+  .agenda-view .plan-card.no-summary:not(.is-expanded) .plan-main {
+    padding: 18px 10px 18px 56px;
+    min-height: 76px;
+  }
+  .agenda-view .plan-top {
+    gap: 7px;
+  }
+  .agenda-view .plan-top h3 {
+    font-size: 16px;
+    line-height: 1.4;
+  }
+  .agenda-view .plan-top .type-icon,
+  .agenda-view .plan-card.no-summary:not(.is-expanded) .type-icon {
+    left: 10px;
+    top: 19px;
+    width: 34px;
+    height: 34px;
+  }
+  .agenda-view .plan-top .plan-time {
+    font-size: 13px;
+  }
+  .agenda-view .activity-chevron {
+    width: 14px;
+  }
+  .agenda-view .plan-card .plan-actions {
+    padding-left: 52px;
+  }
+  .agenda-view .day-aside {
+    display: none;
+  }
+  .trip-active .section-navigation {
+    height: var(--mobile-nav-height);
+    padding: 0 8px env(safe-area-inset-bottom, 0px);
+    overflow: visible;
+  }
+  .trip-active .section-navigation > .tabs {
+    display: flex;
+    height: 72px;
+    overflow: visible;
+    gap: 2px;
+    padding: 5px 0;
+  }
+  .trip-active .section-navigation .tabs > button {
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 60px;
+    padding: 8px 3px;
+    font-size: 12px;
+  }
+  .trip-active .section-navigation .section-tab-packing,
+  .trip-active .section-navigation .section-tab-members {
+    display: none;
+  }
+  .mobile-more {
+    display: block;
+    flex: 1 1 0;
+    min-width: 0;
+  }
+  .mobile-more summary {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    height: 60px;
+    border-radius: 12px;
+    font-size: 12px;
+    color: var(--muted);
+    cursor: pointer;
+    list-style: none;
+  }
+  .mobile-more summary::-webkit-details-marker {
+    display: none;
+  }
+  .mobile-more[open] summary,
+  .tabs:has(.section-tab-packing.active) .mobile-more summary,
+  .tabs:has(.section-tab-members.active) .mobile-more summary {
+    background: var(--green-soft);
+    color: var(--green);
+  }
+  .more-sections {
+    position: fixed;
+    right: 12px;
+    bottom: calc(var(--mobile-nav-height) + 8px);
+    display: grid;
+    min-width: 200px;
+    padding: 6px;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: var(--surface);
+    box-shadow: 0 8px 30px #0003;
+  }
+  .more-sections button {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px;
+    min-height: 48px;
+    border: 0;
+    border-radius: 9px;
+    background: transparent;
+    text-align: left;
+    font-size: 15px;
+  }
+  .more-sections button:hover {
+    background: var(--green-soft);
+  }
+  .trip-active .section-navigation .grow,
+  .trip-active .section-navigation .trip-role,
+  .trip-active .section-navigation .rail-arrow {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .activity-chevron {
+    transition: none;
+  }
+}

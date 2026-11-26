@@ -94,6 +94,7 @@ export default function App() {
     [tripId, setTripId] = useState(localStorage.getItem("wayfarer-trip") || ""),
     [tab, setTab] = useState("itinerary"),
     [tripDetails, setTripDetails] = useState(false),
+    [moreSectionsOpen, setMoreSectionsOpen] = useState(false),
     [ideaPlanDate, setIdeaPlanDate] = useState<string>(),
     [choosingCover, setChoosingCover] = useState(false),
     [overview, setOverview] = useState(false),
@@ -871,7 +872,10 @@ export default function App() {
                     aria-current={tab === id ? "page" : undefined}
                     key={id}
                     onClick={() => setTab(id)}
-                    className={tab === id ? "active" : ""}
+                    className={
+                      (tab === id ? "active " : "") +
+                      `section-tab section-tab-${id}`
+                    }
                   >
                     <Icon size={17} />
                     <span className="tab-label-full">{label}</span>
@@ -881,6 +885,37 @@ export default function App() {
                     {id === "members" && <span>{trip.people.length}</span>}
                   </button>
                 ))}
+                <details
+                  className="mobile-more"
+                  onToggle={(event) =>
+                    setMoreSectionsOpen(event.currentTarget.open)
+                  }
+                >
+                  <summary aria-label="More sections">
+                    <MoreHorizontal size={20} />
+                    <span>More</span>
+                  </summary>
+                  <div className="more-sections" hidden={!moreSectionsOpen}>
+                    {tabs
+                      .filter(([id]) => id === "packing" || id === "members")
+                      .map(([id, label, Icon]) => (
+                        <button
+                          key={id}
+                          aria-label={`Open ${label}`}
+                          aria-current={tab === id ? "page" : undefined}
+                          onClick={(event) => {
+                            setTab(id);
+                            event.currentTarget
+                              .closest("details")
+                              ?.removeAttribute("open");
+                          }}
+                        >
+                          <Icon size={18} />
+                          {label}
+                        </button>
+                      ))}
+                  </div>
+                </details>
                 <span className="grow" />
                 <span className="trip-role">{role} access</span>
               </ScrollRail>

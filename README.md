@@ -35,13 +35,13 @@ Route proposals open through **Optimize day** on desktop or **Route** on mobile.
 The phone interface prioritizes the current section instead of repeating the full trip banner:
 
 - **Trip header:** the trip name and dates stay at the top. Tap the name to reveal or hide the cover, trip summary, and owner controls such as Change cover and Edit trip.
-- **Bottom navigation:** Itinerary, Map, Ideas, Expenses, Packing, and Members stay within reach while scrolling. The selected section is highlighted.
-- **Itinerary:** switch between Day plan, Whole trip, and Saved; select a date from the compact calendar strip. Activity rows show the title, start time, duration, and location/type. Expand a row for additional details and the original move-up, move-down, edit, move/duplicate, and delete icons when permitted. Empty details and repeated duration fields are omitted.
-- **Travel:** tap the line between activities to choose a travel method, calculate an estimate, or save a manual duration. **Route** opens a proposal for review before applying it.
+- **Bottom navigation:** Itinerary, Map, Ideas, Expenses, and More stay within reach while scrolling. More opens Packing and Members; the selected section is highlighted.
+- **Itinerary:** switch between Day plan, Whole trip, and Saved; select a date from the compact calendar strip. Activity rows show each plan once, with its title and start time. Expand a row for its duration, location, notes, travel settings, and additional details and the original move-up, move-down, edit, move/duplicate, and delete icons when permitted. Empty details and repeated duration fields are omitted.
+- **Travel:** open an activity and its travel settings to choose a travel method, calculate an estimate, or save a manual duration. Travel settings no longer add a separate row between every pair of plans. **Route** opens a proposal for review before applying it.
 - **Secondary tools:** planned costs, expense details, packing templates, and help expand when needed. Expense totals distinguish actual spending, remaining budget, and estimates.
 - **Status:** the top status control opens synchronization/account details. Short phone labels such as Synced, Saved locally, and Offline retain the full status as an accessible label.
 
-Mobile layouts retain browser zoom and readable form inputs, use safe-area spacing for bottom navigation, and support Light, Dark, and System appearance. Desktop retains its sidebar, trip banner, and section tabs.
+Mobile layouts retain browser zoom and readable form inputs, use safe-area spacing for bottom navigation, and support Light, Dark, and System appearance. Desktop keeps a sidebar, scrollable date cards, the agenda on the left, and the day map on the right. The trip-name dropdown reveals the cover and trip controls on mobile and desktop. Light and dark appearances share the same compact layout.
 
 ## Run locally
 
