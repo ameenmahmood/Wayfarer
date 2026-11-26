@@ -131,6 +131,15 @@ beforeAll(async () => {
       "utf8",
     ),
   );
+  await db.exec(
+    readFileSync(
+      new URL(
+        "../supabase/migrations/014_standalone_planned_costs.sql",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  );
   await actor(owner);
   await change("trip", tripId, {
     title: "Shared Japan",
@@ -444,4 +453,42 @@ it("prevents a removed member from rejoining with a pending invitation to their 
       editor,
     ]);
   }
+});
+
+it("stores standalone planned costs and rejects invalid amounts or titles", async () => {
+  const { write } = await workspace();
+  const result = await write("plannedCost", randomUUID(), {
+    title: "Airport taxi",
+    cost: 8500,
+    currency: "USD",
+  });
+  expect(result.conflict).toBe(false);
+  for (const data of [
+    { title: " ", cost: 8500, currency: "USD" },
+    { title: "Taxi", cost: -1, currency: "USD" },
+    { title: "Taxi", cost: 1.5, currency: "USD" },
+    { title: "Taxi", cost: "85", currency: "USD" },
+    { title: "Taxi", cost: 85, currency: "bad" },
+  ])
+    await expect(write("plannedCost", randomUUID(), data)).rejects.toThrow();
+});
+
+it("allows editors and blocks viewers or outsiders from standalone planned costs", async () => {
+  const { t, write } = await workspace();
+  await rpc(
+    "insert into memberships values ($1,$2,'friend@example.test','editor'),($1,$3,'viewer@example.test','viewer')",
+    [t, editor, viewer],
+  );
+  const data = { title: "Taxi", cost: 8500, currency: "USD" };
+  await actor(editor);
+  const id = randomUUID();
+  const created = await write("plannedCost", id, data);
+  expect(created.conflict).toBe(false);
+  await actor(viewer);
+  await expect(
+    write("plannedCost", id, { ...data, cost: 9000 }, created.entity.version),
+  ).rejects.toThrow();
+  await expect(write("plannedCost", randomUUID(), data)).rejects.toThrow();
+  await actor(stranger);
+  await expect(write("plannedCost", randomUUID(), data)).rejects.toThrow();
 });

@@ -7536,9 +7536,9 @@ html {
 .planned-cost-row small { display: block; color: var(--muted); }
 .planned-cost-content > small { display: block; margin-top: 10px; }
 .planned-cost-form-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: stretch;
   gap: 8px;
   margin-top: 16px;
 }
@@ -7549,7 +7549,15 @@ html {
   }
   .planned-cost-form-actions .button { width: 100%; }
 }
-.planned-cost-form-actions .button {
-  min-height: 44px;
+.trip-active .planned-cost-form-actions button.button {
+  width: 100%;
+  min-height: 52px;
+  font-size: 14px;
+  height: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
   justify-content: center;
+  text-align: center;
+  white-space: normal;
+  line-height: 1.3;
 }

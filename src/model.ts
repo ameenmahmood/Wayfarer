@@ -1,6 +1,13 @@
 export type Role = "owner" | "editor" | "viewer";
 export type Kind =
-  "trip" | "entry" | "expense" | "repayment" | "packing" | "template" | "idea";
+  | "trip"
+  | "entry"
+  | "expense"
+  | "repayment"
+  | "packing"
+  | "template"
+  | "idea"
+  | "plannedCost";
 export type Person = { id: string; name: string; email?: string; role: Role };
 export type Trip = {
   cover?: { id: string; position: number };
@@ -15,6 +22,7 @@ export type Trip = {
   people: Person[];
   description: string;
 };
+export type PlannedCost = { title: string; cost: number; currency: string };
 export type Idea = {
   title: string;
   category:

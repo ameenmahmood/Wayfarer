@@ -970,6 +970,9 @@ export default function App() {
                       trip={trip}
                       tripEntity={tripEntity}
                       expenses={expenses}
+                      plannedCosts={scoped.filter(
+                        (e) => e.kind === "plannedCost",
+                      )}
                       repayments={repayments}
                       entries={entries}
                       canEdit={canEdit}

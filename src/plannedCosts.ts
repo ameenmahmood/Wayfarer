@@ -1,8 +1,10 @@
-import type { Entity, Entry } from "./model";
+import type { Entity } from "./model";
 
 // Collaborators converting the same saved estimate create the same expense ID.
 // The normal version checks then surface a conflict instead of duplicate spending.
-export async function plannedExpenseId(entry: Entity<Entry>) {
+export async function plannedExpenseId(
+  entry: Pick<Entity, "id" | "tripId" | "version">,
+) {
   const bytes = await crypto.subtle.digest(
     "SHA-256",
     new TextEncoder().encode(

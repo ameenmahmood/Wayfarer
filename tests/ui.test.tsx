@@ -156,7 +156,7 @@ it("manual itinerary editing, duplication and removal work, while unavailable ne
   ).toBeTruthy();
 });
 
-it("planned costs expands by mouse and keyboard and saves an activity estimate without changing actual spending", async () => {
+it("planned costs expands by mouse and keyboard and saves a standalone estimate without changing actual spending", async () => {
   const u = await openApp();
   await u.click(screen.getByRole("button", { name: "Expenses" }));
   const toggle = await screen.findByRole("button", {
@@ -167,28 +167,27 @@ it("planned costs expands by mouse and keyboard and saves an activity estimate w
   expect(toggle.getAttribute("aria-expanded")).toBe("true");
   await u.click(screen.getByRole("button", { name: "Add planned cost" }));
   const { all } = await import("../src/store");
-  const id = (dialog().getByLabelText("Activity") as HTMLSelectElement).value;
-  const original = (await all()).find((entry) => entry.id === id)!;
+  await u.type(dialog().getByLabelText("Title"), "Independent estimate");
+  expect(dialog().queryByLabelText("Activity")).toBeNull();
   await u.clear(dialog().getByLabelText("Estimated amount"));
   await u.type(dialog().getByLabelText("Estimated amount"), "12345");
   await u.click(dialog().getByRole("button", { name: "Save planned cost" }));
   await waitFor(async () =>
-    expect((await all()).find((entry) => entry.id === id)?.data.cost).toBe(
-      12345,
-    ),
+    expect(
+      (await all()).find(
+        (entry) =>
+          entry.kind === "plannedCost" &&
+          entry.data.title === "Independent estimate",
+      )?.data.cost,
+    ).toBe(1234500),
   );
   expect(screen.getAllByText("$80.40").length).toBeGreaterThan(0);
   await u.click(
     screen.getByRole("button", {
-      name: `Edit planned cost for ${original.data.title}`,
+      name: "Edit planned cost for Independent estimate",
     }),
   );
-  await u.clear(dialog().getByLabelText("Estimated amount"));
-  await u.type(
-    dialog().getByLabelText("Estimated amount"),
-    String(original.data.cost),
-  );
-  await u.click(dialog().getByRole("button", { name: "Save planned cost" }));
+  await u.click(dialog().getByRole("button", { name: "Delete planned cost" }));
   await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   toggle.focus();
   await u.keyboard("{Enter}");
@@ -228,7 +227,7 @@ it("deletes only a planned estimate and converts it to one actual expense after 
     expect(current.deleted).toBe(false);
   });
   await u.click(screen.getByRole("button", { name: "Add planned cost" }));
-  await u.selectOptions(dialog().getByLabelText("Activity"), source.id);
+  await u.type(dialog().getByLabelText("Title"), "UI planned payment");
   await u.clear(dialog().getByLabelText("Estimated amount"));
   await u.type(dialog().getByLabelText("Estimated amount"), "85");
   await u.click(dialog().getByRole("button", { name: "Save planned cost" }));
@@ -245,12 +244,18 @@ it("deletes only a planned estimate and converts it to one actual expense after 
   );
   await dialog().findByLabelText("Merchant / title");
   await u.click(dialog().getByRole("button", { name: "Close dialog" }));
-  expect((await all()).find((entry) => entry.id === source.id)?.data.cost).toBe(
-    8500,
-  );
+  expect(
+    (await all()).find(
+      (entry) =>
+        entry.kind === "plannedCost" &&
+        !entry.deleted &&
+        entry.data.title === "UI planned payment",
+    )?.data.cost,
+  ).toBe(8500);
   expect(
     (await all()).filter(
-      (entry) => entry.kind === "expense" && entry.data.entryId === source.id,
+      (entry) =>
+        entry.kind === "expense" && entry.data.title === "UI planned payment",
     ),
   ).toHaveLength(0);
   await u.click(
@@ -269,7 +274,7 @@ it("deletes only a planned estimate and converts it to one actual expense after 
   const actual = rows.filter(
     (entry) =>
       entry.kind === "expense" &&
-      entry.data.entryId === source.id &&
+      entry.data.title === "UI planned payment" &&
       !entry.deleted,
   );
   expect(actual).toHaveLength(1);

@@ -9,7 +9,14 @@ import {
   Pencil,
   History,
 } from "lucide-react";
-import type { Entity, Expense, Repayment, Trip, Entry } from "./model";
+import type {
+  Entity,
+  Expense,
+  Repayment,
+  Trip,
+  Entry,
+  PlannedCost,
+} from "./model";
 import { makeEntity, today, currencies } from "./model";
 import { save, saveBatch, remove } from "./store";
 import { plannedExpenseId } from "./plannedCosts";
@@ -22,6 +29,7 @@ export default function Budget({
   tripEntity,
   expenses,
   repayments,
+  plannedCosts,
   entries,
   canEdit,
   canManageBudget,
@@ -30,6 +38,7 @@ export default function Budget({
   tripEntity: Entity<Trip>;
   expenses: Entity<Expense>[];
   repayments: Entity<Repayment>[];
+  plannedCosts: Entity<PlannedCost>[];
   entries: Entity<Entry>[];
   canEdit: boolean;
   canManageBudget: boolean;
@@ -43,8 +52,8 @@ export default function Budget({
     }>(),
     [budgeting, setBudgeting] = useState(false),
     [plannedOpen, setPlannedOpen] = useState(false),
-    [plannedEntry, setPlannedEntry] = useState<Entity<Entry>>(),
-    [converting, setConverting] = useState<Entity<Entry>>(),
+    [plannedEntry, setPlannedEntry] = useState<Entity<Entry | PlannedCost>>(),
+    [converting, setConverting] = useState<Entity<Entry | PlannedCost>>(),
     a = useAsyncAction();
   const r = report(
     expenses.map((e) => e.data),
@@ -52,6 +61,14 @@ export default function Budget({
     trip.currency,
     trip.people.map((p) => p.id),
   );
+  const estimates = [
+    ...entries.filter((entry) => entry.data.cost > 0),
+    ...plannedCosts,
+  ];
+  const clearedEstimate = (source: Entity<Entry | PlannedCost>) =>
+    source.kind === "entry"
+      ? { ...source, data: { ...source.data, cost: 0 } }
+      : { ...source, deleted: true };
   const coverage = expenseSettlements(expenses, repayments, trip.currency);
   const name = (id: string) =>
     trip.people.find((p) => p.id === id)?.name || "Former traveler";
@@ -147,14 +164,14 @@ export default function Budget({
           id="planned-cost-content"
           hidden={!plannedOpen}
         >
-          {!entries.some((entry) => entry.data.cost > 0) && (
+          {!estimates.length && (
             <p className="muted">
-              No planned costs yet. Add an estimate to an itinerary activity.
+              No planned costs yet. Add a title and an estimate.
             </p>
           )}
           <div className="button-row">
             {Object.entries(
-              entries.reduce(
+              estimates.reduce(
                 (totals, e) => {
                   if (!e.data.cost) return totals;
                   totals[e.data.currency] =
@@ -167,38 +184,47 @@ export default function Budget({
               <span key={currency}>{money(total, currency)}</span>
             ))}
           </div>
-          {entries
-            .filter((entry) => entry.data.cost > 0)
-            .map((entry) => (
-              <div className="planned-cost-row" key={entry.id}>
-                <div className="grow">
-                  <b>{entry.data.title}</b>
-                  <small>{entry.data.date || "Saved place"}</small>
-                </div>
-                <b>{money(entry.data.cost, entry.data.currency)}</b>
-                {canEdit && (
-                  <button
-                    className="icon-button"
-                    aria-label={`Edit planned cost for ${entry.data.title}`}
-                    onClick={() => setPlannedEntry(entry)}
-                  >
-                    <Pencil size={15} />
-                  </button>
-                )}
+          {estimates.map((entry) => (
+            <div className="planned-cost-row" key={entry.id}>
+              <div className="grow">
+                <b>{entry.data.title}</b>
+                <small>
+                  {"date" in entry.data
+                    ? String(entry.data.date || "Saved place")
+                    : "Planned expense"}
+                </small>
               </div>
-            ))}
-          {canEdit && entries.length > 0 && (
-            <Button onClick={() => setPlannedEntry(entries[0])}>
+              <b>{money(entry.data.cost, entry.data.currency)}</b>
+              {canEdit && (
+                <button
+                  className="icon-button"
+                  aria-label={`Edit planned cost for ${entry.data.title}`}
+                  onClick={() => setPlannedEntry(entry)}
+                >
+                  <Pencil size={15} />
+                </button>
+              )}
+            </div>
+          ))}
+          {canEdit && (
+            <Button
+              onClick={() =>
+                setPlannedEntry(
+                  makeEntity("plannedCost", tripEntity.id, {
+                    title: "",
+                    cost: 0,
+                    currency: trip.currency,
+                  }),
+                )
+              }
+            >
               <Plus size={15} />
               Add planned cost
             </Button>
           )}
-          {entries.length === 0 && (
-            <p>Add an itinerary activity first to attach a planned cost.</p>
-          )}
           <small>
-            Estimates use original currencies. Use Move to actual expense when
-            a planned cost has been paid.
+            Estimates use original currencies. Use Move to actual expense when a
+            planned cost has been paid.
           </small>
         </div>
       </section>
@@ -499,10 +525,7 @@ export default function Budget({
       )}
       {a.error && <Notice tone="error">{a.error}</Notice>}
       {plannedEntry && (
-        <Modal
-          title="Planned activity cost"
-          onClose={() => setPlannedEntry(undefined)}
-        >
+        <Modal title="Planned cost" onClose={() => setPlannedEntry(undefined)}>
           <form
             onSubmit={(event) => {
               event.preventDefault();
@@ -510,30 +533,36 @@ export default function Budget({
               a.run(async () => {
                 const currency = String(form.get("currency"));
                 const cost = minor(String(form.get("cost")), currency);
-                await save({
-                  ...plannedEntry,
-                  data: { ...plannedEntry.data, cost, currency },
-                });
+                const title = String(form.get("title") || "").trim();
+                if (!title) throw Error("Enter a title for this planned cost.");
+                if (plannedEntry.kind === "entry") {
+                  await saveBatch([
+                    makeEntity("plannedCost", tripEntity.id, {
+                      title,
+                      cost,
+                      currency,
+                    }),
+                    clearedEstimate(plannedEntry),
+                  ]);
+                } else {
+                  await save({
+                    ...plannedEntry,
+                    data: { title, cost, currency },
+                  });
+                }
                 setPlannedEntry(undefined);
                 setPlannedOpen(true);
               });
             }}
           >
-            <Field label="Activity">
-              <select
-                value={plannedEntry.id}
-                onChange={(event) =>
-                  setPlannedEntry(
-                    entries.find((entry) => entry.id === event.target.value),
-                  )
-                }
-              >
-                {entries.map((entry) => (
-                  <option key={entry.id} value={entry.id}>
-                    {entry.data.title}
-                  </option>
-                ))}
-              </select>
+            <Field label="Title">
+              <input
+                name="title"
+                required
+                maxLength={200}
+                defaultValue={plannedEntry.data.title}
+                placeholder="e.g. Airport taxi"
+              />
             </Field>
             <Field label="Estimated amount">
               <input
@@ -572,6 +601,9 @@ export default function Budget({
                   if (!form.reportValidity()) return;
                   const fields = new FormData(form);
                   a.run(async () => {
+                    const title = String(fields.get("title") || "").trim();
+                    if (!title)
+                      throw Error("Enter a title for this planned cost.");
                     const currency = String(fields.get("currency"));
                     const cost = minor(String(fields.get("cost")), currency);
                     if (!cost)
@@ -580,12 +612,16 @@ export default function Budget({
                       );
                     const expense = makeEntity("expense", tripEntity.id, {
                       ...newExpense(trip),
-                      title: plannedEntry.data.title,
+                      title,
                       currency,
                       total: cost,
-                      entryId: plannedEntry.id,
-                      category:
-                        plannedEntry.data.type === "Restaurant"
+                      entryId:
+                        plannedEntry.kind === "entry"
+                          ? plannedEntry.id
+                          : undefined,
+                      category: !("type" in plannedEntry.data)
+                        ? "Other"
+                        : plannedEntry.data.type === "Restaurant"
                           ? "Food"
                           : plannedEntry.data.type === "Lodging"
                             ? "Stay"
@@ -609,10 +645,8 @@ export default function Budget({
                 disabled={a.busy}
                 onClick={() =>
                   a.run(async () => {
-                    await save({
-                      ...plannedEntry,
-                      data: { ...plannedEntry.data, cost: 0 },
-                    });
+                    if (plannedEntry.version)
+                      await save(clearedEstimate(plannedEntry));
                     setPlannedEntry(undefined);
                   })
                 }
@@ -645,10 +679,7 @@ export default function Budget({
             onSave={
               converting
                 ? async (expense) => {
-                    await saveBatch([
-                      expense,
-                      { ...converting, data: { ...converting.data, cost: 0 } },
-                    ]);
+                    await saveBatch([expense, clearedEstimate(converting)]);
                   }
                 : undefined
             }
