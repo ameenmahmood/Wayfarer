@@ -558,6 +558,43 @@ it("loads Google name and address on request while automatic lookups use coordin
   });
 });
 
+it("actionable overlap alerts open and focus the relevant activity", async () => {
+  backend.session = { user: { id: "owner-test", email: "owner@example.test" } };
+  backend.records = seed();
+  const entries = backend.records.filter(
+    (record) =>
+      record.kind === "entry" &&
+      record.data.date === "2027-04-12" &&
+      record.data.type !== "Lodging",
+  );
+  entries[0].data = {
+    ...entries[0].data,
+    type: "Activity",
+    start: "09:00",
+    duration: 60,
+  };
+  entries[1].data = {
+    ...entries[1].data,
+    type: "Activity",
+    start: "09:30",
+    duration: 60,
+  };
+  render(<App />);
+  const u = userEvent.setup();
+  await u.click(
+    await screen.findByRole("button", { name: /alerts need attention/ }),
+  );
+  const alert = screen.getByRole("button", {
+    name: /Activities overlap.*Review times/,
+  });
+  await u.click(alert);
+  const card = document.getElementById(entries[1].id)!;
+  expect(card.classList.contains("is-expanded")).toBe(true);
+  await waitFor(() =>
+    expect(document.activeElement).toBe(card.querySelector(".plan-main")),
+  );
+});
+
 it("collapses and expands desktop navigation, remembers the preference, and keeps account screens closed", async () => {
   const u = await openApp();
   const collapse = screen.getByRole("button", { name: "Collapse sidebar" });

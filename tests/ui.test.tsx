@@ -238,6 +238,14 @@ it("adds an explicit transport without shifting the existing activities", async 
     screen.getByRole("button", { name: "Details for UI explicit transport" }),
   );
   expect(
+    screen.queryByRole("form", { name: "Transport for UI explicit transport" }),
+  ).toBeNull();
+  await u.click(
+    screen.getByRole("button", {
+      name: "Edit transport UI explicit transport",
+    }),
+  );
+  expect(
     screen.getByRole("form", { name: "Transport for UI explicit transport" }),
   ).toBeTruthy();
   expect(screen.getByText("45 min manual")).toBeTruthy();
@@ -565,35 +573,32 @@ it("opens secondary sections from More and closes the dropdown after selection",
   );
 });
 
-it("trip context opens from the itinerary header and resets when switching sections", async () => {
+it("trip dropdown shows destination imagery, opens details, and resets after section changes", async () => {
   localStorage.setItem("wayfarer-trip", "demo-japan");
   const u = await openApp();
-  const itineraryContext = screen.getByRole("button", {
-    name: "Trip details for A little lost in Japan",
-  });
-  expect(itineraryContext.getAttribute("aria-expanded")).toBe("false");
-  await u.click(itineraryContext);
-  expect(itineraryContext.getAttribute("aria-expanded")).toBe("true");
-  await u.click(screen.getByRole("button", { name: "Ideas" }));
-  const toggle = await screen.findByRole("button", {
-    name: "Trip details for A little lost in Japan",
+  const toggle = screen.getByRole("button", {
+    name: "Switch trip: A little lost in Japan",
   });
   expect(toggle.getAttribute("aria-expanded")).toBe("false");
   await u.click(toggle);
-  expect(toggle.getAttribute("aria-expanded")).toBe("true");
+  expect(document.querySelector(".trip-switcher-photo img")).toBeTruthy();
+  await u.click(screen.getByRole("button", { name: "Trip details" }));
   expect(
     document
       .querySelector(".app-shell")
       ?.classList.contains("show-trip-details"),
   ).toBe(true);
-  await u.click(screen.getByRole("button", { name: "Packing list" }));
-  await screen.findByRole("heading", { name: "Packing list" });
+  expect(toggle.getAttribute("aria-expanded")).toBe("false");
+  await u.click(screen.getByRole("button", { name: "Ideas" }));
   expect(
-    screen
-      .getByRole("button", { name: "Trip details for A little lost in Japan" })
-      .getAttribute("aria-expanded"),
-  ).toBe("false");
-  expect(document.querySelector(".section-navigation")).toBeTruthy();
+    document
+      .querySelector(".app-shell")
+      ?.classList.contains("show-trip-details"),
+  ).toBe(false);
+  await u.click(toggle);
+  await u.keyboard("{Escape}");
+  expect(toggle.getAttribute("aria-expanded")).toBe("false");
+  expect(document.activeElement).toBe(toggle);
 });
 
 it("groups the whole trip under independently collapsible day headers and adds plans to the chosen day", async () => {
@@ -632,4 +637,19 @@ it("focused map exposes View directly without fit, transport, or add-plan menus"
   expect(screen.getByLabelText("Map view")).toHaveProperty("value", "all");
   await u.selectOptions(screen.getByLabelText("Map view"), "day");
   expect(screen.getByLabelText("Map day")).toBeTruthy();
+});
+
+it("new flexible plans start without an invented time", async () => {
+  const u = await openApp();
+  await u.click(screen.getByRole("button", { name: "Add a plan" }));
+  expect(dialog().getByLabelText("Start time hour")).toHaveProperty(
+    "value",
+    "",
+  );
+  await u.type(dialog().getByLabelText("Title"), "Flexible lunch");
+  await u.click(dialog().getByRole("button", { name: "Save to itinerary" }));
+  const row = (
+    await screen.findByRole("heading", { name: "Flexible lunch" })
+  ).closest("article")!;
+  expect(within(row).getByText("Anytime")).toBeTruthy();
 });

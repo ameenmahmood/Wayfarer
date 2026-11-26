@@ -60,6 +60,9 @@ beforeEach(() => {
           polylines.push(this);
         }
         setMap = vi.fn();
+        setOptions = vi.fn((options: any) => {
+          Object.assign(this.options, options);
+        });
         addListener = vi.fn();
       },
     },
@@ -73,6 +76,30 @@ beforeEach(() => {
       return { warnings: [], polyline: "", minutes: 45 };
     },
   );
+});
+
+it("highlights a selected transport route without requesting a new estimate", async () => {
+  service.api.mockResolvedValue({
+    minutes: 45,
+    polyline: "ground",
+    warnings: [],
+  });
+  const a = entry("Pickup", ""),
+    b = entry("Destination", "");
+  a.data.lat = 4.63;
+  a.data.lng = -75.57;
+  b.data.lat = 4.67;
+  b.data.lng = -75.65;
+  const ride = transport(a, b);
+  const props = { entries: [a, b, ride], tripId: "trip", onSelect: vi.fn() };
+  const { rerender } = render(<MapPanel {...props} selected="" />);
+  await waitFor(() => expect(polylines).toHaveLength(1), { timeout: 2500 });
+  expect(polylines[0].options.strokeWeight).toBe(3);
+  rerender(<MapPanel {...props} selected={ride.id} />);
+  await waitFor(() => expect(polylines[0].options.strokeWeight).toBe(6));
+  expect(
+    service.api.mock.calls.filter((call) => call[0] === "route"),
+  ).toHaveLength(1);
 });
 afterEach(cleanup);
 it("does not construct a map or fetch places before owner approval", async () => {

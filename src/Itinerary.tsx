@@ -1,4 +1,6 @@
-import { displayNameFor } from "./profiles";
+import ActivityDetails from "./ActivityDetails";
+import { activityTime, itineraryAlerts } from "./itineraryPresentation";
+import { transportDirections } from "./transport";
 import MapWorkspace from "./MapWorkspace";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -9,7 +11,6 @@ import {
   Trash2,
   Pencil,
   MapPin,
-  Clock,
   Plane,
   Building2,
   Utensils,
@@ -18,14 +19,14 @@ import {
   ChevronRight,
   Menu as DragHandleIcon,
   ChevronDown,
-  ExternalLink,
   CalendarDays,
   Car,
+  TriangleAlert,
+  X,
 } from "lucide-react";
 import { days, makeEntity, type Entity, type Trip, type Entry } from "./model";
-import { api, save, remove, userId, demo } from "./store";
-import { warnings, entryBounds, formatTime } from "./schedule";
-import { money } from "./money";
+import { api, save, remove, demo } from "./store";
+
 import { EntryForm } from "./Forms";
 import {
   Button,
@@ -37,9 +38,9 @@ import {
   ScrollRail,
 } from "./ui";
 import MapPanel from "./MapPanel";
-import TransportEditor, { LegacyTravelDetails } from "./TransportEditor";
+import TransportEditor, { TransportFields } from "./TransportEditor";
 import { useTransportRoutes } from "./transportRoutes";
-import { flightTimingParts } from "./flights";
+
 import { preservesTransfers } from "./transfers";
 import NearbyPlaces from "./NearbyPlaces";
 import { createCoordinateLookup } from "./placeCoordinates";
@@ -110,6 +111,7 @@ export default function Itinerary({
     [view, setView] = useState("day"),
     [selected, setSelected] = useState(""),
     [expandedEntry, setExpandedEntry] = useState<string>(),
+    [editingTransport, setEditingTransport] = useState<string>(),
     [reordering, setReordering] = useState(false),
     [collapsedDays, setCollapsedDays] = useState<Record<string, boolean>>({}),
     [editing, setEditing] = useState<Entity<Entry>>(),
@@ -147,49 +149,31 @@ export default function Itinerary({
       : filtered.flatMap(({ data }) => (data.placeId ? [data.placeId] : [])),
   );
   const transportEstimates = useTransportRoutes(filtered, entries);
-  const dayEntries = filtered.filter(
-    (e) => e.data.date === date && e.data.endDate <= date,
-  );
-  const alerts = (() => {
-    try {
-      const checks = warnings(
-        dayEntries
-          .filter(
-            (e) =>
-              e.data.type !== "Transportation" ||
-              e.data.end ||
-              transportEstimates[e.id]?.minutes,
-          )
-          .map((e) =>
-            e.data.type === "Transportation" &&
-            !e.data.end &&
-            transportEstimates[e.id]?.minutes
-              ? { ...e.data, duration: transportEstimates[e.id].minutes! }
-              : e.data,
-          ),
-        mode,
-        undefined,
-        () => 0,
-      );
-      return [
-        ...checks,
-        ...dayEntries
-          .filter(
-            (e) =>
-              e.data.type === "Transportation" &&
-              !transportEstimates[e.id]?.minutes,
-          )
-          .map(
-            (e) =>
-              `${e.data.title}: ${transportEstimates[e.id]?.error || "travel estimate pending."}`,
-          ),
-      ];
-    } catch {
-      return [
-        "An entry has an invalid local time. Edit it to resolve the schedule.",
-      ];
-    }
-  })();
+  const dayEntries = filtered.filter((e) => e.data.date === date);
+  const alerts = itineraryAlerts(dayEntries, entries, transportEstimates);
+  function revealEntry(id: string, edit = false) {
+    setSelected(id);
+    setExpandedEntry(id);
+    setEditingTransport(
+      edit && entries.find((e) => e.id === id)?.data.type === "Transportation"
+        ? id
+        : undefined,
+    );
+    const day = entries.find((e) => e.id === id)?.data.date;
+    if (day) setCollapsedDays((current) => ({ ...current, [day]: false }));
+    requestAnimationFrame(() => {
+      const card = document.getElementById(id);
+      card?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      card
+        ?.querySelector<HTMLElement>(".plan-main")
+        ?.focus({ preventScroll: true });
+    });
+  }
+  useEffect(() => {
+    setShowWarnings(false);
+    setExpandedEntry(undefined);
+    setEditingTransport(undefined);
+  }, [date, view]);
   const add = (d = date, type = "Activity") =>
     setEditing(
       makeEntity("entry", tripId, {
@@ -200,7 +184,7 @@ export default function Itinerary({
           : {}),
         date: d,
         endDate: d,
-        start: d ? "09:00" : "",
+        start: d && type === "Transportation" ? "09:00" : "",
         end: "",
         duration: 60,
         zone: trip.zone,
@@ -255,26 +239,11 @@ export default function Itinerary({
       pin = e.data.placeId
         ? placeDetails[e.data.placeId] || pins?.[e.data.placeId]
         : undefined;
-    const flightNumber = (
-      previous?.data.type === "Flight" ? previous : e
-    ).data.flight?.number?.trim();
-    const flightSummary =
-      previous?.data.flight?.arrivalId === e.id
-        ? flightTimingParts({ from: previous, to: e })
-        : undefined;
-    const flightArrival =
-      e.data.type === "Flight" && e.data.flight?.arrivalId
-        ? entries.find((entry) => entry.id === e.data.flight?.arrivalId)
-        : undefined;
     const hasSummary = Boolean(
-      pin?.displayName?.text?.trim() ||
-      pin?.formattedAddress?.trim() ||
-      e.data.address?.trim() ||
-      e.data.notes?.trim() ||
-      e.data.fixed ||
-      (e.data.type === "Flight" && e.data.flight?.number?.trim()) ||
-      flightArrival?.data.start,
+      e.data.address || e.data.notes || e.data.reservation,
     );
+    const estimate = transportEstimates[e.id];
+    const rowTime = activityTime(e.data, estimate);
     return (
       <div key={e.id} className="timeline-wrap">
         <article
@@ -345,11 +314,6 @@ export default function Itinerary({
               <DragHandleIcon size={16} aria-hidden="true" />
             </button>
           )}
-          <div className="activity-clock" aria-label={formatTime(e.data.start)}>
-            <b>{formatTime(e.data.start).replace(/ (AM|PM)$/, "")}</b>
-            {e.data.start && <span>{formatTime(e.data.start).slice(-2)}</span>}
-          </div>
-          <div className="timeline-dot">{i + 1}</div>
           <div
             aria-expanded={expandedEntry === e.id}
             aria-controls={`plan-details-${e.id}`}
@@ -359,21 +323,15 @@ export default function Itinerary({
             onKeyDown={(ev) => {
               if (ev.key === "Enter" || ev.key === " ") {
                 ev.preventDefault();
-                setSelected(e.id);
-                setExpandedEntry((current) =>
-                  current === e.id ? undefined : e.id,
-                );
+                ev.currentTarget.click();
               }
             }}
             onClick={() => {
               setSelected(e.id);
+              setEditingTransport(undefined);
               setExpandedEntry((current) =>
                 current === e.id ? undefined : e.id,
               );
-              if (mapOnly)
-                document
-                  .querySelector(".map-card")
-                  ?.scrollIntoView({ block: "nearest" });
             }}
           >
             <div className="plan-top">
@@ -381,10 +339,17 @@ export default function Itinerary({
                 <EIcon size={18} />
               </span>
               <h3>{e.data.title}</h3>
-              <span className="plan-type">{e.data.type}</span>
-              {e.data.fixed && <span className="pill">Fixed</span>}
-              <span className="plan-time">
-                {e.data.start ? formatTime(e.data.start) : "Set time"}
+              <span
+                className={`plan-time ${estimate?.minutes && e.data.type === "Transportation" ? "time-range" : ""}`}
+              >
+                {rowTime.includes("–") ? (
+                  <>
+                    <span>{rowTime.split("–")[0]}</span>
+                    <span>–{rowTime.split("–").slice(1).join("–")}</span>
+                  </>
+                ) : (
+                  rowTime
+                )}
               </span>
               <ChevronRight
                 className="activity-chevron"
@@ -392,204 +357,80 @@ export default function Itinerary({
                 aria-hidden="true"
               />
             </div>
-            {(pin?.displayName?.text || pin?.formattedAddress) && (
-              <div className="plan-google-pin">
-                {pin.displayName?.text && <b>{pin.displayName.text}</b>}
-                {pin.formattedAddress && (
-                  <>
-                    <span className="pin-address-short">
-                      {pin.formattedAddress.split(",").length > 2
-                        ? pin.formattedAddress
-                            .split(",")
-                            .slice(-3, -1)
-                            .map((part) => part.trim())
-                            .join(", ")
-                        : pin.formattedAddress}
-                    </span>
-                    <span className="pin-address-full">
-                      {pin.formattedAddress}
-                    </span>
-                  </>
-                )}
-                {pin.attributions?.map((attribution, i) => (
-                  <span key={i}>{attribution.provider}</span>
-                ))}
-                <span className="google-attribution" translate="no">
-                  Google Maps
-                </span>
-              </div>
-            )}
-            <div className="plan-summary">
-              {e.data.type === "Flight" && e.data.flight?.number && (
-                <span className="agenda-flight-number">
-                  {e.data.flight.number}
-                </span>
-              )}
-              {flightArrival?.data.start && (
-                <span className="agenda-flight-arrival">
-                  Arrives {formatTime(flightArrival.data.start)}
-                </span>
-              )}
-              <span className="compact-duration">
-                <EIcon size={14} aria-label={e.data.type} />
-                {e.data.endDate > e.data.date
-                  ? `Until ${new Date(e.data.endDate + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}`
-                  : `${e.data.duration} min`}
-              </span>
-              <span className="compact-location">
-                {pin?.displayName?.text || pin?.formattedAddress
-                  ? ""
-                  : e.data.address}
-              </span>
-              {e.data.notes && (
-                <span className="agenda-note">{e.data.notes}</span>
-              )}
-              {e.data.fixed && <span className="compact-fixed">Fixed</span>}
-            </div>
-            <div
-              className={`plan-secondary ${e.data.address || e.data.notes || e.data.cost > 0 || e.data.reservation || e.data.link || e.data.endDate > e.data.date || e.createdBy || e.updatedBy ? "has-detail-content" : ""}`}
-              id={`plan-details-${e.id}`}
-            >
-              <div className="plan-attribution">
-                {e.createdBy && (
-                  <span
-                    title={
-                      e.createdAt
-                        ? new Date(e.createdAt).toLocaleString()
-                        : undefined
-                    }
-                  >
-                    Added by{" "}
-                    {displayNameFor(
-                      e.createdBy,
-                      trip.people.find((p) => p.id === e.createdBy)?.name,
-                      userId,
-                      demo,
-                    )}
-                  </span>
-                )}
-                {(!e.createdBy || e.version > 1) && (
-                  <span title={new Date(e.updatedAt).toLocaleString()}>
-                    Updated by{" "}
-                    {displayNameFor(
-                      e.updatedBy,
-                      trip.people.find((p) => p.id === e.updatedBy)?.name,
-                      userId,
-                      demo,
-                    )}{" "}
-                    ·{" "}
-                    {new Date(e.updatedAt).toLocaleDateString("en-US", {
-                      month: "short",
-                      day: "numeric",
-                    })}
-                  </span>
-                )}
-              </div>
-              {e.data.address && (
-                <p className="place-address">
-                  <MapPin size={13} />
-                  {e.data.address}
-                </p>
-              )}
-              {e.data.notes && <p className="plan-notes">{e.data.notes}</p>}
-              {e.data.placeId && !placeDetails[e.data.placeId] && (
-                <Button
-                  disabled={a.busy || demo || !navigator.onLine}
-                  aria-label={`Load Google details for ${e.data.title}`}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    const id = e.data.placeId!;
-                    void a.run(async () => {
-                      const details = await api("place", tripId, {
-                        placeId: id,
-                      });
-                      setPlaceDetails((current) => ({
-                        ...current,
-                        [id]: details,
-                      }));
-                    });
-                  }}
-                >
-                  Load place details
-                </Button>
-              )}
-              <div className="plan-details">
-                <span className="desktop-duration">
-                  <Clock size={13} />
-                  {e.data.duration} min
-                </span>
-                {e.data.cost > 0 && (
-                  <span>Est. {money(e.data.cost, e.data.currency)}</span>
-                )}
-                {e.data.endDate > e.data.date && (
-                  <span>
-                    Until {e.data.endDate}{" "}
-                    {e.data.end ? formatTime(e.data.end) : ""}
-                  </span>
-                )}
-                {e.data.reservation && <span>{e.data.reservation}</span>}
-              </div>
-              <div
-                className="activity-travel-details"
-                onClick={(event) => event.stopPropagation()}
-                onKeyDown={(event) => event.stopPropagation()}
-              >
-                {expandedEntry === e.id &&
-                  previous &&
-                  view !== "saved" &&
-                  previous.data.date === e.data.date &&
-                  (previous.data.type === "Flight" ||
-                  (e.data.type === "Flight" &&
-                    e.data.flight?.arrivalId === previous.id) ? (
-                    <div
-                      className={`flight-timeline-leg ${flightSummary ? "agenda-linked-flight" : ""}`}
-                    >
-                      <Plane size={15} />
-                      <span className="flight-timeline-summary">
-                        {flightNumber && (
-                          <b className="flight-timeline-number">
-                            {flightNumber}
-                          </b>
-                        )}
-                        <span className="flight-timeline-times">
-                          {e.data.type === "Flight" &&
-                          e.data.flight?.arrivalId === previous.id
-                            ? "Flight connection · move departure before arrival"
-                            : previous.data.flight?.arrivalId === e.id
-                              ? flightSummary?.times
-                              : "Flight · link its arrival airport in Edit plan"}
-                        </span>
-                        {flightSummary?.duration && (
-                          <span className="flight-timeline-duration">
-                            {flightSummary.duration}
-                          </span>
-                        )}
-                      </span>
-                    </div>
-                  ) : (
-                    <LegacyTravelDetails previous={previous} entry={e} />
-                  ))}
-              </div>
-              {e.data.link && (
-                <a
-                  className="plan-link"
-                  href={e.data.link}
-                  target="_blank"
-                  rel="noreferrer"
-                  onClick={(ev) => ev.stopPropagation()}
-                >
-                  Open link <ExternalLink size={12} />
-                </a>
-              )}
-            </div>
           </div>
-          {e.data.type === "Transportation" && expandedEntry === e.id && (
-            <TransportEditor
-              key={`${e.id}:${e.version}`}
+          {e.data.type === "Transportation" ? (
+            <div className="transport-details-body" id={`plan-details-${e.id}`}>
+              {expandedEntry === e.id &&
+                (editingTransport === e.id && canEdit ? (
+                  <TransportEditor
+                    key={`${e.id}:${e.version}`}
+                    entity={e}
+                    entries={entries}
+                    canEdit={canEdit}
+                    onDone={() => setEditingTransport(undefined)}
+                    onEditPlan={(data) => setEditing({ ...e, data })}
+                  />
+                ) : (
+                  <div className="transport-summary-body">
+                    <TransportFields
+                      entity={e}
+                      entries={entries}
+                      readOnly
+                      onChange={() => {}}
+                    />
+                    <div className="activity-primary-actions">
+                      {transportDirections(e.data, entries) && (
+                        <a
+                          className="button"
+                          href={transportDirections(e.data, entries)}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          <MapPin size={15} />
+                          Directions
+                        </a>
+                      )}
+                      {canEdit && (
+                        <Button
+                          aria-label={`Edit transport ${e.data.title}`}
+                          onClick={() => setEditingTransport(e.id)}
+                        >
+                          <Pencil size={15} />
+                          Edit
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+            </div>
+          ) : (
+            <ActivityDetails
               entity={e}
+              previous={previous}
               entries={entries}
               canEdit={canEdit}
-              onDone={() => setExpandedEntry(undefined)}
+              onEdit={() => setEditing(e)}
+              address={pin?.formattedAddress}
+              provider={!!pin?.formattedAddress}
+              attributions={pin?.attributions}
+              placeName={pin?.displayName?.text}
+              loadingPlace={a.busy || !navigator.onLine}
+              onLoadPlace={
+                !demo && e.data.placeId && !placeDetails[e.data.placeId]
+                  ? () => {
+                      const id = e.data.placeId!;
+                      void a.run(async () => {
+                        const details = await api("place", tripId, {
+                          placeId: id,
+                        });
+                        setPlaceDetails((current) => ({
+                          ...current,
+                          [id]: details,
+                        }));
+                      });
+                    }
+                  : undefined
+              }
             />
           )}
           <button
@@ -626,14 +467,6 @@ export default function Itinerary({
                   onClick={() => a.run(() => reorder(e.id, list[i + 1].id))}
                 >
                   <ArrowDown size={16} />
-                </button>
-                <button
-                  className="icon-button"
-                  aria-label={`Edit ${e.data.title}`}
-                  title="Edit"
-                  onClick={() => setEditing(e)}
-                >
-                  <Pencil size={16} />
                 </button>
                 <button
                   className="icon-button"
@@ -865,26 +698,54 @@ export default function Itinerary({
                 )}
                 {alerts.length > 0 && view === "day" && (
                   <button
-                    className="pill amber"
+                    className="agenda-alert-toggle"
+                    aria-label={`${alerts.length} alerts need attention`}
+                    aria-expanded={showWarnings}
+                    aria-controls="itinerary-alerts"
                     onClick={() => setShowWarnings(!showWarnings)}
                   >
-                    {alerts.length} checks <ChevronRight size={13} />
+                    <TriangleAlert size={17} aria-hidden="true" />
+                    <span>{alerts.length}</span>
                   </button>
                 )}
               </div>
             </div>
           )}
           {showWarnings && alerts.length > 0 && view === "day" && (
-            <div className="schedule-alerts">
-              {alerts.map((msg, i) => (
-                <Notice key={i}>{msg}</Notice>
+            <section
+              className="schedule-alerts"
+              id="itinerary-alerts"
+              aria-label="Needs attention"
+            >
+              <div className="alert-heading">
+                <h4>Needs attention</h4>
+                <button
+                  className="icon-button"
+                  aria-label="Close alerts"
+                  onClick={() => setShowWarnings(false)}
+                >
+                  <X size={16} />
+                </button>
+              </div>
+              {alerts.map((alert) => (
+                <button
+                  className="schedule-alert-item"
+                  key={alert.id}
+                  onClick={() => {
+                    setShowWarnings(false);
+                    revealEntry(alert.entryId, true);
+                  }}
+                >
+                  <TriangleAlert size={17} />
+                  <span>
+                    <strong>{alert.title}</strong>
+                    <small>{alert.detail}</small>
+                    <span className="alert-action">{alert.action}</span>
+                  </span>
+                  <ChevronRight size={16} />
+                </button>
               ))}
-              <small>
-                Travel estimates belong to explicit transport plans. Open a
-                transport activity to set its endpoints, pickup time, and
-                method.
-              </small>
-            </div>
+            </section>
           )}
           {!filtered.length && (
             <Empty
@@ -988,17 +849,7 @@ export default function Itinerary({
             contextEntries={entries}
             lookupPlace={lookupPin}
             selected={selected}
-            onSelect={(id) => {
-              setSelected(id);
-              const day = entries.find((entry) => entry.id === id)?.data.date;
-              if (day)
-                setCollapsedDays((current) => ({ ...current, [day]: false }));
-              requestAnimationFrame(() =>
-                document
-                  .getElementById(id)
-                  ?.scrollIntoView({ block: "nearest" }),
-              );
-            }}
+            onSelect={(id) => revealEntry(id)}
             tripId={tripId}
             mode={mode}
           />
@@ -1096,7 +947,7 @@ export default function Itinerary({
                   type,
                   date: targetDate,
                   endDate: targetDate,
-                  start: targetDate ? "09:00" : "",
+                  start: "",
                   end: "",
                   duration: 60,
                   zone: trip.zone,

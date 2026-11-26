@@ -149,6 +149,34 @@ export function transportArrival(data: Entry, duration: number) {
     ? clock
     : `${arrival.month}/${arrival.day} · ${clock}`;
 }
+export function transportDirections(data: Entry, entries: Entity<Entry>[]) {
+  const from = resolveTransportLocation(data.transport?.from, entries);
+  const to = resolveTransportLocation(data.transport?.to, entries);
+  if (!hasTransportLocation(from) || !hasTransportLocation(to))
+    return undefined;
+  const mode = transportMode(data.transport!.method);
+  if (!mode)
+    return `https://www.google.com/maps/search/?${new URLSearchParams({ api: "1", query: to!.label, ...(to!.placeId ? { query_place_id: to!.placeId } : { query: `${to!.lat},${to!.lng}` }) })}`;
+  const params = new URLSearchParams({
+    api: "1",
+    travelmode: (
+      {
+        WALK: "walking",
+        DRIVE: "driving",
+        BICYCLE: "bicycling",
+        TRANSIT: "transit",
+      } as Record<string, string>
+    )[mode],
+  });
+  for (const [side, point] of [
+    ["origin", from!],
+    ["destination", to!],
+  ] as const) {
+    params.set(side, point.placeId ? point.label : `${point.lat},${point.lng}`);
+    if (point.placeId) params.set(`${side}_place_id`, point.placeId);
+  }
+  return `https://www.google.com/maps/dir/?${params}`;
+}
 /** Endpoints are map-only projections; never insert them as extra itinerary activities. */
 export function transportMapEndpoints(
   entity: Entity<Entry>,

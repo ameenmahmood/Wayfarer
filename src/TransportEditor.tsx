@@ -5,7 +5,7 @@ import type { Entity, Entry, TransportLocation } from "./model";
 import { api, demo, save } from "./store";
 import { Field, Button, Notice, useAsyncAction } from "./ui";
 import TimeInput from "./TimeInput";
-import { entryBounds, formatTravelDuration } from "./schedule";
+import { entryBounds, formatTime, formatTravelDuration } from "./schedule";
 import {
   hasTransportLocation,
   resolveTransportLocation,
@@ -296,6 +296,10 @@ export function TransportFields({
             </dd>
           </div>
           <div>
+            <dt>Pickup</dt>
+            <dd>{data.start ? formatTime(data.start) : "Not set"}</dd>
+          </div>
+          <div>
             <dt>Method</dt>
             <dd>{transportMethods[plan.method]}</dd>
           </div>
@@ -426,78 +430,100 @@ export function TransportFields({
             )}
         </div>
       )}
-      {showMore && (
-        <details className="transport-more">
-          <summary>More details</summary>
-          {readOnly ? (
-            <>
-              <p>{plan.company}</p>
-              <p>{plan.meetingPoint}</p>
-              <p>{data.reservation}</p>
-              <p>{data.notes}</p>
-            </>
-          ) : (
-            <>
-              <Field label="Driver or company">
-                <input
-                  value={plan.company || ""}
-                  maxLength={200}
-                  onChange={(event) => update({ company: event.target.value })}
-                />
-              </Field>
-              <Field label="Meeting point">
-                <input
-                  value={plan.meetingPoint || ""}
-                  maxLength={500}
-                  onChange={(event) =>
-                    update({ meetingPoint: event.target.value })
-                  }
-                />
-              </Field>
-              <Field label="Booking reference">
-                <input
-                  value={data.reservation}
-                  maxLength={200}
-                  onChange={(event) =>
-                    onChange({
-                      ...data,
-                      transport: plan,
-                      reservation: event.target.value,
-                    })
-                  }
-                />
-              </Field>
-              <Field label="Travel notes">
-                <textarea
-                  value={data.notes}
-                  maxLength={2000}
-                  onChange={(event) =>
-                    onChange({
-                      ...data,
-                      transport: plan,
-                      notes: event.target.value,
-                    })
-                  }
-                />
-              </Field>
-            </>
-          )}
-          {data.arrival && (
-            <LegacyTravelDetails
-              previous={entries.find(
-                (entry) => entry.id === data.arrival!.fromId,
-              )}
-              entry={entity}
-            />
-          )}
-          {entity.createdBy && (
-            <small>Added by {displayNameFor(entity.createdBy)}</small>
-          )}
-          {entity.version > 1 && (
-            <small>Updated by {displayNameFor(entity.updatedBy)}</small>
-          )}
-        </details>
-      )}
+      {showMore &&
+        (!readOnly ||
+          plan.company ||
+          plan.meetingPoint ||
+          data.reservation ||
+          data.notes ||
+          data.arrival ||
+          entity.createdBy ||
+          entity.version > 1) && (
+          <details className="transport-more">
+            <summary>More details</summary>
+            {readOnly ? (
+              <>
+                {plan.company && (
+                  <p>
+                    <b>Company:</b> {plan.company}
+                  </p>
+                )}
+                {plan.meetingPoint && (
+                  <p>
+                    <b>Meeting point:</b> {plan.meetingPoint}
+                  </p>
+                )}
+                {data.reservation && (
+                  <p>
+                    <b>Booking reference:</b> {data.reservation}
+                  </p>
+                )}
+                {data.notes && <p>{data.notes}</p>}
+              </>
+            ) : (
+              <>
+                <Field label="Driver or company">
+                  <input
+                    value={plan.company || ""}
+                    maxLength={200}
+                    onChange={(event) =>
+                      update({ company: event.target.value })
+                    }
+                  />
+                </Field>
+                <Field label="Meeting point">
+                  <input
+                    value={plan.meetingPoint || ""}
+                    maxLength={500}
+                    onChange={(event) =>
+                      update({ meetingPoint: event.target.value })
+                    }
+                  />
+                </Field>
+                <Field label="Booking reference">
+                  <input
+                    value={data.reservation}
+                    maxLength={200}
+                    onChange={(event) =>
+                      onChange({
+                        ...data,
+                        transport: plan,
+                        reservation: event.target.value,
+                      })
+                    }
+                  />
+                </Field>
+                <Field label="Travel notes">
+                  <textarea
+                    value={data.notes}
+                    maxLength={2000}
+                    onChange={(event) =>
+                      onChange({
+                        ...data,
+                        transport: plan,
+                        notes: event.target.value,
+                      })
+                    }
+                  />
+                </Field>
+              </>
+            )}
+            {data.arrival && (
+              <LegacyTravelDetails
+                previous={entries.find(
+                  (entry) => entry.id === data.arrival!.fromId,
+                )}
+                entry={entity}
+              />
+            )}
+            {entity.createdBy && (
+              <small>Added by {displayNameFor(entity.createdBy)}</small>
+            )}
+            {entity.version > 1 && (
+              <small>Updated by {displayNameFor(entity.updatedBy)}</small>
+            )}
+          </details>
+        )}
     </section>
   );
 }
@@ -507,11 +533,13 @@ export default function TransportEditor({
   entries,
   canEdit,
   onDone,
+  onEditPlan,
 }: {
   entity: Entity<Entry>;
   entries: Entity<Entry>[];
   canEdit: boolean;
   onDone: () => void;
+  onEditPlan?: (data: Entry) => void;
 }) {
   const [data, setData] = useState<Entry>({
     ...entity.data,
@@ -542,6 +570,14 @@ export default function TransportEditor({
       />
       {canEdit && (
         <div className="transport-save-actions">
+          {onEditPlan && (
+            <Button
+              className="text-button transport-edit-plan"
+              onClick={() => onEditPlan(data)}
+            >
+              Edit title or date
+            </Button>
+          )}
           <Button disabled={action.busy} onClick={onDone}>
             Cancel
           </Button>

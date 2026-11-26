@@ -1,3 +1,4 @@
+import TripSwitcher from "./TripSwitcher";
 import { displayNameFor, ownDisplayName, profileState } from "./profiles";
 import InvitationInbox from "./InvitationInbox";
 import { clearTransportRouteCache } from "./transportRoutes";
@@ -199,7 +200,10 @@ export default function App() {
       active = false;
     };
   }, [tid, status, queue.length]);
-  useEffect(() => setTripDetails(false), [tid, tab]);
+  useEffect(() => {
+    setTripDetails(false);
+    setMoreSectionsOpen(false);
+  }, [tid, tab]);
   useEffect(() => {
     clearTransportRouteCache();
     return clearTransportRouteCache;
@@ -535,35 +539,20 @@ export default function App() {
             <b className="breadcrumb-title">
               {trip?.title || "Your next adventure"}
             </b>
-            {!overview && trip && tab !== "map" && (
-              <button
-                className="mobile-trip-title"
-                aria-label={`Trip details for ${trip.title}`}
-                aria-expanded={tripDetails}
-                aria-controls="trip-banner trip-summary"
-                onClick={() => setTripDetails((v) => !v)}
-              >
-                <span className="mobile-trip-heading">
-                  <span>{trip.title}</span>
-                  <small>
-                    {new Date(trip.start + "T12:00:00").toLocaleDateString(
-                      "en-US",
-                      { month: "short", day: "numeric" },
-                    )}{" "}
-                    –{" "}
-                    {new Date(trip.end + "T12:00:00").toLocaleDateString(
-                      "en-US",
-                      { month: "short", day: "numeric" },
-                    )}
-                  </small>
-                </span>
-                <ChevronDown size={14} />
-              </button>
+            {!overview && trip && (
+              <TripSwitcher
+                trips={trips}
+                currentId={tid!}
+                onSelect={openTrip}
+                onDetails={() => setTripDetails((v) => !v)}
+                onLibrary={showLibrary}
+                onNew={newTrip}
+              />
             )}
           </div>
           <div className="top-actions">
             <button
-              className="sync-indicator"
+              className={`sync-indicator ${status.includes("Saved") || status.includes("synced") ? "sync-settled" : ""}`}
               aria-label={status}
               title={status}
               onClick={() =>
@@ -890,40 +879,58 @@ export default function App() {
                     {id === "members" && <span>{trip.people.length}</span>}
                   </button>
                 ))}
-                <details
-                  className="mobile-more"
-                  onToggle={(event) =>
-                    setMoreSectionsOpen(event.currentTarget.open)
-                  }
+                <button
+                  className={`mobile-more ${["expenses", "packing", "members"].includes(tab) || moreSectionsOpen ? "active" : ""}`}
+                  aria-label="More sections"
+                  aria-haspopup="dialog"
+                  aria-expanded={moreSectionsOpen}
+                  onClick={() => setMoreSectionsOpen(true)}
                 >
-                  <summary aria-label="More sections">
-                    <MoreHorizontal size={20} />
-                    <span>More</span>
-                  </summary>
-                  <div className="more-sections" hidden={!moreSectionsOpen}>
+                  <MoreHorizontal size={20} />
+                  <span>More</span>
+                </button>
+                <span className="grow" />
+                <span className="trip-role">{role} access</span>
+              </ScrollRail>
+              {moreSectionsOpen && (
+                <Modal
+                  title="More"
+                  className="mobile-sections-sheet"
+                  onClose={() => setMoreSectionsOpen(false)}
+                >
+                  <div className="more-section-list">
                     {tabs
-                      .filter(([id]) => id === "packing" || id === "members")
+                      .filter(([id]) =>
+                        ["expenses", "packing", "members"].includes(id),
+                      )
                       .map(([id, label, Icon]) => (
                         <button
                           key={id}
                           aria-label={`Open ${label}`}
                           aria-current={tab === id ? "page" : undefined}
-                          onClick={(event) => {
+                          onClick={() => {
                             setTab(id);
-                            event.currentTarget
-                              .closest("details")
-                              ?.removeAttribute("open");
+                            setMoreSectionsOpen(false);
                           }}
                         >
-                          <Icon size={18} />
-                          {label}
+                          <Icon size={21} />
+                          <span>{label}</span>
+                          <ChevronRight size={17} />
                         </button>
                       ))}
+                    <button
+                      onClick={() => {
+                        setMoreSectionsOpen(false);
+                        setTripDetails(true);
+                      }}
+                    >
+                      <SettingsIcon size={21} />
+                      <span>Trip settings</span>
+                      <ChevronRight size={17} />
+                    </button>
                   </div>
-                </details>
-                <span className="grow" />
-                <span className="trip-role">{role} access</span>
-              </ScrollRail>
+                </Modal>
+              )}
               <div className="tab-content" ref={sectionRef}>
                 {!canEdit && (
                   <Notice>

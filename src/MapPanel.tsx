@@ -86,6 +86,8 @@ export default function MapPanel({
     map = useRef<any>(null),
     markers = useRef(new Map<string, any>()),
     paths = useRef<any[]>([]),
+    groundPaths = useRef(new Map<string, any>()),
+    selectedRef = useRef(selected),
     [error, setError] = useState(""),
     [ready, setReady] = useState(false),
     [retry, setRetry] = useState(0);
@@ -96,6 +98,7 @@ export default function MapPanel({
   );
   const resolvePlace = lookupPlace || fallbackLookup;
   onSelectRef.current = onSelect;
+  selectedRef.current = selected;
   const flights = flightConnections(entries, contextEntries);
   const transportEstimates = useTransportRoutes(entries, contextEntries);
   const groundTrips = entries.filter(
@@ -186,6 +189,7 @@ export default function MapPanel({
     paths.current.forEach((p) => p.setMap(null));
     markers.current.clear();
     paths.current = [];
+    groundPaths.current.clear();
     setRouteWarnings([]);
     positions.current.clear();
     const bounds = new window.google.maps.LatLngBounds();
@@ -304,10 +308,14 @@ export default function MapPanel({
           path: window.google.maps.geometry.encoding.decodePath(
             result.polyline,
           ),
-          strokeColor: "#467568",
-          strokeWeight: 4,
+          strokeColor:
+            selectedRef.current === transport.id ? "#278659" : "#69887b",
+          strokeWeight: selectedRef.current === transport.id ? 6 : 3,
+          strokeOpacity: selectedRef.current === transport.id ? 1 : 0.65,
+          zIndex: selectedRef.current === transport.id ? 5 : 1,
           map: map.current,
         });
+        groundPaths.current.set(transport.id, path);
         path.addListener?.("click", () => onSelectRef.current(transport.id));
         paths.current.push(path);
       }
@@ -320,6 +328,22 @@ export default function MapPanel({
     };
   }, [ready, mapVersion, locationKey, routeKey, tripId, resolvePlace]);
   useEffect(() => {
+    for (const [id, path] of groundPaths.current)
+      path.setOptions?.({
+        strokeColor: id === selected ? "#278659" : "#69887b",
+        strokeWeight: id === selected ? 6 : 3,
+        strokeOpacity: id === selected ? 1 : 0.65,
+        zIndex: id === selected ? 5 : 1,
+      });
+    for (const [id, marker] of markers.current)
+      marker.setZIndex?.(
+        id === selected ||
+          groundEndpoints.some(
+            (point) => point.ownerId === selected && point.entry.id === id,
+          )
+          ? 10
+          : 1,
+      );
     const endpoint = groundEndpoints.find(
       (point) => point.ownerId === selected,
     );
@@ -327,11 +351,15 @@ export default function MapPanel({
       markers.current.get(selected) ||
       (endpoint && markers.current.get(endpoint.entry.id));
     if (marker && window.google?.maps) {
+      const position =
+        positions.current.get(selected) ||
+        (endpoint && positions.current.get(endpoint.entry.id));
+      if (position) map.current?.panTo?.(position);
       marker.setAnimation(window.google.maps.Animation.BOUNCE);
       const timer = setTimeout(() => marker.setAnimation(null), 700);
       return () => clearTimeout(timer);
     }
-  }, [selected]);
+  }, [selected, ready, routeKey, locationKey]);
   useEffect(() => {
     for (const entry of mapEntries)
       markers.current.get(entry.id)?.setTitle(entry.data.title);
