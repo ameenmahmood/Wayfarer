@@ -49,14 +49,3 @@ export function flightTiming(connection: FlightConnection) {
   const { times, duration } = flightTimingParts(connection);
   return duration ? `${times} · ${duration}` : times;
 }
-export function flightGroundPairs(entries: Entity<Entry>[]) {
-  return entries.slice(1).flatMap((to, index) => {
-    const from = entries[index];
-    return from.data.type !== "Flight" &&
-      !(to.data.type === "Flight" && to.data.flight?.arrivalId === from.id) &&
-      from.data.date &&
-      from.data.date === to.data.date
-      ? [{ from, to }]
-      : [];
-  });
-}

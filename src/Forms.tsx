@@ -1,3 +1,5 @@
+import { TransportFields } from "./TransportEditor";
+import { transportProblem } from "./transport";
 import TimeInput from "./TimeInput";
 import SignIn from "./SignIn";
 import { useEffect, useState, useRef } from "react";
@@ -252,6 +254,10 @@ export function EntryForm({
       onSubmit={(e) => {
         e.preventDefault();
         a.run(async () => {
+          if (v.type === "Transportation") {
+            const problem = transportProblem(v, entries);
+            if (problem) throw Error(problem);
+          }
           if (v.date) {
             entryBounds(v);
             if (v.duration < 1 || v.duration > 10080)
@@ -266,6 +272,7 @@ export function EntryForm({
             data: {
               ...v,
               flight: v.type === "Flight" ? v.flight : undefined,
+              transport: v.type === "Transportation" ? v.transport : undefined,
               duration:
                 v.date && v.end
                   ? Math.round(
@@ -279,80 +286,92 @@ export function EntryForm({
         });
       }}
     >
-      <div className="search-row">
-        <input
-          aria-label="Find a Google place"
-          placeholder="Find a place or address with Google…"
-          value={q}
-          maxLength={200}
-          onChange={(e) => {
-            setQ(e.target.value);
-            setPlaces([]);
-            setSearched(false);
-            searchAction.setError("");
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              searchPlaces();
-            }
-          }}
-        />
-        <Button
-          disabled={searchAction.busy || demo || q.trim().length < 2}
-          onClick={searchPlaces}
-        >
-          <Search size={17} />
-          {searchAction.busy ? "Searching..." : "Search"}
-        </Button>
-      </div>
-      {demo && (
-        <Notice>
-          Place search requires a connected account and configured Google
-          services. Manual plans work offline.
-        </Notice>
-      )}
-      {searchAction.busy && <p role="status">Searching Google Places...</p>}
-      {searchAction.error && <Notice tone="error">{searchAction.error}</Notice>}
-      {searched && !places.length && (
-        <Notice>
-          No places found. Try a more specific place name, city, or address.
-        </Notice>
-      )}
-      {places.length > 0 && (
-        <div className="search-results">
-          <span className="google-attribution" translate="no">
-            Google Maps
-          </span>
-          <small> · live place results</small>
-          {places.map((p) => (
-            <button
-              type="button"
-              key={p.id}
-              onClick={() => {
-                change("placeId", p.id);
+      {v.type !== "Transportation" && (
+        <>
+          <div className="search-row">
+            <input
+              aria-label="Find a Google place"
+              placeholder="Find a place or address with Google…"
+              value={q}
+              maxLength={200}
+              onChange={(e) => {
+                setQ(e.target.value);
                 setPlaces([]);
                 setSearched(false);
+                searchAction.setError("");
               }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  searchPlaces();
+                }
+              }}
+            />
+            <Button
+              disabled={searchAction.busy || demo || q.trim().length < 2}
+              onClick={searchPlaces}
             >
-              {p.displayName?.text}
-              <small>{p.formattedAddress}</small>
-              {(p.attributions || []).map((at: any, j: number) => (
-                <small key={j}>
-                  {at.provider}{" "}
-                  {at.providerUri && (
-                    <a href={at.providerUri} target="_blank" rel="noreferrer">
-                      Source
-                    </a>
-                  )}
-                </small>
+              <Search size={17} />
+              {searchAction.busy ? "Searching..." : "Search"}
+            </Button>
+          </div>
+          {demo && (
+            <Notice>
+              Place search requires a connected account and configured Google
+              services. Manual plans work offline.
+            </Notice>
+          )}
+          {searchAction.busy && <p role="status">Searching Google Places...</p>}
+          {searchAction.error && (
+            <Notice tone="error">{searchAction.error}</Notice>
+          )}
+          {searched && !places.length && (
+            <Notice>
+              No places found. Try a more specific place name, city, or address.
+            </Notice>
+          )}
+          {places.length > 0 && (
+            <div className="search-results">
+              <span className="google-attribution" translate="no">
+                Google Maps
+              </span>
+              <small> · live place results</small>
+              {places.map((p) => (
+                <button
+                  type="button"
+                  key={p.id}
+                  onClick={() => {
+                    change("placeId", p.id);
+                    setPlaces([]);
+                    setSearched(false);
+                  }}
+                >
+                  {p.displayName?.text}
+                  <small>{p.formattedAddress}</small>
+                  {(p.attributions || []).map((at: any, j: number) => (
+                    <small key={j}>
+                      {at.provider}{" "}
+                      {at.providerUri && (
+                        <a
+                          href={at.providerUri}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          Source
+                        </a>
+                      )}
+                    </small>
+                  ))}
+                </button>
               ))}
-            </button>
-          ))}
-        </div>
-      )}
-      {v.placeId && (
-        <small>Google place linked. Add your own title and notes below.</small>
+            </div>
+          )}
+          {v.placeId && (
+            <small>
+              Google place linked. Add your own title and notes below.
+            </small>
+          )}
+        </>
       )}
       <Field label="Title">
         <input
@@ -367,7 +386,15 @@ export function EntryForm({
         <Field label="Type">
           <select
             value={v.type}
-            onChange={(e) => change("type", e.target.value)}
+            onChange={(e) =>
+              setV((current) => ({
+                ...current,
+                type: e.target.value,
+                ...(e.target.value === "Transportation"
+                  ? { transport: current.transport || { method: "taxi" } }
+                  : {}),
+              }))
+            }
           >
             {[
               "Activity",
@@ -393,34 +420,49 @@ export function EntryForm({
             }
           />
         </Field>
-        <Field label="Start time">
-          <TimeInput
-            label="Start time"
+        {v.type !== "Transportation" && (
+          <>
+            <Field label="Start time">
+              <TimeInput
+                label="Start time"
 
-            value={v.start}
-            onChange={(value) => change("start", value)}
-          />
-        </Field>
-        <Field label="Duration · minutes">
-          <input
-            type="number"
-            min="1"
-            max="10080"
-            required
-            value={v.duration}
-            onChange={(e) =>
-              setV((current) => {
-                const duration = Number(e.target.value);
-                try {
-                  return entryWithDuration(current, duration);
-                } catch {
-                  return { ...current, duration };
+                value={v.start}
+                onChange={(value) => change("start", value)}
+              />
+            </Field>
+            <Field label="Duration · minutes">
+              <input
+                type="number"
+                min="1"
+                max="10080"
+                required
+                value={v.duration}
+                onChange={(e) =>
+                  setV((current) => {
+                    const duration = Number(e.target.value);
+                    try {
+                      return entryWithDuration(current, duration);
+                    } catch {
+                      return { ...current, duration };
+                    }
+                  })
                 }
-              })
-            }
-          />
-        </Field>
+              />
+            </Field>
+          </>
+        )}
       </div>
+      {v.type === "Transportation" && (
+        <TransportFields
+          entity={{
+            ...entity,
+            data: { ...v, transport: v.transport || { method: "taxi" } },
+          }}
+          entries={entries}
+          onChange={setV}
+          showMore={false}
+        />
+      )}
       {v.type === "Flight" && (
         <section className="flight-editor" aria-label="Flight map connection">
           <h3>Flight connection</h3>

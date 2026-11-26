@@ -1,5 +1,6 @@
 import type { Entity, Entry } from "./model";
-import { flightGroundPairs, type FlightConnection } from "./flights";
+import { type FlightConnection } from "./flights";
+import { transportMapEndpoints } from "./transport";
 export default function FlightSketch({
   entries,
   flights,
@@ -74,18 +75,28 @@ export default function FlightSketch({
               />
             );
           })}
-        {flightGroundPairs(entries).map(
-          ({ from, to }) =>
-            byId.has(from.id) &&
-            byId.has(to.id) && (
-              <path
-                key={`${from.id}-${to.id}`}
-                d={`M${xy(from).x} ${xy(from).y}L${xy(to).x} ${xy(to).y}`}
-                stroke="#467568"
-                strokeWidth="3"
-              />
-            ),
-        )}
+        {entries
+          .filter((entry) => entry.data.type === "Transportation")
+          .flatMap((entry) => {
+            const endpoints = transportMapEndpoints(entry, entries);
+            const from = endpoints.find(
+              (point) => point.side === "from",
+            )?.entry;
+            const to = endpoints.find((point) => point.side === "to")?.entry;
+            return from && to ? [{ from, to }] : [];
+          })
+          .map(
+            ({ from, to }) =>
+              byId.has(from.id) &&
+              byId.has(to.id) && (
+                <path
+                  key={`${from.id}-${to.id}`}
+                  d={`M${xy(from).x} ${xy(from).y}L${xy(to).x} ${xy(to).y}`}
+                  stroke="#467568"
+                  strokeWidth="3"
+                />
+              ),
+          )}
         {points.map((entry) => {
           const p = xy(entry);
           return (

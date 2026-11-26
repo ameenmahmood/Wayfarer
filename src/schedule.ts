@@ -69,7 +69,7 @@ export function warnings(
         minutes(e.start) + e.duration > e.opening.close)
     )
       out.push(`${e.title}: outside supplied opening hours.`);
-    if (!e.opening)
+    if (!e.opening && e.type !== "Transportation")
       out.push(`${e.title}: opening hours unknown; verify before visiting.`);
     if (i) {
       const prev = list[i - 1],

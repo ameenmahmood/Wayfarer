@@ -24,7 +24,7 @@ import {
 } from "lucide-react";
 import { days, makeEntity, type Entity, type Trip, type Entry } from "./model";
 import { api, save, remove, userId, demo } from "./store";
-import { travel, warnings, entryBounds, formatTime } from "./schedule";
+import { warnings, entryBounds, formatTime } from "./schedule";
 import { money } from "./money";
 import { EntryForm } from "./Forms";
 import {
@@ -37,11 +37,11 @@ import {
   ScrollRail,
 } from "./ui";
 import MapPanel from "./MapPanel";
-import TravelLeg from "./TravelLeg";
+import TransportEditor, { LegacyTravelDetails } from "./TransportEditor";
+import { useTransportRoutes } from "./transportRoutes";
 import { flightTimingParts } from "./flights";
 import { preservesTransfers } from "./transfers";
 import NearbyPlaces from "./NearbyPlaces";
-import RoutePlanner from "./RoutePlanner";
 import { createCoordinateLookup } from "./placeCoordinates";
 type PinDetails = {
   displayName?: { text?: string };
@@ -113,13 +113,12 @@ export default function Itinerary({
     [reordering, setReordering] = useState(false),
     [collapsedDays, setCollapsedDays] = useState<Record<string, boolean>>({}),
     [editing, setEditing] = useState<Entity<Entry>>(),
-    [route, setRoute] = useState(false),
     [nearby, setNearby] = useState(false),
     [moving, setMoving] = useState<Entity<Entry>>(),
     [drag, setDrag] = useState(""),
     [dropTarget, setDropTarget] = useState(""),
     [reorderMessage, setReorderMessage] = useState(""),
-    [mode, setMode] = useState("WALK"),
+    [mode] = useState("WALK"),
     [showWarnings, setShowWarnings] = useState(false),
     [placeDetails, setPlaceDetails] = useState<Record<string, PinDetails>>({}),
     a = useAsyncAction();
@@ -147,34 +146,58 @@ export default function Itinerary({
       ? []
       : filtered.flatMap(({ data }) => (data.placeId ? [data.placeId] : [])),
   );
+  const transportEstimates = useTransportRoutes(filtered, entries);
   const dayEntries = filtered.filter(
     (e) => e.data.date === date && e.data.endDate <= date,
   );
   const alerts = (() => {
     try {
-      return warnings(
-        dayEntries.map((e) => e.data),
+      const checks = warnings(
+        dayEntries
+          .filter(
+            (e) =>
+              e.data.type !== "Transportation" ||
+              e.data.end ||
+              transportEstimates[e.id]?.minutes,
+          )
+          .map((e) =>
+            e.data.type === "Transportation" &&
+            !e.data.end &&
+            transportEstimates[e.id]?.minutes
+              ? { ...e.data, duration: transportEstimates[e.id].minutes! }
+              : e.data,
+          ),
         mode,
         undefined,
-        (from, to) => {
-          if (from.type === "Flight") return 0;
-          const fromEntity = dayEntries.find((e) => e.data === from);
-          const leg =
-            to.arrival?.fromId === fromEntity?.id ? to.arrival : undefined;
-          return leg?.manualMinutes ?? travel(from, to, leg?.mode || mode);
-        },
+        () => 0,
       );
+      return [
+        ...checks,
+        ...dayEntries
+          .filter(
+            (e) =>
+              e.data.type === "Transportation" &&
+              !transportEstimates[e.id]?.minutes,
+          )
+          .map(
+            (e) =>
+              `${e.data.title}: ${transportEstimates[e.id]?.error || "travel estimate pending."}`,
+          ),
+      ];
     } catch {
       return [
         "An entry has an invalid local time. Edit it to resolve the schedule.",
       ];
     }
   })();
-  const add = (d = date) =>
+  const add = (d = date, type = "Activity") =>
     setEditing(
       makeEntity("entry", tripId, {
         title: "",
-        type: "Activity",
+        type,
+        ...(type === "Transportation"
+          ? { transport: { method: "taxi" as const } }
+          : {}),
         date: d,
         endDate: d,
         start: d ? "09:00" : "",
@@ -256,7 +279,7 @@ export default function Itinerary({
       <div key={e.id} className="timeline-wrap">
         <article
           id={e.id}
-          className={`plan-card ${hasSummary ? "has-summary" : "no-summary"} ${canEdit && view === "day" ? "can-reorder" : ""} ${drag === e.id ? "is-dragging" : ""} ${dropTarget === e.id && drag !== e.id ? "drop-target" : ""} ${selected === e.id ? "selected" : ""} ${expandedEntry === e.id ? "is-expanded" : ""}`}
+          className={`plan-card ${e.data.type === "Transportation" ? "transport-plan" : ""} ${hasSummary ? "has-summary" : "no-summary"} ${canEdit && view === "day" ? "can-reorder" : ""} ${drag === e.id ? "is-dragging" : ""} ${dropTarget === e.id && drag !== e.id ? "drop-target" : ""} ${selected === e.id ? "selected" : ""} ${expandedEntry === e.id ? "is-expanded" : ""}`}
         >
           {canEdit && view === "day" && reordering && (
             <button
@@ -544,13 +567,7 @@ export default function Itinerary({
                       </span>
                     </div>
                   ) : (
-                    <TravelLeg
-                      key={`${previous.id}:${e.id}`}
-                      previous={previous}
-                      entry={e}
-                      mode={mode}
-                      canEdit={canEdit}
-                    />
+                    <LegacyTravelDetails previous={previous} entry={e} />
                   ))}
               </div>
               {e.data.link && (
@@ -566,6 +583,15 @@ export default function Itinerary({
               )}
             </div>
           </div>
+          {e.data.type === "Transportation" && expandedEntry === e.id && (
+            <TransportEditor
+              key={`${e.id}:${e.version}`}
+              entity={e}
+              entries={entries}
+              canEdit={canEdit}
+              onDone={() => setExpandedEntry(undefined)}
+            />
+          )}
           <button
             className="plan-details-toggle icon-button"
             aria-label={`Details for ${e.data.title}`}
@@ -735,21 +761,21 @@ export default function Itinerary({
             </span>
           </button>
         </div>
-        {canEdit && view === "day" && dayEntries.length > 0 && (
+        {canEdit && view === "day" && (
           <div
             className="itinerary-tools"
             role="group"
             aria-label="Day planning tools"
           >
             <Button
-              onClick={() => setRoute(true)}
-              title="Optimize day · preview a route before applying changes"
-              aria-label="Optimize day"
+              onClick={() => add(date, "Transportation")}
+              title="Add transport with pickup, destination, and method"
+              aria-label="Add transport"
             >
               <Route size={15} />
-              <span className="optimize-label">Route</span>
+              <span className="optimize-label">Add transport</span>
               <span className="optimize-label-mobile" aria-hidden="true">
-                Route
+                Transport
               </span>
             </Button>
           </div>
@@ -854,9 +880,9 @@ export default function Itinerary({
                 <Notice key={i}>{msg}</Notice>
               ))}
               <small>
-                Travel checks use saved manual times where available, otherwise
-                rough straight-line estimates for each travel method. Open an
-                activity to view its travel settings and live estimates.
+                Travel estimates belong to explicit transport plans. Open a
+                transport activity to set its endpoints, pickup time, and
+                method.
               </small>
             </div>
           )}
@@ -957,14 +983,6 @@ export default function Itinerary({
           )}
         </section>
         <aside className="day-aside">
-          <Field label="Preferred transport">
-            <select value={mode} onChange={(e) => setMode(e.target.value)}>
-              <option value="WALK">Walking</option>
-              <option value="DRIVE">Driving</option>
-              <option value="BICYCLE">Cycling</option>
-              <option value="TRANSIT">Public transit</option>
-            </select>
-          </Field>
           <MapPanel
             entries={filtered}
             contextEntries={entries}
@@ -999,22 +1017,6 @@ export default function Itinerary({
       </div>
       {a.error && <Notice tone="error">{a.error}</Notice>}
       {entryEditor}
-      {route && (
-        <Modal title="Optimize day" onClose={() => setRoute(false)} wide>
-          <RoutePlanner
-            entries={entries}
-            date={date}
-            trip={trip}
-            tripId={tripId}
-            initialMode={mode}
-            onEditEntry={(entry) => {
-              setRoute(false);
-              setEditing(entry);
-            }}
-            onDone={() => setRoute(false)}
-          />
-        </Modal>
-      )}
       {moving && (
         <Modal
           title="Move or duplicate this plan"

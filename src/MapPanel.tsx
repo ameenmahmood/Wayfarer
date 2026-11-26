@@ -12,7 +12,15 @@ import { api, demo } from "./store";
 import { Notice, Button } from "./ui";
 import FlightSketch from "./FlightSketch";
 import MapPopover from "./MapPopover";
-import { flightConnections, flightGroundPairs } from "./flights";
+import { flightConnections } from "./flights";
+import {
+  hasTransportLocation,
+  resolveTransportLocation,
+  transportMapEndpoints,
+  transportMode,
+  transportQuery,
+} from "./transport";
+import { useTransportRoutes } from "./transportRoutes";
 import { createCoordinateLookup } from "./placeCoordinates";
 declare global {
   interface Window {
@@ -89,10 +97,21 @@ export default function MapPanel({
   const resolvePlace = lookupPlace || fallbackLookup;
   onSelectRef.current = onSelect;
   const flights = flightConnections(entries, contextEntries);
+  const transportEstimates = useTransportRoutes(entries, contextEntries);
+  const groundTrips = entries.filter(
+    (entry) => entry.data.type === "Transportation",
+  );
+  const groundEndpoints = groundTrips.flatMap((entry) =>
+    transportMapEndpoints(entry, contextEntries),
+  );
   const mapEntries = [
     ...new Map(
       [
-        ...entries,
+        ...entries.filter(
+          (entry) =>
+            entry.data.type !== "Transportation" || !entry.data.transport,
+        ),
+        ...groundEndpoints.map((endpoint) => endpoint.entry),
         ...flights.flatMap((flight) => [flight.from, flight.to]),
       ].map((entry) => [entry.id, entry]),
     ).values(),
@@ -109,6 +128,13 @@ export default function MapPanel({
       e.data.flight?.arrivalId,
       e.data.arrival?.fromId,
       e.data.arrival?.mode,
+    ]),
+  );
+  const routeKey = JSON.stringify(
+    groundTrips.map((entry) => [
+      entry.id,
+      transportQuery(entry, contextEntries)?.key,
+      transportEstimates[entry.id],
     ]),
   );
   const [mapVersion, setMapVersion] = useState(0);
@@ -195,7 +221,12 @@ export default function MapPanel({
           map: map.current,
           label: airportIds.has(e.id)
             ? "✈"
-            : String(entries.findIndex((entry) => entry.id === e.id) + 1),
+            : entries.some((entry) => entry.id === e.id)
+              ? String(entries.findIndex((entry) => entry.id === e.id) + 1)
+              : groundEndpoints.find((endpoint) => endpoint.entry.id === e.id)
+                    ?.side === "from"
+                ? "A"
+                : "B",
           title: e.data.title,
           zIndex: e.id === selected ? 10 : 1,
         });
@@ -204,6 +235,8 @@ export default function MapPanel({
             entries.some((entry) => entry.id === e.id)
               ? e.id
               : flights.find((flight) => flight.to.id === e.id)?.from.id ||
+                  groundEndpoints.find((endpoint) => endpoint.entry.id === e.id)
+                    ?.ownerId ||
                   e.id,
           ),
         );
@@ -258,37 +291,26 @@ export default function MapPanel({
         );
         paths.current.push(path);
       }
-      if (!demo)
-        for (const { from, to } of flightGroundPairs(entries)) {
-          const origin = positions.current.get(from.id),
-            destination = positions.current.get(to.id);
-          if (!origin || !destination) continue;
-          try {
-            const leg = to.data.arrival;
-            const route = await api("route", tripId, {
-              origin,
-              destination,
-              mode: leg?.fromId === from.id ? leg.mode : mode,
-            });
-            if (!active) return;
-            setRouteWarnings((w) => [
-              ...new Set([...w, ...(route.warnings || [])]),
-            ]);
-            if (route.polyline)
-              paths.current.push(
-                new window.google.maps.Polyline({
-                  path: window.google.maps.geometry.encoding.decodePath(
-                    route.polyline,
-                  ),
-                  strokeColor: "#467568",
-                  strokeWeight: 4,
-                  map: map.current,
-                }),
-              );
-          } catch (err: any) {
-            if (active) setError(err.message);
-          }
-        }
+      for (const transport of groundTrips) {
+        const result = transportEstimates[transport.id];
+        if (result?.warnings?.length)
+          setRouteWarnings((w) => [...new Set([...w, ...result.warnings!])]);
+        if (result?.state === "error")
+          setRouteWarnings((w) => [
+            ...new Set([...w, `${transport.data.title}: ${result.error}`]),
+          ]);
+        if (!result?.polyline) continue;
+        const path = new window.google.maps.Polyline({
+          path: window.google.maps.geometry.encoding.decodePath(
+            result.polyline,
+          ),
+          strokeColor: "#467568",
+          strokeWeight: 4,
+          map: map.current,
+        });
+        path.addListener?.("click", () => onSelectRef.current(transport.id));
+        paths.current.push(path);
+      }
     }
     void draw();
     return () => {
@@ -296,9 +318,14 @@ export default function MapPanel({
       markers.current.forEach((m) => m.setMap(null));
       paths.current.forEach((p) => p.setMap(null));
     };
-  }, [ready, mapVersion, locationKey, mode, tripId, resolvePlace]);
+  }, [ready, mapVersion, locationKey, routeKey, tripId, resolvePlace]);
   useEffect(() => {
-    const marker = markers.current.get(selected);
+    const endpoint = groundEndpoints.find(
+      (point) => point.ownerId === selected,
+    );
+    const marker =
+      markers.current.get(selected) ||
+      (endpoint && markers.current.get(endpoint.entry.id));
     if (marker && window.google?.maps) {
       marker.setAnimation(window.google.maps.Animation.BOUNCE);
       const timer = setTimeout(() => marker.setAnimation(null), 700);
@@ -359,25 +386,101 @@ export default function MapPanel({
       )}
     </>
   );
-  const routeLegend = flights.length > 0 && (
+  const routeLegend = (flights.length > 0 || groundTrips.length > 0) && (
     <div className="flight-map-legend">
-      <span>
-        <i className="flight-line-key" />
-        Flight connection
-      </span>
+      {flights.length > 0 && (
+        <span>
+          <i className="flight-line-key" />
+          Flight connection
+        </span>
+      )}
       <span>
         <i className="ground-line-key" />
         Ground route
       </span>
     </div>
   );
+  const activeGround =
+    groundTrips.find((entry) => entry.id === selected) ||
+    (groundTrips.length === 1 ? groundTrips[0] : undefined);
+  const fromLocation = resolveTransportLocation(
+    activeGround?.data.transport?.from,
+    contextEntries,
+  );
+  const toLocation = resolveTransportLocation(
+    activeGround?.data.transport?.to,
+    contextEntries,
+  );
+  const directionsParams = new URLSearchParams({ api: "1" });
+  const linkedRoute =
+    activeGround &&
+    hasTransportLocation(fromLocation) &&
+    hasTransportLocation(toLocation);
+  if (linkedRoute) {
+    for (const [side, point] of [
+      ["origin", fromLocation!],
+      ["destination", toLocation!],
+    ] as const) {
+      directionsParams.set(
+        side,
+        point.placeId ? point.label : `${point.lat},${point.lng}`,
+      );
+      if (point.placeId)
+        directionsParams.set(`${side}_place_id`, point.placeId);
+    }
+    const method = transportMode(activeGround.data.transport!.method);
+    directionsParams.set(
+      "travelmode",
+      (
+        {
+          WALK: "walking",
+          DRIVE: "driving",
+          BICYCLE: "bicycling",
+          TRANSIT: "transit",
+        } as Record<string, string>
+      )[method] || "driving",
+    );
+  } else {
+    directionsParams.set(
+      "destination",
+      located.at(-1)?.data.address || located.at(-1)?.data.title || "",
+    );
+    directionsParams.set(
+      "travelmode",
+      (
+        {
+          WALK: "walking",
+          DRIVE: "driving",
+          BICYCLE: "bicycling",
+          TRANSIT: "transit",
+        } as Record<string, string>
+      )[mode] || "walking",
+    );
+  }
+  const destinationOnly =
+    linkedRoute && !transportMode(activeGround.data.transport!.method);
+  const destinationParams = new URLSearchParams({
+    api: "1",
+    query: toLocation?.placeId
+      ? toLocation.label
+      : `${toLocation?.lat},${toLocation?.lng}`,
+  });
+  if (toLocation?.placeId)
+    destinationParams.set("query_place_id", toLocation.placeId);
+  const directionsLabel = destinationOnly
+    ? "Open destination in Google Maps"
+    : "Open Google Maps directions";
   const directionsLink = located.length > 0 && (
     <a
-      aria-label="Open Google Maps directions"
-      title="Open Google Maps directions"
+      aria-label={directionsLabel}
+      title={directionsLabel}
       target="_blank"
       rel="noreferrer"
-      href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(located.at(-1)!.data.address || located.at(-1)!.data.title)}&travelmode=${({ WALK: "walking", DRIVE: "driving", BICYCLE: "bicycling", TRANSIT: "transit" } as any)[mode]}`}
+      href={
+        destinationOnly
+          ? `https://www.google.com/maps/search/?${destinationParams}`
+          : `https://www.google.com/maps/dir/?${directionsParams}`
+      }
     >
       <ExternalLink size={18} />
     </a>

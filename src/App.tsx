@@ -1,5 +1,6 @@
 import { displayNameFor, ownDisplayName, profileState } from "./profiles";
 import InvitationInbox from "./InvitationInbox";
+import { clearTransportRouteCache } from "./transportRoutes";
 import { pendingInvitation, clearInvitation } from "./invitation";
 import CoverPhoto from "./CoverPhoto";
 import { getCover } from "./covers";
@@ -199,6 +200,10 @@ export default function App() {
     };
   }, [tid, status, queue.length]);
   useEffect(() => setTripDetails(false), [tid, tab]);
+  useEffect(() => {
+    clearTransportRouteCache();
+    return clearTransportRouteCache;
+  }, [userId]);
   useEffect(() => setNamePromptDismissed(""), [userId]);
   useEffect(() => {
     if (tripDetails)

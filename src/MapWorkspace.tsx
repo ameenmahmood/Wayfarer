@@ -11,6 +11,7 @@ import { formatTime } from "./schedule";
 import { Button } from "./ui";
 import MapPanel from "./MapPanel";
 import { flightConnections, flightTiming } from "./flights";
+import { transportMapEndpoints, resolveTransportLocation } from "./transport";
 export default function MapWorkspace({
   entries,
   contextEntries,
@@ -51,9 +52,14 @@ export default function MapWorkspace({
     (connection) =>
       connection.from.id === selected || connection.to.id === selected,
   );
-  const located = entries.filter(
-    (e) => e.data.placeId || (e.data.lat != null && e.data.lng != null),
-  );
+  const located = [
+    ...entries,
+    ...entries.flatMap((entry) =>
+      transportMapEndpoints(entry, contextEntries || entries).map(
+        (endpoint) => endpoint.entry,
+      ),
+    ),
+  ].filter((e) => e.data.placeId || (e.data.lat != null && e.data.lng != null));
   const dayLabel = (day: string) =>
     new Date(day + "T12:00:00").toLocaleDateString("en-US", {
       weekday: "short",
@@ -174,7 +180,9 @@ export default function MapWorkspace({
                 ) : (
                   <>
                     {formatTime(stop.data.start)}
-                    {stop.data.address && ` · ${stop.data.address}`}
+                    {stop.data.type === "Transportation" && stop.data.transport
+                      ? ` · ${resolveTransportLocation(stop.data.transport.from, contextEntries || entries)?.label || "Pickup not set"} → ${resolveTransportLocation(stop.data.transport.to, contextEntries || entries)?.label || "Destination not set"}`
+                      : stop.data.address && ` · ${stop.data.address}`}
                   </>
                 )}
               </p>

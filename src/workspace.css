@@ -1,4 +1,165 @@
 /* Responsive workspace: one agenda row per plan, details on demand. */
+.agenda-view .plan-card.transport-plan.is-expanded .plan-summary,
+.agenda-view .plan-card.transport-plan.is-expanded .plan-secondary,
+.agenda-view .plan-card.transport-plan .plan-summary,
+.agenda-view .plan-card.transport-plan .plan-secondary {
+  display: none;
+}
+.transport-inline-editor {
+  padding: 0 16px 20px 68px;
+}
+.transport-field-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px 16px;
+}
+.transport-fields .field {
+  margin: 0;
+  min-width: 0;
+}
+.transport-fields .field > label,
+.transport-fields .field > span {
+  font-size: 14px;
+  margin-bottom: 6px;
+}
+.transport-fields input,
+.transport-fields select,
+.transport-fields textarea {
+  min-width: 0;
+  width: 100%;
+  font-size: 14px;
+}
+.transport-fields select,
+.transport-fields input {
+  min-height: 44px;
+}
+.transport-fields .time-input {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+.transport-fields .time-input select {
+  flex: 1;
+  width: auto;
+  min-width: 0;
+  padding: 8px 14px 8px 6px;
+}
+.transport-fields .transport-location {
+  min-width: 0;
+}
+.transport-location > .field + .field,
+.transport-place-search,
+.transport-coordinates {
+  margin-top: 8px;
+}
+.transport-estimate {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  background: var(--surface2);
+  color: var(--text);
+  border-radius: 10px;
+  padding: 12px;
+  margin-top: 16px;
+  font-size: 14px;
+}
+.transport-estimate > svg {
+  color: var(--green);
+}
+.transport-estimate > span {
+  margin-left: auto;
+}
+.transport-estimate-actions {
+  display: flex;
+  align-items: end;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+.transport-estimate-actions > .field {
+  max-width: 170px;
+}
+.transport-fields .text-button {
+  font-size: 13px;
+  min-height: 36px;
+  padding: 5px 0;
+}
+.transport-fields .notice {
+  font-size: 13px;
+}
+.transport-hint {
+  margin: 12px 0 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+.transport-more {
+  margin-top: 14px;
+}
+.transport-more > summary {
+  padding: 8px 0;
+  font-size: 14px;
+  cursor: pointer;
+}
+.transport-more[open] {
+  display: grid;
+  gap: 12px;
+}
+.transport-save-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+.transport-save-actions .button {
+  min-height: 44px;
+  font-size: 14px;
+}
+.transport-readonly {
+  margin: 0;
+  display: grid;
+  gap: 8px;
+  font-size: 14px;
+}
+.transport-readonly > div {
+  display: grid;
+  grid-template-columns: 70px minmax(0, 1fr);
+  gap: 10px;
+}
+.transport-readonly dt {
+  color: var(--muted);
+}
+.transport-readonly dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.legacy-travel-details {
+  margin-top: 12px;
+  font-size: 13px;
+}
+.legacy-travel-details summary {
+  cursor: pointer;
+}
+.legacy-travel-details p:empty {
+  display: none;
+}
+@media (max-width: 650px) {
+  .transport-inline-editor {
+    padding: 0 12px 16px;
+  }
+  .transport-field-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+  .transport-estimate > span {
+    margin-left: 0;
+  }
+  .transport-fields input,
+  .transport-fields select,
+  .transport-fields textarea {
+    font-size: 16px;
+  }
+}
 .compact-map {
   position: relative;
 }

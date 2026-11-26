@@ -197,21 +197,51 @@ it("records a partial repayment against an expense and restores its status when 
   expect(row.queryByText(/paid \$1.00/)).toBeNull();
 });
 
-it("route preview preserves the itinerary until accepted and displays conflicts rather than applying an impossible plan", async () => {
+it("adds an explicit transport without shifting the existing activities", async () => {
+  localStorage.setItem("wayfarer-trip", "demo-japan");
   const u = await openApp();
-  await u.click(screen.getByRole("button", { name: "Optimize day" }));
-  await u.click(dialog().getByRole("button", { name: "Preview route" }));
-  await dialog().findByText(/LOCAL DEMO · straight-line/);
-  expect(dialog().getByText(/does not guarantee/)).toBeTruthy();
-  const accept = dialog().queryByRole("button", {
-    name: "Accept proposed itinerary",
-  });
-  if (accept) {
-    await u.click(accept);
-    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-  } else
-    expect(dialog().getByText("This plan needs an adjustment")).toBeTruthy();
-});
+  const { all } = await import("../src/store");
+  const before = (await all()).filter(
+    (e) => e.kind === "entry" && e.tripId === "demo-japan",
+  );
+  await u.click(screen.getByRole("button", { name: "Add transport" }));
+  expect(dialog().getByLabelText("Type")).toHaveProperty(
+    "value",
+    "Transportation",
+  );
+  await u.type(dialog().getByLabelText("Title"), "UI explicit transport");
+  await u.selectOptions(
+    dialog().getByLabelText("From"),
+    `entry:${before.find((e) => e.data.title === "Drop bags at the hotel")!.id}`,
+  );
+  await u.selectOptions(
+    dialog().getByLabelText("To"),
+    `entry:${before.find((e) => e.data.title === "A slow afternoon in Shinjuku Gyoen")!.id}`,
+  );
+  await u.click(
+    dialog().getByRole("button", { name: "Enter duration instead" }),
+  );
+  await u.clear(dialog().getByLabelText("Transport duration in minutes"));
+  await u.type(dialog().getByLabelText("Transport duration in minutes"), "45");
+  await u.click(dialog().getByRole("button", { name: "Save to itinerary" }));
+  await screen.findByRole("heading", { name: "UI explicit transport" });
+  const after = await all();
+  for (const original of before)
+    expect(after.find((e) => e.id === original.id)!.data.start).toBe(
+      original.data.start,
+    );
+  expect(
+    after.find((e) => e.data.title === "UI explicit transport")!.data.transport
+      .manualMinutes,
+  ).toBe(45);
+  await u.click(
+    screen.getByRole("button", { name: "Details for UI explicit transport" }),
+  );
+  expect(
+    screen.getByRole("form", { name: "Transport for UI explicit transport" }),
+  ).toBeTruthy();
+  expect(screen.getByText("45 min manual")).toBeTruthy();
+}, 10000);
 
 it("itemized expense controls validate totals, save, edit, remove items and delete without double counting", async () => {
   const u = await openApp();
@@ -288,7 +318,7 @@ it("switching between itinerary and map preserves the selected trip day", async 
   ).toBe("true");
 });
 
-it("creating a trip exposes editing immediately and a feasible route can be previewed and accepted", async () => {
+it("creates a transport with a standalone destination without adding a duplicate place activity", async () => {
   const u = await openApp();
   await u.click(screen.getByRole("button", { name: "Plan a new trip" }));
   await u.type(await dialog().findByLabelText("Trip name"), "UI weekend");
@@ -301,15 +331,26 @@ it("creating a trip exposes editing immediately and a feasible route can be prev
   await u.type(dialog().getByLabelText("Your longitude"), "-71.06");
   await u.click(dialog().getByRole("button", { name: "Save to itinerary" }));
   await screen.findByRole("heading", { name: "Morning walk" });
-  await u.click(screen.getByRole("button", { name: "Optimize day" }));
-  await u.click(dialog().getByRole("button", { name: "Preview route" }));
-  await dialog().findByText(/Original itinerary is unchanged/);
+  const { all } = await import("../src/store");
+  const morning = (await all()).find((e) => e.data.title === "Morning walk")!;
+  await u.click(screen.getByRole("button", { name: "Add transport" }));
+  await u.type(dialog().getByLabelText("Title"), "Hotel transfer");
+  await u.selectOptions(dialog().getByLabelText("From"), `entry:${morning.id}`);
+  await u.selectOptions(dialog().getByLabelText("To"), "coordinates");
+  await u.type(dialog().getByLabelText("To label"), "Hotel");
+  await u.type(dialog().getByLabelText("To latitude"), "42.37");
+  await u.type(dialog().getByLabelText("To longitude"), "-71.05");
+  await u.click(dialog().getByRole("button", { name: "Use coordinates" }));
   await u.click(
-    dialog().getByRole("button", { name: "Accept proposed itinerary" }),
+    dialog().getByRole("button", { name: "Enter duration instead" }),
   );
-  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-  expect(screen.getByRole("heading", { name: "Morning walk" })).toBeTruthy();
-});
+  await u.click(dialog().getByRole("button", { name: "Save to itinerary" }));
+  await screen.findByRole("heading", { name: "Hotel transfer" });
+  expect(document.querySelectorAll(".timeline .plan-card")).toHaveLength(2);
+  expect((await all()).find((e) => e.id === morning.id)!.data.start).toBe(
+    morning.data.start,
+  );
+}, 10000);
 
 it("opening settings from mobile navigation keeps background scrolling locked until the dialog closes", async () => {
   render(<App />);
@@ -487,7 +528,7 @@ it("compact activity details expand by keyboard, preserve edit actions, and coll
   expect(toggle.getAttribute("aria-expanded")).toBe("false");
 });
 
-it("keeps travel settings inside the opened activity instead of between agenda rows", async () => {
+it("keeps ordinary activity details free of inferred travel controls", async () => {
   localStorage.setItem("wayfarer-trip", "demo-japan");
   const u = await openApp();
   expect(document.querySelector(".timeline .travel-leg")).toBeNull();
@@ -495,13 +536,13 @@ it("keeps travel settings inside the opened activity instead of between agenda r
   const toggle = screen.getByRole("button", { name: `Details for ${title}` });
   await u.click(toggle);
   const card = toggle.closest(".plan-card")!;
-  expect(card.querySelector(".plan-secondary .travel-leg")).toBeTruthy();
+  expect(card.querySelector(".plan-secondary .travel-leg")).toBeNull();
   expect(document.querySelector(".timeline-wrap > .travel-leg")).toBeNull();
-  await u.click(
-    within(card as HTMLElement).getByRole("button", {
+  expect(
+    within(card as HTMLElement).queryByRole("button", {
       name: /travel settings/,
     }),
-  );
+  ).toBeNull();
   expect(toggle.getAttribute("aria-expanded")).toBe("true");
   await u.click(toggle);
   expect(document.querySelector(".timeline .travel-leg")).toBeNull();

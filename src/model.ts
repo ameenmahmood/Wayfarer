@@ -45,6 +45,7 @@ export type TransferBooking = {
   pickup?: { date: string; time: string };
 };
 export type Entry = {
+  transport?: TransportPlan;
   sourceIdeaId?: string;
   flight?: { arrivalId: string; number?: string };
   title: string;
@@ -74,6 +75,22 @@ export type Entry = {
     manualMinutes?: number;
     booking?: TransferBooking;
   };
+};
+export type TransportLocation = {
+  label: string;
+  entryId?: string;
+  placeId?: string;
+  lat?: number;
+  lng?: number;
+};
+export type TransportPlan = {
+  company?: string;
+  meetingPoint?: string;
+  from?: TransportLocation;
+  to?: TransportLocation;
+  method:
+    "taxi" | "car" | "bus" | "train" | "walk" | "bicycle" | "ferry" | "other";
+  manualMinutes?: number;
 };
 export type SplitMode = "equal" | "exact" | "percentage" | "weighted";
 export type Expense = {

@@ -2,7 +2,7 @@
 import { beforeEach, afterEach, it, expect, vi } from "vitest";
 import { render, cleanup, waitFor, screen, act } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { makeEntity, type Entry } from "../src/model";
+import { makeEntity, type Entity, type Entry } from "../src/model";
 const service = vi.hoisted(() => ({
   api: vi.fn<(...args: any[]) => Promise<any>>(),
 }));
@@ -12,8 +12,11 @@ vi.mock("../src/store", () => ({
 }));
 vi.stubEnv("VITE_GOOGLE_MAPS_BROWSER_KEY", "public-test-key");
 import MapPanel from "../src/MapPanel";
+import MapWorkspace from "../src/MapWorkspace";
+import { clearTransportRouteCache } from "../src/transportRoutes";
 let markers: any[], map: any, mapOptions: any, polylines: any[];
 beforeEach(() => {
+  clearTransportRouteCache();
   markers = [];
   polylines = [];
   mapOptions = undefined;
@@ -67,7 +70,7 @@ beforeEach(() => {
         if (args.placeId === "missing") throw Error("Location unavailable");
         return { location: { latitude: 40.75, longitude: -73.98 } };
       }
-      return { warnings: [], polyline: "" };
+      return { warnings: [], polyline: "", minutes: 45 };
     },
   );
 });
@@ -110,7 +113,17 @@ function entry(title: string, placeId: string) {
     order: 0,
   });
 }
-it("automatically calculates routes while reusing coordinates and ignoring title edits", async () => {
+function transport(from: Entity<Entry>, to: Entity<Entry>) {
+  const ride = entry("Explicit transport", "");
+  ride.data.type = "Transportation";
+  ride.data.transport = {
+    method: "car",
+    from: { entryId: from.id, label: from.data.title },
+    to: { entryId: to.id, label: to.data.title },
+  };
+  return ride;
+}
+it("maps ordinary places without calculating inferred routes", async () => {
   const entries = [entry("First", "one"), entry("Second", "two")];
   const { rerender } = render(
     <MapPanel
@@ -121,7 +134,7 @@ it("automatically calculates routes while reusing coordinates and ignoring title
     />,
   );
   await waitFor(() => expect(markers).toHaveLength(2));
-  await waitFor(() => expect(service.api).toHaveBeenCalledTimes(4));
+  await waitFor(() => expect(service.api).toHaveBeenCalledTimes(3));
   rerender(
     <MapPanel
       entries={entries.map((e) => ({
@@ -138,7 +151,7 @@ it("automatically calculates routes while reusing coordinates and ignoring title
       tripId="trip"
     />,
   );
-  expect(service.api).toHaveBeenCalledTimes(4);
+  expect(service.api).toHaveBeenCalledTimes(3);
   expect(markers[0].setTitle).toHaveBeenCalledWith("First renamed");
   rerender(
     <MapPanel
@@ -149,11 +162,13 @@ it("automatically calculates routes while reusing coordinates and ignoring title
       mode="DRIVE"
     />,
   );
-  await waitFor(() => expect(service.api).toHaveBeenCalledTimes(5));
+  await waitFor(() => expect(service.api).toHaveBeenCalledTimes(3));
   expect(
     service.api.mock.calls.filter((call) => call[0] === "place"),
   ).toHaveLength(2);
-  expect(screen.queryByRole("button", { name: "Show routes" })).toBeNull();
+  expect(
+    service.api.mock.calls.filter((call) => call[0] === "route"),
+  ).toHaveLength(0);
 });
 it("selection and click callbacks use entry IDs even when an earlier place could not load", async () => {
   const entries = [entry("Unavailable", "missing"), entry("Visible", "valid")];
@@ -182,7 +197,7 @@ it("selection and click callbacks use entry IDs even when an earlier place could
   expect(newSelect).toHaveBeenCalledWith(entries[1].id);
   expect(oldSelect).not.toHaveBeenCalled();
 });
-it("adding a new location only looks up that new ID while updating routes", async () => {
+it("adding an ordinary location only looks up its pin, without requesting routes", async () => {
   const entries = [entry("First", "one"), entry("Second", "two")];
   const { rerender } = render(
     <MapPanel
@@ -214,7 +229,7 @@ it("adding a new location only looks up that new ID while updating routes", asyn
   await waitFor(() =>
     expect(
       service.api.mock.calls.filter((call) => call[0] === "route"),
-    ).toHaveLength(3),
+    ).toHaveLength(0),
   );
 });
 
@@ -238,13 +253,14 @@ it("retrying a failed map rebuilds its markers even when the map SDK was already
   expect(service.api).toHaveBeenCalledTimes(3);
 });
 
-it("draws each leg with its saved transport method", async () => {
+it("draws only the explicit transport journey with its own method", async () => {
   const a = entry("A", "place-a"),
     b = entry("B", "place-b");
   b.data.arrival = { fromId: a.id, mode: "DRIVE", manualMinutes: 20 };
-  render(
+  const ride = transport(a, b);
+  const { rerender } = render(
     <MapPanel
-      entries={[a, b]}
+      entries={[a, b, ride]}
       selected=""
       onSelect={() => {}}
       tripId="trip"
@@ -259,6 +275,41 @@ it("draws each leg with its saved transport method", async () => {
       expect.objectContaining({ mode: "DRIVE" }),
     ),
   );
+  const directions = new URL(
+    screen
+      .getByRole("link", { name: "Open Google Maps directions" })
+      .getAttribute("href")!,
+  );
+  expect(directions.searchParams.get("origin_place_id")).toBe("place-a");
+  expect(directions.searchParams.get("destination_place_id")).toBe("place-b");
+  expect(directions.searchParams.get("travelmode")).toBe("driving");
+  rerender(
+    <MapPanel
+      entries={[
+        b,
+        ride,
+        { ...a, data: { ...a.data, title: "Renamed pickup" } },
+      ]}
+      selected={ride.id}
+      onSelect={() => {}}
+      tripId="trip"
+      mode="TRANSIT"
+    />,
+  );
+  await waitFor(() =>
+    expect(
+      markers.some(
+        (marker) =>
+          marker.options.title === "Renamed pickup" ||
+          marker.setTitle.mock.calls.some(
+            (call: any[]) => call[0] === "Renamed pickup",
+          ),
+      ),
+    ).toBe(true),
+  );
+  expect(
+    service.api.mock.calls.filter((call) => call[0] === "route"),
+  ).toHaveLength(1);
 });
 
 it("expanded maps keep the live Google canvas and selectable stops without the side-card heading", async () => {
@@ -318,18 +369,32 @@ it("draws a dashed airport connection while requesting only the ground route, wi
     lng: -75.5,
     arrival: { fromId: to.id, mode: "DRIVE" },
   };
-  service.api.mockResolvedValue({ warnings: [], polyline: "ground" });
+  const ride = transport(to, hotel);
+  service.api.mockResolvedValue({
+    warnings: [],
+    polyline: "ground",
+    minutes: 45,
+  });
   const onSelect = vi.fn();
   render(
     <MapPanel
       expanded
-      entries={[from, to, hotel]}
+      entries={[from, to, hotel, ride]}
       selected=""
       onSelect={onSelect}
       tripId="trip"
     />,
   );
-  await waitFor(() => expect(polylines).toHaveLength(2));
+  await waitFor(
+    () =>
+      expect(
+        polylines.filter(
+          (path) =>
+            !path.setMap.mock.calls.some((call: any[]) => call[0] === null),
+        ),
+      ).toHaveLength(2),
+    { timeout: 3000 },
+  );
   expect(service.api).toHaveBeenCalledTimes(2);
   expect(service.api).toHaveBeenCalledWith(
     "route",
@@ -460,23 +525,28 @@ it("does not route backwards across an explicitly linked flight when activity or
 it("focused maps keep route warnings on demand and close information with Escape", async () => {
   const a = entry("A", "one"),
     b = entry("B", "two");
+  const ride = transport(a, b);
   service.api.mockImplementation(async (action) =>
     action === "place"
       ? { location: { latitude: 40.75, longitude: -73.98 } }
-      : { warnings: ["This route has tolls."], polyline: "" },
+      : { warnings: ["This route has tolls."], polyline: "", minutes: 45 },
   );
   const u = userEvent.setup();
   render(
     <MapPanel
       expanded
-      entries={[a, b]}
+      entries={[a, b, ride]}
       selected=""
       onSelect={() => {}}
       tripId="trip"
     />,
   );
   await waitFor(() => expect(markers).toHaveLength(2));
-  const notes = await screen.findByRole("button", { name: "Route notes (1)" });
+  const notes = await screen.findByRole(
+    "button",
+    { name: "Route notes (1)" },
+    { timeout: 3000 },
+  );
   expect(screen.queryByText("This route has tolls.")).toBeNull();
   await u.click(notes);
   expect(screen.getByText("This route has tolls.")).toBeTruthy();
@@ -534,18 +604,28 @@ it("keeps the small itinerary map free of flight selectors, fit buttons, and dup
 it("keeps compact-map warnings behind an alert control, supports dismissal, and clears old alerts", async () => {
   const a = entry("A", "one"),
     b = entry("B", "two");
+  const ride = transport(a, b);
   service.api.mockImplementation(async (action) =>
     action === "place"
       ? { location: { latitude: 40.75, longitude: -73.98 } }
-      : { warnings: ["This route has tolls."], polyline: "" },
+      : { warnings: ["This route has tolls."], polyline: "", minutes: 45 },
   );
   const u = userEvent.setup();
   const { rerender } = render(
-    <MapPanel entries={[a, b]} selected="" onSelect={() => {}} tripId="trip" />,
+    <MapPanel
+      entries={[a, b, ride]}
+      selected=""
+      onSelect={() => {}}
+      tripId="trip"
+    />,
   );
-  const alerts = await screen.findByRole("button", {
-    name: "Route alerts (1)",
-  });
+  const alerts = await screen.findByRole(
+    "button",
+    {
+      name: "Route alerts (1)",
+    },
+    { timeout: 3000 },
+  );
   expect(alerts.getAttribute("aria-expanded")).toBe("false");
   expect(screen.queryByText("This route has tolls.")).toBeNull();
   await u.click(alerts);
@@ -562,4 +642,38 @@ it("keeps compact-map warnings behind an alert control, supports dismissal, and 
   await waitFor(() =>
     expect(screen.queryByRole("button", { name: /Route alerts/ })).toBeNull(),
   );
+});
+
+it("shows standalone transport endpoints in the dedicated map without a false empty-state message", async () => {
+  const ride = entry("Airport transfer", "");
+  ride.data.type = "Transportation";
+  ride.data.transport = {
+    method: "car",
+    manualMinutes: 45,
+    from: { label: "Airport", lat: 10.9, lng: -74.8 },
+    to: { label: "Hotel", lat: 10.4, lng: -75.5 },
+  };
+  render(
+    <MapWorkspace
+      entries={[ride]}
+      contextEntries={[ride]}
+      tripId="trip"
+      date={ride.data.date}
+      dates={[ride.data.date]}
+      view="day"
+      selected={ride.id}
+      mode="WALK"
+      canEdit={false}
+      onDate={() => {}}
+      onView={() => {}}
+      onSelect={() => {}}
+      onEdit={() => {}}
+    />,
+  );
+  await waitFor(() => expect(markers).toHaveLength(2));
+  expect(screen.queryByText(/No mapped stops in this view/)).toBeNull();
+  expect(screen.getByText(/Airport → Hotel/)).toBeTruthy();
+  expect(
+    service.api.mock.calls.filter((call) => call[0] === "route"),
+  ).toHaveLength(0);
 });
