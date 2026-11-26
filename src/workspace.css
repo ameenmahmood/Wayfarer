@@ -575,7 +575,17 @@
     padding-left: 52px;
   }
   .agenda-view .day-aside {
+    display: block;
+  }
+  .agenda-view .day-aside > .field,
+  .agenda-view .day-aside .map-card {
     display: none;
+  }
+  .agenda-view .day-aside .inspiration-card {
+    padding: 0;
+    margin-top: 0;
+    border: 0;
+    background: transparent;
   }
   .trip-active .section-navigation {
     height: var(--mobile-nav-height);
