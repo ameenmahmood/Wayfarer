@@ -33,8 +33,9 @@ revocation blocks new requests; it cannot cancel a provider request already sent
 | Control | Default |
 | --- | --- |
 | Site monthly reserved usage | $10 USD |
-| Site daily reserved usage | $3 USD |
-| Account daily reserved usage | $3 USD, 100 requests |
+| Site daily estimated-dollar cutoff | Disabled |
+| Account daily paid requests | 1,000 |
+| Account daily estimated-dollar cutoff | Disabled |
 | Site requests per calendar minute | 30 |
 | Account requests per calendar minute, all actions combined | 12 |
 | Concurrent requests | 2 per account, 5 site-wide |
@@ -68,6 +69,8 @@ earlier in the month or charges from other projects using the same billing accou
 The legacy AI and automatic exchange-provider endpoints are disabled, including
 for approved users, because they are unused/unpriced by these controls. Manual
 rates remain available. Do not re-enable them without adding budget reservations.
+
+`paid_service_settings.user_daily_requests` controls the per-account daily request limit. Migration 013 raises it from 100 to 1,000 and sets both `daily_cents` and `user_daily_cents` to NULL, disabling the former $3 daily estimate cutoffs. Existing usage and monthly accounting are preserved. The $10 monthly reservation ceiling is still estimated usage, not the Google invoice, and can stop usage before 1,000 daily requests.
 
 `paid_service_settings` can lower the limits. Its monthly setting cannot exceed
 1000 cents. Set `enabled=false` to stop new paid requests immediately. View

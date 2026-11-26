@@ -39,13 +39,43 @@ beforeAll(async () => {
       "utf8",
     ).split("-- Hosted scheduler:")[0],
   );
+  await db.exec(
+    readFileSync(
+      new URL(
+        "../supabase/migrations/013_daily_request_allowance.sql",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  );
 }, 20000);
 beforeEach(async () => {
   await db.exec(`reset role; truncate public.place_coordinate_cache,public.paid_feature_access,public.paid_service_usage,public.paid_service_leases;
-    update public.paid_service_settings set enabled=true,monthly_cents=1000,daily_cents=300,user_daily_cents=300;
+    update public.paid_service_settings set enabled=true,monthly_cents=1000,daily_cents=300,user_daily_cents=300,user_daily_requests=1000;
     insert into public.paid_feature_access(user_id,approved) values('${owner}',true),('${friend}',true);`);
 });
 afterAll(() => db.close());
+
+it("allows the 1000th daily request and blocks the 1001st without a misleading dollar cutoff", async () => {
+  await db.exec(`update paid_service_settings set daily_cents=null,user_daily_cents=null;
+    insert into paid_service_usage(scope,window_start,hits,cents)
+    values('user:${owner}:day',date_trunc('day',now() at time zone 'UTC') at time zone 'UTC',999,297);`);
+  const last = await reserve();
+  expect(last.allowed).toBe(true);
+  await release(last.lease_id);
+  expect(await reserve()).toMatchObject({
+    allowed: false,
+    reason: expect.stringContaining("daily paid-request limit"),
+  });
+  expect((await reserve(friend)).allowed).toBe(true);
+});
+it("allows further requests after the former shared and personal $3 estimate cutoff", async () => {
+  await db.exec(`update paid_service_settings set daily_cents=null,user_daily_cents=null;
+    insert into paid_service_usage(scope,window_start,hits,cents)
+    values('global:day',date_trunc('day',now() at time zone 'UTC') at time zone 'UTC',78,297),
+      ('user:${owner}:day',date_trunc('day',now() at time zone 'UTC') at time zone 'UTC',78,297);`);
+  expect((await reserve()).allowed).toBe(true);
+});
 
 it("shares fresh coordinates across approved accounts without spending allowance", async () => {
   await db.query("select public.store_place_coordinates('place-one',1,2)");
