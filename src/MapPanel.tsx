@@ -5,6 +5,7 @@ import {
   ExternalLink,
   RefreshCw,
   Info,
+  TriangleAlert,
 } from "lucide-react";
 import type { Entity, Entry } from "./model";
 import { api, demo } from "./store";
@@ -318,37 +319,17 @@ export default function MapPanel({
     (error ? 1 : 0) +
     (!navigator.onLine ? 1 : 0) +
     (unlinkedFlights.length ? 1 : 0);
-  const mapDetails = (
+  const cardAlertCount = noteCount + (!configured ? 1 : 0);
+  const mapNotices = (
     <>
-      {" "}
-      {entries.some(
-        (entry) =>
-          entry.data.type === "Flight" &&
-          !flights.some((flight) => flight.from.id === entry.id),
-      ) && (
+      {unlinkedFlights.length > 0 && (
         <p className="flight-map-note">
           Link the flight’s arrival-airport stop in Edit plan to show its
           connection. Flights don’t use road directions.
         </p>
       )}
-      {flights.length > 0 && (
-        <div className="flight-map-legend">
-          <span>
-            <i className="flight-line-key" />
-            Flight connection
-          </span>
-          <span>
-            <i className="ground-line-key" />
-            Ground route
-          </span>
-          <small>
-            Planned airport connection, not an actual flight track. Scheduled
-            times are entered by you.
-          </small>
-        </div>
-      )}
-      {routeWarnings.map((w) => (
-        <Notice key={w}>{w}</Notice>
+      {routeWarnings.map((warning) => (
+        <Notice key={warning}>{warning}</Notice>
       ))}
       {configured && !navigator.onLine && (
         <Notice>
@@ -370,6 +351,41 @@ export default function MapPanel({
           </Button>
         </Notice>
       )}
+      {!configured && (
+        <p className="map-caption">
+          Live map is not configured. Your saved places stay here offline. Live
+          maps, directions, and place search need configured Google services.
+        </p>
+      )}
+    </>
+  );
+  const routeLegend = flights.length > 0 && (
+    <div className="flight-map-legend">
+      <span>
+        <i className="flight-line-key" />
+        Flight connection
+      </span>
+      <span>
+        <i className="ground-line-key" />
+        Ground route
+      </span>
+    </div>
+  );
+  const directionsLink = located.length > 0 && (
+    <a
+      aria-label="Open Google Maps directions"
+      title="Open Google Maps directions"
+      target="_blank"
+      rel="noreferrer"
+      href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(located.at(-1)!.data.address || located.at(-1)!.data.title)}&travelmode=${({ WALK: "walking", DRIVE: "driving", BICYCLE: "bicycling", TRANSIT: "transit" } as any)[mode]}`}
+    >
+      <ExternalLink size={18} />
+    </a>
+  );
+  const mapDetails = (
+    <>
+      {mapNotices}
+      {routeLegend}
       <div className="map-footer">
         <span className="small-icon">
           <Navigation size={15} />
@@ -377,41 +393,24 @@ export default function MapPanel({
             ? "Live map · internet required"
             : "Live map is not configured"}
         </span>
-        {located.length > 0 && (
-          <a
-            aria-label="Open Google Maps directions"
-            target="_blank"
-            rel="noreferrer"
-            href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(located.at(-1)!.data.address || located.at(-1)!.data.title)}&travelmode=${({ WALK: "walking", DRIVE: "driving", BICYCLE: "bicycling", TRANSIT: "transit" } as any)[mode]}`}
-          >
-            <ExternalLink size={16} />
-          </a>
-        )}
+        {directionsLink}
       </div>
-      {!configured && (
-        <p className="map-caption">
-          Your saved places stay here offline. Live maps, directions, and place
-          search need configured Google services.
-        </p>
-      )}
     </>
   );
   return (
     <section
-      className={"map-card" + (expanded ? " expanded map-focus-card" : "")}
+      className={
+        "map-card" + (expanded ? " expanded map-focus-card" : " compact-map")
+      }
       aria-label="Trip locations map"
     >
-      {!expanded && (
-        <div className="section-head">
-          <h3>Your day, on the map</h3>
-          <MapPin size={18} />
-        </div>
-      )}
       {configured ? (
         <>
           <div ref={ref} className="google-map" />
           {!ready && !error && navigator.onLine && (
-            <div className="notice">Loading live Google map…</div>
+            <div className="notice map-loading" role="status">
+              Loading live Google map…
+            </div>
           )}
         </>
       ) : !tripId.startsWith("demo") && !(demo && flights.length) ? (
@@ -556,7 +555,28 @@ export default function MapPanel({
           {mapDetails}
         </MapPopover>
       ) : (
-        mapDetails
+        <>
+          {cardAlertCount > 0 && (
+            <MapPopover
+              label={error ? "Map issue" : `Route alerts (${cardAlertCount})`}
+              className="map-alerts"
+              attention={error}
+              icon={<TriangleAlert size={21} aria-hidden="true" />}
+            >
+              <h3 className="map-alerts-title">
+                <TriangleAlert size={17} aria-hidden="true" />
+                Route alerts
+              </h3>
+              {mapNotices}
+            </MapPopover>
+          )}
+          {(located.length > 0 || flights.length > 0) && (
+            <div className="map-card-key">
+              {routeLegend}
+              {directionsLink}
+            </div>
+          )}
+        </>
       )}
     </section>
   );

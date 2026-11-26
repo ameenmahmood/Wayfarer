@@ -17,3 +17,9 @@ Approved mobile and desktop concepts were implemented on November 26, 2026.
 - The demo uses its existing illustrative map. Real authenticated maps and personal trip data were not modified during visual QA. Google Maps integration and attribution remain in the existing MapPanel implementation.
 
 Production uses the existing GitHub Pages workflow on `main`; no backend migration or configuration changes are needed.
+
+## Compact map card
+
+The itinerary map begins directly with the map canvas. Flight connection and ground route keys remain in a slim footer with the external-directions link. The former map heading, permanent toll banners, and planned-airport-connection explanation are removed. A yellow alert control opens route warnings, offline/configuration information, and unlinked-flight guidance on demand. Serious map failures still open their recovery control automatically. Google attribution stays inside the SDK canvas.
+
+Verified 263 tests, the production build, and the desktop alert popover using the isolated demo. Map tests cover hidden warning text, Escape/outside dismissal, clearing alerts on route changes, retained route keys, marker selection, and error retry.

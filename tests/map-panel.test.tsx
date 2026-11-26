@@ -409,6 +409,12 @@ it("does not guess a destination or fall back to walking for an unlinked flight"
     false,
   );
   expect(
+    screen.queryByText(/Link the flight’s arrival-airport stop/),
+  ).toBeNull();
+  await userEvent
+    .setup()
+    .click(screen.getByRole("button", { name: "Route alerts (1)" }));
+  expect(
     screen.getByText(/Link the flight’s arrival-airport stop/),
   ).toBeTruthy();
 });
@@ -515,6 +521,45 @@ it("keeps the small itinerary map free of flight selectors, fit buttons, and dup
   expect(screen.queryByRole("button", { name: "Fit flight" })).toBeNull();
   expect(screen.queryByText(/scheduled/)).toBeNull();
   expect(
-    screen.getByRole("heading", { name: "Your day, on the map" }),
+    screen.queryByRole("heading", { name: "Your day, on the map" }),
+  ).toBeNull();
+  expect(screen.queryByText(/Planned airport connection/)).toBeNull();
+  expect(screen.getByText("Flight connection")).toBeTruthy();
+  expect(screen.getByText("Ground route")).toBeTruthy();
+  expect(
+    screen.getByRole("link", { name: "Open Google Maps directions" }),
   ).toBeTruthy();
+});
+
+it("keeps compact-map warnings behind an alert control, supports dismissal, and clears old alerts", async () => {
+  const a = entry("A", "one"),
+    b = entry("B", "two");
+  service.api.mockImplementation(async (action) =>
+    action === "place"
+      ? { location: { latitude: 40.75, longitude: -73.98 } }
+      : { warnings: ["This route has tolls."], polyline: "" },
+  );
+  const u = userEvent.setup();
+  const { rerender } = render(
+    <MapPanel entries={[a, b]} selected="" onSelect={() => {}} tripId="trip" />,
+  );
+  const alerts = await screen.findByRole("button", {
+    name: "Route alerts (1)",
+  });
+  expect(alerts.getAttribute("aria-expanded")).toBe("false");
+  expect(screen.queryByText("This route has tolls.")).toBeNull();
+  await u.click(alerts);
+  expect(screen.getByText("This route has tolls.")).toBeTruthy();
+  await u.keyboard("{Escape}");
+  expect(screen.queryByText("This route has tolls.")).toBeNull();
+  expect(document.activeElement).toBe(alerts);
+  await u.click(alerts);
+  await u.click(document.body);
+  expect(screen.queryByText("This route has tolls.")).toBeNull();
+  rerender(
+    <MapPanel entries={[a]} selected="" onSelect={() => {}} tripId="trip" />,
+  );
+  await waitFor(() =>
+    expect(screen.queryByRole("button", { name: /Route alerts/ })).toBeNull(),
+  );
 });

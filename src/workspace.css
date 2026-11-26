@@ -1,4 +1,104 @@
 /* Responsive workspace: one agenda row per plan, details on demand. */
+.compact-map {
+  position: relative;
+}
+.compact-map .google-map {
+  display: block;
+}
+.compact-map .map-loading {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  margin: 0;
+  max-width: calc(100% - 76px);
+  font-size: 13px;
+}
+.compact-map .map-alerts {
+  position: absolute;
+  inset: 12px 12px auto;
+  z-index: 6;
+  display: flex;
+  justify-content: flex-end;
+  pointer-events: none;
+}
+.compact-map .map-alerts .map-overlay-button {
+  pointer-events: auto;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  min-height: 40px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  color: light-dark(#996800, #ffd56a);
+  box-shadow: 0 2px 8px #0002;
+}
+.compact-map .map-alerts .map-overlay-button[aria-expanded="true"] {
+  border-color: currentColor;
+}
+.compact-map .map-alerts .map-popover-panel {
+  pointer-events: auto;
+  width: min(280px, 100%);
+  max-width: 100%;
+  max-height: min(230px, calc(100dvh - 190px));
+  font-size: 14px;
+  line-height: 1.5;
+  box-shadow: 0 6px 24px #0003;
+}
+.compact-map .map-alerts-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  padding-bottom: 10px;
+  margin: 0 0 10px;
+  border-bottom: 1px solid var(--border);
+}
+.compact-map .map-alerts-title svg {
+  color: light-dark(#996800, #ffd56a);
+}
+.compact-map .map-alerts .notice {
+  margin: 8px 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-size: 14px;
+}
+.compact-map .map-alerts .notice .button {
+  margin-top: 10px;
+}
+.compact-map .map-alerts .map-caption,
+.compact-map .map-alerts .flight-map-note {
+  padding: 0;
+  margin: 8px 0;
+  font-size: 13px;
+}
+.compact-map .map-card-key {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  padding: 8px 14px;
+  background: var(--surface);
+}
+.compact-map .map-card-key .flight-map-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  padding: 0;
+  border: 0;
+  font-size: 13px;
+}
+.compact-map .map-card-key > a {
+  margin-left: auto;
+  min-width: 32px;
+  min-height: 32px;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+}
 :root {
   --bg: #f5f8f5;
   --surface: #ffffff;
