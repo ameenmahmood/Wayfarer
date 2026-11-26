@@ -7510,3 +7510,28 @@ html {
 .agenda-view .plan-card.no-summary:not(.is-expanded) .type-icon {
   top: 8px;
 }
+.planned-cost-toggle {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  min-height: 36px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-weight: 650;
+  text-align: left;
+  cursor: pointer;
+}
+.planned-cost-content[hidden] { display: none; }
+.planned-cost-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 0;
+  border-top: 1px solid var(--border);
+}
+.planned-cost-row small { display: block; color: var(--muted); }
+.planned-cost-content > small { display: block; margin-top: 10px; }

@@ -154,6 +154,47 @@ it("manual itinerary editing, duplication and removal work, while unavailable ne
   ).toBeTruthy();
 });
 
+it("planned costs expands by mouse and keyboard and saves an activity estimate without changing actual spending", async () => {
+  const u = await openApp();
+  await u.click(screen.getByRole("button", { name: "Expenses" }));
+  const toggle = await screen.findByRole("button", {
+    name: "Planned costs Estimates",
+  });
+  expect(toggle.getAttribute("aria-expanded")).toBe("false");
+  await u.click(toggle);
+  expect(toggle.getAttribute("aria-expanded")).toBe("true");
+  await u.click(screen.getByRole("button", { name: "Add planned cost" }));
+  const { all } = await import("../src/store");
+  const id = (dialog().getByLabelText("Activity") as HTMLSelectElement).value;
+  const original = (await all()).find((entry) => entry.id === id)!;
+  await u.clear(dialog().getByLabelText("Estimated amount"));
+  await u.type(dialog().getByLabelText("Estimated amount"), "12345");
+  await u.click(dialog().getByRole("button", { name: "Save planned cost" }));
+  await waitFor(async () =>
+    expect((await all()).find((entry) => entry.id === id)?.data.cost).toBe(
+      12345,
+    ),
+  );
+  expect(screen.getAllByText("$80.40").length).toBeGreaterThan(0);
+  await u.click(
+    screen.getByRole("button", {
+      name: `Edit planned cost for ${original.data.title}`,
+    }),
+  );
+  await u.clear(dialog().getByLabelText("Estimated amount"));
+  await u.type(
+    dialog().getByLabelText("Estimated amount"),
+    String(original.data.cost),
+  );
+  await u.click(dialog().getByRole("button", { name: "Save planned cost" }));
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  toggle.focus();
+  await u.keyboard("{Enter}");
+  expect(toggle.getAttribute("aria-expanded")).toBe("false");
+  await u.keyboard(" ");
+  expect(toggle.getAttribute("aria-expanded")).toBe("true");
+});
+
 it("expense editing recalculates spending and repayment records leave trip spending unchanged", async () => {
   const u = await openApp();
   await u.click(screen.getByRole("button", { name: "Expenses" }));

@@ -10,7 +10,7 @@ import {
   History,
 } from "lucide-react";
 import type { Entity, Expense, Repayment, Trip, Entry } from "./model";
-import { makeEntity, today } from "./model";
+import { makeEntity, today, currencies } from "./model";
 import { save, remove } from "./store";
 import { expenseCSV, report, money, minor, precision } from "./money";
 import { Button, Modal, Field, Notice, Empty, useAsyncAction } from "./ui";
@@ -41,6 +41,8 @@ export default function Budget({
       expenseId?: string;
     }>(),
     [budgeting, setBudgeting] = useState(false),
+    [plannedOpen, setPlannedOpen] = useState(false),
+    [plannedEntry, setPlannedEntry] = useState<Entity<Entry>>(),
     a = useAsyncAction();
   const r = report(
     expenses.map((e) => e.data),
@@ -128,11 +130,26 @@ export default function Budget({
           <span>Base currency · {trip.currency}</span>
         </div>
       </div>
-      <details className="planned-costs compact-disclosure">
-        <summary>
+      <section className="planned-costs compact-disclosure">
+        <button
+          className="planned-cost-toggle"
+          aria-expanded={plannedOpen}
+          aria-controls="planned-cost-content"
+          onClick={() => setPlannedOpen((open) => !open)}
+        >
+          <span aria-hidden="true">{plannedOpen ? "▾" : "▸"}</span>
           Planned costs <span className="pill">Estimates</span>
-        </summary>
-        <div className="planned-cost-content">
+        </button>
+        <div
+          className="planned-cost-content"
+          id="planned-cost-content"
+          hidden={!plannedOpen}
+        >
+          {!entries.some((entry) => entry.data.cost > 0) && (
+            <p className="muted">
+              No planned costs yet. Add an estimate to an itinerary activity.
+            </p>
+          )}
           <div className="button-row">
             {Object.entries(
               entries.reduce(
@@ -148,12 +165,41 @@ export default function Budget({
               <span key={currency}>{money(total, currency)}</span>
             ))}
           </div>
+          {entries
+            .filter((entry) => entry.data.cost > 0)
+            .map((entry) => (
+              <div className="planned-cost-row" key={entry.id}>
+                <div className="grow">
+                  <b>{entry.data.title}</b>
+                  <small>{entry.data.date || "Saved place"}</small>
+                </div>
+                <b>{money(entry.data.cost, entry.data.currency)}</b>
+                {canEdit && (
+                  <button
+                    className="icon-button"
+                    aria-label={`Edit planned cost for ${entry.data.title}`}
+                    onClick={() => setPlannedEntry(entry)}
+                  >
+                    <Pencil size={15} />
+                  </button>
+                )}
+              </div>
+            ))}
+          {canEdit && entries.length > 0 && (
+            <Button onClick={() => setPlannedEntry(entries[0])}>
+              <Plus size={15} />
+              Add planned cost
+            </Button>
+          )}
+          {entries.length === 0 && (
+            <p>Add an itinerary activity first to attach a planned cost.</p>
+          )}
           <small>
             Shown in original currencies. Adding an actual expense does not
             automatically remove the linked estimate.
           </small>
         </div>
-      </details>
+      </section>
       <div className="two-columns">
         <section className="panel">
           <div className="section-head">
@@ -450,6 +496,76 @@ export default function Budget({
         </section>
       )}
       {a.error && <Notice tone="error">{a.error}</Notice>}
+      {plannedEntry && (
+        <Modal
+          title="Planned activity cost"
+          onClose={() => setPlannedEntry(undefined)}
+        >
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              const form = new FormData(event.currentTarget);
+              a.run(async () => {
+                const currency = String(form.get("currency"));
+                const cost = minor(String(form.get("cost")), currency);
+                await save({
+                  ...plannedEntry,
+                  data: { ...plannedEntry.data, cost, currency },
+                });
+                setPlannedEntry(undefined);
+                setPlannedOpen(true);
+              });
+            }}
+          >
+            <Field label="Activity">
+              <select
+                value={plannedEntry.id}
+                onChange={(event) =>
+                  setPlannedEntry(
+                    entries.find((entry) => entry.id === event.target.value),
+                  )
+                }
+              >
+                {entries.map((entry) => (
+                  <option key={entry.id} value={entry.id}>
+                    {entry.data.title}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Estimated amount">
+              <input
+                key={plannedEntry.id + "cost"}
+                name="cost"
+                required
+                inputMode="decimal"
+                defaultValue={
+                  plannedEntry.data.cost /
+                  10 ** precision(plannedEntry.data.currency)
+                }
+              />
+            </Field>
+            <Field label="Currency">
+              <select
+                key={plannedEntry.id + "currency"}
+                name="currency"
+                defaultValue={plannedEntry.data.currency}
+              >
+                {[...new Set([plannedEntry.data.currency, ...currencies])].map(
+                  (currency) => (
+                    <option key={currency}>{currency}</option>
+                  ),
+                )}
+              </select>
+            </Field>
+            <small>Use zero to remove an estimate.</small>
+            {a.error && <Notice tone="error">{a.error}</Notice>}
+            <Button type="submit" className="primary" disabled={a.busy}>
+              Save planned cost
+            </Button>
+          </form>
+        </Modal>
+      )}
       {editing && (
         <Modal
           title={editing.version ? "Edit expense" : "Add an expense"}
