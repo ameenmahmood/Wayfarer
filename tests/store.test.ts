@@ -11,7 +11,8 @@ import {
   saveBatch,
   deleteTrip,
 } from "../src/store";
-import { makeEntity } from "../src/model";
+import { makeEntity, type Entity, type Entry } from "../src/model";
+import { plannedExpenseId } from "../src/plannedCosts";
 it("initializes once, supports offline create/edit/delete and retains data across reads", async () => {
   await Promise.all([init(), init()]);
   const seeded = await all();
@@ -52,6 +53,62 @@ it("batch application is atomic locally and checks unchanged reservation guards"
   expect(saved[0].version).toBe(a.version + 1);
   expect((await all()).find((e) => e.id === a.id)?.data.title).toBe(
     "A shifted",
+  );
+});
+
+it("planned cost conversion rejects stale estimates and competing retries cannot create duplicate expenses", async () => {
+  const base = (await all()).find(
+    (entry) => entry.kind === "entry" && entry.tripId === "demo-japan",
+  ) as Entity<Entry>;
+  const source = await save(
+    makeEntity("entry", "demo-japan", {
+      ...base.data,
+      title: "Conversion test",
+      cost: 8500,
+      currency: "USD",
+    }),
+  );
+  const expense = makeEntity("expense", source.tripId, {
+    title: "Conversion test",
+    total: 8500,
+    entryId: source.id,
+  });
+  expense.id = await plannedExpenseId(source);
+  expect(await plannedExpenseId({ ...source })).toBe(expense.id);
+  const updated = await save({
+    ...source,
+    data: { ...source.data, cost: 9000 },
+  });
+  await expect(
+    saveBatch([expense, { ...source, data: { ...source.data, cost: 0 } }]),
+  ).rejects.toThrow("changed");
+  expect(
+    (await all()).find((entry) => entry.id === expense.id),
+  ).toBeUndefined();
+  expect((await all()).find((entry) => entry.id === source.id)?.data.cost).toBe(
+    9000,
+  );
+  const next = {
+    ...expense,
+    id: await plannedExpenseId(updated),
+    data: { ...expense.data, total: 9000 },
+  };
+  expect(next.id).not.toBe(expense.id);
+  const changes = [next, { ...updated, data: { ...updated.data, cost: 0 } }];
+  const outcomes = await Promise.allSettled([
+    saveBatch(changes),
+    saveBatch(changes),
+  ]);
+  expect(
+    outcomes.filter((result) => result.status === "fulfilled"),
+  ).toHaveLength(1);
+  expect(
+    (await all()).filter(
+      (entry) => entry.kind === "expense" && entry.data.entryId === source.id,
+    ),
+  ).toHaveLength(1);
+  expect((await all()).find((entry) => entry.id === source.id)?.data.cost).toBe(
+    0,
   );
 });
 

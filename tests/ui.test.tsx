@@ -10,8 +10,10 @@ import {
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import App from "../src/App";
+import { webcrypto } from "node:crypto";
 
 beforeAll(() => {
+  vi.stubGlobal("crypto", webcrypto);
   vi.stubGlobal(
     "ResizeObserver",
     class {
@@ -193,6 +195,93 @@ it("planned costs expands by mouse and keyboard and saves an activity estimate w
   expect(toggle.getAttribute("aria-expanded")).toBe("false");
   await u.keyboard(" ");
   expect(toggle.getAttribute("aria-expanded")).toBe("true");
+});
+
+it("deletes only a planned estimate and converts it to one actual expense after review", async () => {
+  const u = await openApp();
+  const { all, save, remove } = await import("../src/store");
+  const { makeEntity } = await import("../src/model");
+  const base = (await all()).find(
+    (entry) => entry.kind === "entry" && entry.tripId === "demo-japan",
+  )!;
+  const source = await save(
+    makeEntity("entry", "demo-japan", {
+      ...base.data,
+      title: "UI planned payment",
+      cost: 8500,
+      currency: "USD",
+    }),
+  );
+  await u.click(screen.getByRole("button", { name: "Expenses" }));
+  await u.click(
+    await screen.findByRole("button", { name: "Planned costs Estimates" }),
+  );
+  await u.click(
+    screen.getByRole("button", {
+      name: "Edit planned cost for UI planned payment",
+    }),
+  );
+  await u.click(dialog().getByRole("button", { name: "Delete planned cost" }));
+  await waitFor(async () => {
+    const current = (await all()).find((entry) => entry.id === source.id)!;
+    expect(current.data.cost).toBe(0);
+    expect(current.deleted).toBe(false);
+  });
+  await u.click(screen.getByRole("button", { name: "Add planned cost" }));
+  await u.selectOptions(dialog().getByLabelText("Activity"), source.id);
+  await u.clear(dialog().getByLabelText("Estimated amount"));
+  await u.type(dialog().getByLabelText("Estimated amount"), "85");
+  await u.click(dialog().getByRole("button", { name: "Save planned cost" }));
+  await screen.findByRole("button", {
+    name: "Edit planned cost for UI planned payment",
+  });
+  await u.click(
+    screen.getByRole("button", {
+      name: "Edit planned cost for UI planned payment",
+    }),
+  );
+  await u.click(
+    dialog().getByRole("button", { name: "Move to actual expense" }),
+  );
+  await dialog().findByLabelText("Merchant / title");
+  await u.click(dialog().getByRole("button", { name: "Close dialog" }));
+  expect((await all()).find((entry) => entry.id === source.id)?.data.cost).toBe(
+    8500,
+  );
+  expect(
+    (await all()).filter(
+      (entry) => entry.kind === "expense" && entry.data.entryId === source.id,
+    ),
+  ).toHaveLength(0);
+  await u.click(
+    screen.getByRole("button", {
+      name: "Edit planned cost for UI planned payment",
+    }),
+  );
+  await u.click(
+    dialog().getByRole("button", { name: "Move to actual expense" }),
+  );
+  await dialog().findByLabelText("Merchant / title");
+  await u.dblClick(dialog().getByRole("button", { name: "Save expense" }));
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  const rows = await all();
+  expect(rows.find((entry) => entry.id === source.id)?.data.cost).toBe(0);
+  const actual = rows.filter(
+    (entry) =>
+      entry.kind === "expense" &&
+      entry.data.entryId === source.id &&
+      !entry.deleted,
+  );
+  expect(actual).toHaveLength(1);
+  expect(actual[0].data.total).toBe(8500);
+  expect(
+    screen.queryByRole("button", {
+      name: "Edit planned cost for UI planned payment",
+    }),
+  ).toBeNull();
+  expect(screen.getAllByText("$165.40").length).toBeGreaterThan(0);
+  await remove(actual[0]);
+  await remove(rows.find((entry) => entry.id === source.id)!);
 });
 
 it("expense editing recalculates spending and repayment records leave trip spending unchanged", async () => {

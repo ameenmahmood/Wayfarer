@@ -11,7 +11,8 @@ import {
 } from "lucide-react";
 import type { Entity, Expense, Repayment, Trip, Entry } from "./model";
 import { makeEntity, today, currencies } from "./model";
-import { save, remove } from "./store";
+import { save, saveBatch, remove } from "./store";
+import { plannedExpenseId } from "./plannedCosts";
 import { expenseCSV, report, money, minor, precision } from "./money";
 import { Button, Modal, Field, Notice, Empty, useAsyncAction } from "./ui";
 import { ExpenseForm, newExpense } from "./Forms";
@@ -43,6 +44,7 @@ export default function Budget({
     [budgeting, setBudgeting] = useState(false),
     [plannedOpen, setPlannedOpen] = useState(false),
     [plannedEntry, setPlannedEntry] = useState<Entity<Entry>>(),
+    [converting, setConverting] = useState<Entity<Entry>>(),
     a = useAsyncAction();
   const r = report(
     expenses.map((e) => e.data),
@@ -195,8 +197,8 @@ export default function Budget({
             <p>Add an itinerary activity first to attach a planned cost.</p>
           )}
           <small>
-            Shown in original currencies. Adding an actual expense does not
-            automatically remove the linked estimate.
+            Estimates use original currencies. Use Move to actual expense when
+            a planned cost has been paid.
           </small>
         </div>
       </section>
@@ -558,25 +560,102 @@ export default function Budget({
                 )}
               </select>
             </Field>
-            <small>Use zero to remove an estimate.</small>
             {a.error && <Notice tone="error">{a.error}</Notice>}
-            <Button type="submit" className="primary" disabled={a.busy}>
-              Save planned cost
-            </Button>
+            <div className="planned-cost-form-actions">
+              <Button type="submit" className="primary" disabled={a.busy}>
+                Save planned cost
+              </Button>
+              <Button
+                disabled={a.busy}
+                onClick={(event) => {
+                  const form = event.currentTarget.form!;
+                  if (!form.reportValidity()) return;
+                  const fields = new FormData(form);
+                  a.run(async () => {
+                    const currency = String(fields.get("currency"));
+                    const cost = minor(String(fields.get("cost")), currency);
+                    if (!cost)
+                      throw Error(
+                        "Enter a positive amount to move to actual expenses.",
+                      );
+                    const expense = makeEntity("expense", tripEntity.id, {
+                      ...newExpense(trip),
+                      title: plannedEntry.data.title,
+                      currency,
+                      total: cost,
+                      entryId: plannedEntry.id,
+                      category:
+                        plannedEntry.data.type === "Restaurant"
+                          ? "Food"
+                          : plannedEntry.data.type === "Lodging"
+                            ? "Stay"
+                            : ["Flight", "Transportation"].includes(
+                                  plannedEntry.data.type,
+                                )
+                              ? "Transport"
+                              : "Activities",
+                    });
+                    expense.id = await plannedExpenseId(plannedEntry);
+                    setConverting(plannedEntry);
+                    setEditing(expense);
+                    setPlannedEntry(undefined);
+                  });
+                }}
+              >
+                Move to actual expense
+              </Button>
+              <Button
+                className="danger-outline"
+                disabled={a.busy}
+                onClick={() =>
+                  a.run(async () => {
+                    await save({
+                      ...plannedEntry,
+                      data: { ...plannedEntry.data, cost: 0 },
+                    });
+                    setPlannedEntry(undefined);
+                  })
+                }
+              >
+                Delete planned cost
+              </Button>
+            </div>
           </form>
         </Modal>
       )}
       {editing && (
         <Modal
           title={editing.version ? "Edit expense" : "Add an expense"}
-          onClose={() => setEditing(undefined)}
+          onClose={() => {
+            setEditing(undefined);
+            setConverting(undefined);
+          }}
           wide
         >
+          {converting && (
+            <Notice>
+              Review the payment date, payer, split, and exchange rate. Saving
+              records the actual expense and removes this planned cost.
+            </Notice>
+          )}
           <ExpenseForm
             entity={editing}
             trip={trip}
             entries={entries}
-            onDone={() => setEditing(undefined)}
+            onSave={
+              converting
+                ? async (expense) => {
+                    await saveBatch([
+                      expense,
+                      { ...converting, data: { ...converting.data, cost: 0 } },
+                    ]);
+                  }
+                : undefined
+            }
+            onDone={() => {
+              setEditing(undefined);
+              setConverting(undefined);
+            }}
           />
         </Modal>
       )}

@@ -684,11 +684,13 @@ export function ExpenseForm({
   trip,
   entries,
   onDone,
+  onSave,
 }: {
   entity: Entity<Expense>;
   trip: Trip;
   entries: Entity<Entry>[];
   onDone: () => void;
+  onSave?: (expense: Entity<Expense>) => Promise<void>;
 }) {
   const [v, setV] = useState(entity.data),
     [total, setTotal] = useState(String(v.total / 10 ** precision(v.currency))),
@@ -733,7 +735,9 @@ export function ExpenseForm({
       onSubmit={(e) => {
         e.preventDefault();
         a.run(async () => {
-          await save({ ...entity, data: build() });
+          const expense = { ...entity, data: build() };
+          if (onSave) await onSave(expense);
+          else await save(expense);
           onDone();
         });
       }}

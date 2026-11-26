@@ -7535,3 +7535,21 @@ html {
 }
 .planned-cost-row small { display: block; color: var(--muted); }
 .planned-cost-content > small { display: block; margin-top: 10px; }
+.planned-cost-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+}
+@media (max-width: 650px) {
+  .planned-cost-form-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+  .planned-cost-form-actions .button { width: 100%; }
+}
+.planned-cost-form-actions .button {
+  min-height: 44px;
+  justify-content: center;
+}
