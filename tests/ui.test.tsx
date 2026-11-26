@@ -406,12 +406,16 @@ it("activity handles reorder by drag and keyboard without changing reservation t
         .getAttribute("aria-label"),
     ).toBe(sourceName),
   );
-  await waitFor(() =>
-    expect(
-      screen
-        .getAllByRole("button", { name: /^Reorder / })[0]
-        .getAttribute("aria-disabled"),
-    ).toBe("false"),
+  // Reordering persists each changed record. CI can need more than the default
+  // one second to finish the IndexedDB writes after the first row moves.
+  await waitFor(
+    () =>
+      expect(
+        screen
+          .getAllByRole("button", { name: /^Reorder / })[0]
+          .getAttribute("aria-disabled"),
+      ).toBe("false"),
+    { timeout: 5000 },
   );
   const u = userEvent.setup();
   screen.getAllByRole("button", { name: /^Reorder / })[0].focus();
