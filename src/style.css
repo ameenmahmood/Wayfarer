@@ -7561,3 +7561,39 @@ html {
   white-space: normal;
   line-height: 1.3;
 }
+
+/* Slim, per-leg travel estimates stay subordinate to activities. */
+.trip-active .activity-connection {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: calc(100% - 62px);
+  margin: 0 0 0 62px;
+  padding: 8px 4px;
+  min-height: 36px;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+  text-align: left;
+  cursor: pointer;
+}
+.activity-connection > span { flex: 1; min-width: 0; }
+.activity-connection strong { font-weight: 600; color: var(--text); }
+.activity-connection:hover { color: var(--text); }
+.activity-connection:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
+.connection-endpoints { font-weight: 600; }
+.connection-estimate { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+.connection-settings { display: grid; gap: 12px; margin: 16px 0; }
+.connection-settings .field { margin: 0; }
+.connection-booking { display: grid; gap: 8px; }
+.connection-booking > div { display: grid; grid-template-columns: 110px 1fr; gap: 8px; }
+.connection-booking dt { color: var(--muted); }
+.connection-booking dd { margin: 0; overflow-wrap: anywhere; }
+.map-route-distance { background: white; border: 1px solid #bdd2c5; border-radius: 6px; padding: 3px 6px; }
+@media (max-width: 650px) {
+  .trip-active .activity-connection { margin-left: 48px; width: calc(100% - 48px); font-size: 12px; padding: 7px 2px; }
+}

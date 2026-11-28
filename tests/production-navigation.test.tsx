@@ -55,7 +55,11 @@ vi.mock("../src/store", () => ({
   remove: vi.fn(),
   synchronize: async () => {},
   resolveConflict: vi.fn(),
-  api: (...args: any[]) => backend.api(...args),
+  // Background routes must not consume deferred place-search responses.
+  api: (...args: any[]) =>
+    args[0] === "route"
+      ? Promise.resolve({ minutes: 12, distanceMeters: 800 })
+      : backend.api(...args),
   supabase: {
     rpc: (...args: any[]) => backend.rpc(...args),
     auth: {

@@ -10,6 +10,7 @@ import {
 export type TransportEstimate = {
   state: "loading" | "ready" | "error";
   minutes?: number;
+  distanceMeters?: number;
   polyline?: string;
   warnings?: string[];
   error?: string;
@@ -71,6 +72,11 @@ export function requestTransport(query: TransportQuery, refresh = false) {
       cache.set(query.key, {
         state: "ready",
         minutes: Math.max(1, Math.ceil(response.minutes)),
+        distanceMeters:
+          Number.isFinite(response.distanceMeters) &&
+          response.distanceMeters >= 0
+            ? response.distanceMeters
+            : undefined,
         polyline: response.polyline,
         warnings: response.warnings || [],
         source: response.source || "Google Routes",
@@ -100,6 +106,12 @@ export function clearTransportRouteCache() {
   cache.clear();
   pending.clear();
   emit();
+}
+export function transportSnapshot(key: string) {
+  return cache.get(key);
+}
+export function useTransportRevision() {
+  return useSyncExternalStore(subscribe, () => revision);
 }
 export function useTransportRoutes(
   entries: Entity<Entry>[],

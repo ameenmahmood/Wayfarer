@@ -102,7 +102,7 @@ export type TransportQuery = {
     origin: { placeId?: string; lat?: number; lng?: number };
     destination: { placeId?: string; lat?: number; lng?: number };
     mode: string;
-    departure: string;
+    departure?: string;
   };
 };
 export function transportQuery(

@@ -40,6 +40,8 @@ import {
 import MapPanel from "./MapPanel";
 import TransportEditor, { TransportFields } from "./TransportEditor";
 import { useTransportRoutes } from "./transportRoutes";
+import { useActivityRoutes } from "./activityRoutes";
+import ActivityConnection from "./ActivityConnection";
 
 import { preservesTransfers } from "./transfers";
 import NearbyPlaces from "./NearbyPlaces";
@@ -149,6 +151,10 @@ export default function Itinerary({
       : filtered.flatMap(({ data }) => (data.placeId ? [data.placeId] : [])),
   );
   const transportEstimates = useTransportRoutes(filtered, entries);
+  const activityEstimates = useActivityRoutes(
+    filtered,
+    view !== "saved" && !mapOnly,
+  );
   const dayEntries = filtered.filter((e) => e.data.date === date);
   const alerts = itineraryAlerts(dayEntries, entries, transportEstimates);
   function revealEntry(id: string, edit = false) {
@@ -246,6 +252,16 @@ export default function Itinerary({
     const rowTime = activityTime(e.data, estimate);
     return (
       <div key={e.id} className="timeline-wrap">
+        {previous && activityEstimates[e.id] && (
+          <ActivityConnection
+            key={`${previous.id}:${e.id}`}
+            previous={previous}
+            entry={e}
+            estimate={activityEstimates[e.id]}
+            canEdit={canEdit}
+            onSelect={setSelected}
+          />
+        )}
         <article
           id={e.id}
           className={`plan-card ${e.data.type === "Transportation" ? "transport-plan" : ""} ${hasSummary ? "has-summary" : "no-summary"} ${canEdit && view === "day" ? "can-reorder" : ""} ${drag === e.id ? "is-dragging" : ""} ${dropTarget === e.id && drag !== e.id ? "drop-target" : ""} ${selected === e.id ? "selected" : ""} ${expandedEntry === e.id ? "is-expanded" : ""}`}

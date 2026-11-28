@@ -102,6 +102,63 @@ it("highlights a selected transport route without requesting a new estimate", as
   ).toHaveLength(1);
 });
 afterEach(cleanup);
+it("draws walking and driving legs with their own routes and distance labels", async () => {
+  const first = entry("First", "one"),
+    second = entry("Second", "two"),
+    third = entry("Third", "three");
+  service.api.mockImplementation(async (action, _trip, input) => {
+    if (action === "place")
+      return { location: { latitude: 10.4, longitude: -75.5 } };
+    if (action !== "route") return {};
+    const walking = input.mode === "WALK";
+    return {
+      minutes: input.destination.placeId === "two" ? 12 : walking ? 35 : 8,
+      distanceMeters: walking ? 800 : 2400,
+      polyline: walking ? "walking" : "driving",
+    };
+  });
+  window.google.maps.geometry.encoding.decodePath = (encoded: string) => [
+    { lat: 10.4, lng: -75.5 },
+    { lat: encoded === "walking" ? 10.41 : 10.42, lng: -75.51 },
+  ];
+  const onSelect = vi.fn();
+  render(
+    <MapPanel
+      entries={[first, second, third]}
+      selected=""
+      onSelect={onSelect}
+      tripId="trip"
+    />,
+  );
+  await waitFor(
+    () =>
+      expect(
+        service.api.mock.calls.filter((call) => call[0] === "route"),
+      ).toHaveLength(3),
+    { timeout: 2500 },
+  );
+  const activePaths = () =>
+    polylines.filter(
+      (path) => !path.setMap.mock.calls.some((call: any[]) => call[0] === null),
+    );
+  await waitFor(() => expect(activePaths()).toHaveLength(2));
+  expect(
+    activePaths().some((path) => path.options.icons?.[0].repeat === "9px"),
+  ).toBe(true);
+  expect(activePaths().some((path) => path.options.strokeOpacity === 0.8)).toBe(
+    true,
+  );
+  expect(markers.some((marker) => marker.options.label?.text === "800 m")).toBe(
+    true,
+  );
+  expect(
+    markers.some((marker) => marker.options.label?.text === "2.4 km"),
+  ).toBe(true);
+  activePaths()[0].addListener.mock.calls.find(
+    (call: any[]) => call[0] === "click",
+  )[1]();
+  expect(onSelect).toHaveBeenCalledWith(second.id);
+});
 it("does not construct a map or fetch places before owner approval", async () => {
   service.api.mockRejectedValue(
     Error("The site owner must approve your account."),
@@ -150,7 +207,7 @@ function transport(from: Entity<Entry>, to: Entity<Entry>) {
   };
   return ride;
 }
-it("maps ordinary places without calculating inferred routes", async () => {
+it("caches automatic routes for ordinary places across note edits and selection", async () => {
   const entries = [entry("First", "one"), entry("Second", "two")];
   const { rerender } = render(
     <MapPanel
@@ -161,7 +218,9 @@ it("maps ordinary places without calculating inferred routes", async () => {
     />,
   );
   await waitFor(() => expect(markers).toHaveLength(2));
-  await waitFor(() => expect(service.api).toHaveBeenCalledTimes(3));
+  await waitFor(() => expect(service.api).toHaveBeenCalledTimes(5), {
+    timeout: 2500,
+  });
   rerender(
     <MapPanel
       entries={entries.map((e) => ({
@@ -178,7 +237,7 @@ it("maps ordinary places without calculating inferred routes", async () => {
       tripId="trip"
     />,
   );
-  expect(service.api).toHaveBeenCalledTimes(3);
+  expect(service.api).toHaveBeenCalledTimes(5);
   expect(markers[0].setTitle).toHaveBeenCalledWith("First renamed");
   rerender(
     <MapPanel
@@ -189,13 +248,15 @@ it("maps ordinary places without calculating inferred routes", async () => {
       mode="DRIVE"
     />,
   );
-  await waitFor(() => expect(service.api).toHaveBeenCalledTimes(3));
+  await waitFor(() => expect(service.api).toHaveBeenCalledTimes(5), {
+    timeout: 2500,
+  });
   expect(
     service.api.mock.calls.filter((call) => call[0] === "place"),
   ).toHaveLength(2);
   expect(
     service.api.mock.calls.filter((call) => call[0] === "route"),
-  ).toHaveLength(0);
+  ).toHaveLength(2);
 });
 it("selection and click callbacks use entry IDs even when an earlier place could not load", async () => {
   const entries = [entry("Unavailable", "missing"), entry("Visible", "valid")];

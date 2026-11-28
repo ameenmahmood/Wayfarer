@@ -21,6 +21,11 @@ import {
   transportQuery,
 } from "./transport";
 import { useTransportRoutes } from "./transportRoutes";
+import {
+  activityLegs,
+  formatRouteDistance,
+  useActivityRoutes,
+} from "./activityRoutes";
 import { createCoordinateLookup } from "./placeCoordinates";
 declare global {
   interface Window {
@@ -101,6 +106,7 @@ export default function MapPanel({
   selectedRef.current = selected;
   const flights = flightConnections(entries, contextEntries);
   const transportEstimates = useTransportRoutes(entries, contextEntries);
+  const activityEstimates = useActivityRoutes(entries);
   const groundTrips = entries.filter(
     (entry) => entry.data.type === "Transportation",
   );
@@ -133,13 +139,21 @@ export default function MapPanel({
       e.data.arrival?.mode,
     ]),
   );
-  const routeKey = JSON.stringify(
+  const routeKey = JSON.stringify([
     groundTrips.map((entry) => [
       entry.id,
       transportQuery(entry, contextEntries)?.key,
       transportEstimates[entry.id],
     ]),
-  );
+    Object.entries(activityEstimates)
+      .filter(([, result]) => result.polyline)
+      .map(([id, result]) => [
+        id,
+        result.polyline,
+        result.distanceMeters,
+        result.mode,
+      ]),
+  ]);
   const [mapVersion, setMapVersion] = useState(0);
   const [routeWarnings, setRouteWarnings] = useState<string[]>([]);
   const configured = !demo && !!import.meta.env.VITE_GOOGLE_MAPS_BROWSER_KEY;
@@ -319,6 +333,53 @@ export default function MapPanel({
         path.addListener?.("click", () => onSelectRef.current(transport.id));
         paths.current.push(path);
       }
+      for (const leg of activityLegs(entries)) {
+        const result = activityEstimates[leg.entry.id];
+        if (!result?.polyline) continue;
+        const decoded = window.google.maps.geometry.encoding.decodePath(
+          result.polyline,
+        );
+        const path = new window.google.maps.Polyline({
+          path: decoded,
+          strokeColor:
+            selectedRef.current === leg.entry.id ? "#278659" : "#69887b",
+          strokeWeight: selectedRef.current === leg.entry.id ? 6 : 3,
+          strokeOpacity: result.mode === "WALK" ? 0 : 0.8,
+          ...(result.mode === "WALK"
+            ? {
+                icons: [
+                  {
+                    icon: { path: "M 0,-1 0,1", strokeOpacity: 1, scale: 2 },
+                    offset: "0",
+                    repeat: "9px",
+                  },
+                ],
+              }
+            : {}),
+          map: map.current,
+        });
+        groundPaths.current.set(leg.entry.id, path);
+        path.addListener?.("click", () => onSelectRef.current(leg.entry.id));
+        paths.current.push(path);
+        if (result.distanceMeters !== undefined && decoded.length) {
+          const label = new window.google.maps.Marker({
+            position: decoded[Math.floor(decoded.length / 2)],
+            map: map.current,
+            icon: { path: "M 0,0", scale: 0 },
+            label: {
+              text: formatRouteDistance(result.distanceMeters),
+              color: "#163d2c",
+              fontSize: "12px",
+              fontWeight: "600",
+              className: "map-route-distance",
+            },
+            title: `${leg.previous.data.title} to ${leg.entry.data.title}`,
+            zIndex: 5,
+          });
+          label.addListener?.("click", () => onSelectRef.current(leg.entry.id));
+          paths.current.push(label);
+        }
+      }
     }
     void draw();
     return () => {
@@ -332,7 +393,12 @@ export default function MapPanel({
       path.setOptions?.({
         strokeColor: id === selected ? "#278659" : "#69887b",
         strokeWeight: id === selected ? 6 : 3,
-        strokeOpacity: id === selected ? 1 : 0.65,
+        strokeOpacity:
+          activityEstimates[id]?.mode === "WALK"
+            ? 0
+            : id === selected
+              ? 1
+              : 0.65,
         zIndex: id === selected ? 5 : 1,
       });
     for (const [id, marker] of markers.current)

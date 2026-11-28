@@ -512,7 +512,7 @@ it.each(["route", "matrix"])(
         new Response(
           JSON.stringify(
             action === "route"
-              ? { routes: [{ duration: "120s" }] }
+              ? { routes: [{ duration: "120s", distanceMeters: 750 }] }
               : [
                   {
                     originIndex: 0,
@@ -540,7 +540,13 @@ it.each(["route", "matrix"])(
       expect(response.status).toBe(200);
       const payload = JSON.parse(service.google.mock.calls[0][1].body);
       expect(payload.travelMode).toBe(mode);
-      if (action === "route") expect(payload.languageCode).toBe("en-US");
+      if (action === "route") {
+        expect(payload.languageCode).toBe("en-US");
+        expect(await response.json()).toMatchObject({
+          minutes: 2,
+          distanceMeters: 750,
+        });
+      }
       if (mode === "TRANSIT") expect(payload.departureTime).toBe(departure);
       else expect(payload).not.toHaveProperty("departureTime");
     }

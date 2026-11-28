@@ -389,6 +389,7 @@ Deno.serve(async (req: Request) => {
         );
       result = {
         minutes: Math.ceil(parseFloat(data.routes[0].duration) / 60),
+        distanceMeters: data.routes[0].distanceMeters,
         polyline: data.routes[0].polyline?.encodedPolyline,
         warnings: data.routes[0].warnings || [],
         source: "Google Routes",
